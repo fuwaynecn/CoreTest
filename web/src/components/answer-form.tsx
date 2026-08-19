@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useSyncExternalStore } from "react";
 
 export type AttemptResult = {
   correct: boolean;
@@ -61,7 +61,10 @@ async function postAttempt(payload: {
   return data;
 }
 
+const subscribeToHydration = () => () => undefined;
+
 export function AnswerForm({ sessionItemId, nextHref = "/child", submitAnswer = postAttempt }: AnswerFormProps) {
+  const hydrated = useSyncExternalStore(subscribeToHydration, () => true, () => false);
   const [answerText, setAnswerText] = useState("");
   const [result, setResult] = useState<AttemptResult | null>(null);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
@@ -91,7 +94,16 @@ export function AnswerForm({ sessionItemId, nextHref = "/child", submitAnswer = 
     }
   }
 
-  const answerLocked = submitting || submissionId !== null || result !== null;
+  const answerLocked = !hydrated || submitting || submissionId !== null || result !== null;
+
+  function goToNextQuestion() {
+    const nextUrl = new URL(nextHref, window.location.href);
+    if (nextUrl.href === window.location.href) {
+      window.location.reload();
+      return;
+    }
+    window.location.assign(nextUrl.href);
+  }
 
   return (
     <form className="answerForm" onSubmit={handleSubmit}>
@@ -102,7 +114,7 @@ export function AnswerForm({ sessionItemId, nextHref = "/child", submitAnswer = 
         onChange={(event) => setAnswerText(event.target.value)}
         disabled={answerLocked}
       />
-      <button type="submit" disabled={submitting || result !== null}>{submitting ? "正在提交" : submissionId ? "重试提交" : "提交答案"}</button>
+      <button type="submit" disabled={!hydrated || submitting || result !== null}>{submitting ? "正在提交" : submissionId ? "重试提交" : "提交答案"}</button>
       {error && <p className="answerError" role="alert">{error}</p>}
       {result && !result.correct && (
         <section className="answerFeedback answerFeedbackIncorrect" aria-live="polite">
@@ -114,7 +126,7 @@ export function AnswerForm({ sessionItemId, nextHref = "/child", submitAnswer = 
       {result?.correct && (
         <section className="answerFeedback answerFeedbackCorrect" aria-live="polite">
           <p><span aria-hidden="true">✓</span> 做对了，别忘了检查题目问的是什么。</p>
-          <a className="primaryButton" href={nextHref}>下一题</a>
+          <button type="button" onClick={goToNextQuestion}>下一题</button>
         </section>
       )}
     </form>

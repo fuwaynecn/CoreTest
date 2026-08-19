@@ -12,6 +12,8 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:seed": "tsx src/db/seed.ts",
+    "e2e:seed": "cross-env DB_FILE_NAME=.tmp/e2e.sqlite PARENT_PASSWORD=parent-test-1234 CHILD_PIN=2468 tsx scripts/seed-e2e.ts",
+    "test:e2e": "playwright test",
     "verify": "npm run lint && npm run typecheck && npm run test:run && npm run build"
   },
   "dependencies": {
@@ -30,6 +32,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^5.1.1",
+    "cross-env": "^10.1.0",
     "drizzle-kit": "^1.0.0-rc.4",
     "eslint": "^9",
     "eslint-config-next": "16.3.1",

@@ -21,7 +21,7 @@ test("shows correction feedback returned by the server", async () => {
   expect(screen.getByText("把十分位对齐后再相加。")).toBeInTheDocument();
 });
 
-test("offers the next question after a correct answer", async () => {
+test("offers a navigation action after a correct answer", async () => {
   const submit = vi.fn().mockResolvedValue({
     correct: true,
     normalizedAnswer: "6",
@@ -41,10 +41,7 @@ test("offers the next question after a correct answer", async () => {
   await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
 
   expect(await screen.findByText("做对了，别忘了检查题目问的是什么。")).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "下一题" })).toHaveAttribute(
-    "href",
-    "/child/session/session-1",
-  );
+  expect(screen.getByRole("button", { name: "下一题" })).toBeInTheDocument();
 });
 
 test("retries an interrupted submission with the same id", async () => {
