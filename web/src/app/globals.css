@@ -4,9 +4,11 @@ html { background: var(--paper); color: var(--ink); }
 body { margin: 0; font-family: Arial, "Microsoft YaHei", sans-serif; }
 a { color: inherit; }
 button, input { font: inherit; }
+button, input { min-height: 48px; }
+:focus-visible { outline: 3px solid #1f5f57; outline-offset: 3px; }
 .landing { min-height: 100dvh; display: grid; place-content: center; gap: 1rem; padding: 2rem; text-align: center; }
 .eyebrow { color: var(--brand); font-weight: 700; }
-.primaryButton { display: inline-block; justify-self: center; padding: .9rem 1.4rem; border-radius: .75rem; background: var(--brand); color: white; text-decoration: none; }
+.primaryButton { display: inline-flex; align-items: center; min-height: 48px; justify-self: center; padding: .9rem 1.4rem; border-radius: .75rem; background: var(--brand); color: white; text-decoration: none; }
 .loginPage { min-height: 100dvh; display: grid; place-items: center; padding: 2rem; }
 .loginPanel { width: min(100%, 42rem); }
 .loginPanel h1 { margin: .25rem 0; font-size: clamp(2rem, 7vw, 3.25rem); }
@@ -22,4 +24,23 @@ button, input { font: inherit; }
 .loginError { margin: 0; color: #9b2424; font-weight: 700; }
 .loginSubmit { border: 0; cursor: pointer; }
 .loginSubmit:disabled { cursor: wait; opacity: .65; }
+.trainingPage { width: min(100%, 960px); min-height: 100dvh; margin: 0 auto; padding: clamp(1.5rem, 5vw, 4rem); }
+.trainingPage h1 { margin: .25rem 0 1rem; font-size: clamp(2rem, 6vw, 3.5rem); }
+.trainingStart { margin-top: 1rem; }
+.sessionProgress { margin: 0 0 1rem; color: #57635f; font-weight: 700; }
+.questionCard { padding: clamp(1.25rem, 4vw, 2.5rem); border: 2px solid var(--sand); border-radius: 1rem; background: white; }
+.questionCard h1 { font-size: clamp(2rem, 7vw, 4rem); line-height: 1.2; }
+.answerForm { display: grid; gap: 1rem; margin-top: 1.5rem; }
+.answerLabel { font-weight: 700; }
+.answerForm input { width: min(100%, 28rem); padding: .75rem 1rem; border: 2px solid #9ca7a3; border-radius: .75rem; background: white; }
+.answerForm button { width: fit-content; min-width: 10rem; padding: .75rem 1.25rem; border: 0; border-radius: .75rem; background: var(--brand); color: white; cursor: pointer; font-weight: 700; }
+.answerForm button:disabled { cursor: wait; opacity: .65; }
+.answerFeedback { padding: 1rem 1.25rem; border: 2px solid currentColor; border-radius: .75rem; font-weight: 700; }
+.answerFeedback h2, .answerFeedback p { margin-top: 0; }
+.answerFeedbackIncorrect { color: #8a3918; background: #fff3e9; }
+.answerFeedbackCorrect { color: #155d43; background: #eaf7ef; }
+.answerFeedback .primaryButton { width: fit-content; }
+.answerError { margin: 0; color: #9b2424; font-weight: 700; }
+.completionCard { display: grid; place-content: center; gap: .5rem; }
+@media (min-width: 768px) { body { font-size: 18px; } }
 @media (max-width: 35rem) { .roleCards { grid-template-columns: 1fr; } }
