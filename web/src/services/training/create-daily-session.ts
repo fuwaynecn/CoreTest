@@ -10,39 +10,41 @@ import {
 import type { SessionView } from "@/domain/training/types";
 
 function loadSessionView(db: AppDatabase, sessionId: string): SessionView {
-  const session = db.select({
-    id: trainingSessions.id,
-    status: trainingSessions.status,
-  }).from(trainingSessions).where(eq(trainingSessions.id, sessionId)).get();
+  return db.transaction((tx) => {
+    const session = tx.select({
+      id: trainingSessions.id,
+      status: trainingSessions.status,
+    }).from(trainingSessions).where(eq(trainingSessions.id, sessionId)).get();
 
-  if (!session) throw new Error("Training session was not found");
+    if (!session) throw new Error("Training session was not found");
 
-  const items = db.select({
-    id: sessionItems.id,
-    position: sessionItems.position,
-    stem: questionTemplates.stem,
-  }).from(sessionItems)
-    .innerJoin(questionTemplates, eq(sessionItems.questionTemplateId, questionTemplates.id))
-    .where(eq(sessionItems.sessionId, sessionId))
-    .orderBy(asc(sessionItems.position))
-    .all();
+    const items = tx.select({
+      id: sessionItems.id,
+      position: sessionItems.position,
+      stem: questionTemplates.stem,
+    }).from(sessionItems)
+      .innerJoin(questionTemplates, eq(sessionItems.questionTemplateId, questionTemplates.id))
+      .where(eq(sessionItems.sessionId, sessionId))
+      .orderBy(asc(sessionItems.position))
+      .all();
 
-  const questions = items.map((item) => ({
-    ...item,
-    answered: db.select({ id: attempts.id })
-      .from(attempts)
-      .where(and(eq(attempts.sessionItemId, item.id), eq(attempts.isCorrect, true)))
-      .limit(1)
-      .get() !== undefined,
-  }));
-  const firstUnanswered = questions.find((question) => !question.answered);
+    const questions = items.map((item) => ({
+      ...item,
+      answered: tx.select({ id: attempts.id })
+        .from(attempts)
+        .where(and(eq(attempts.sessionItemId, item.id), eq(attempts.isCorrect, true)))
+        .limit(1)
+        .get() !== undefined,
+    }));
+    const firstUnanswered = questions.find((question) => !question.answered);
 
-  return {
-    id: session.id,
-    status: session.status,
-    currentPosition: firstUnanswered?.position ?? questions.length,
-    questions,
-  };
+    return {
+      id: session.id,
+      status: session.status,
+      currentPosition: firstUnanswered?.position ?? questions.length,
+      questions,
+    };
+  });
 }
 
 export function getOrCreateDailySession(

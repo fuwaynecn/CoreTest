@@ -50,28 +50,29 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
   return db.transaction((tx) => {
     const existing = tx.select({
       childId: trainingSessions.childId,
-      answerText: attempts.answerText,
+      sessionItemId: attempts.sessionItemId,
       correct: attempts.isCorrect,
-      answerSpec: questionTemplates.answerSpec,
-      explanation: questionTemplates.explanation,
-      sessionStatus: trainingSessions.status,
+      normalizedAnswer: attempts.normalizedAnswer,
+      explanation: attempts.explanation,
+      sessionCompleted: attempts.sessionCompleted,
     }).from(attempts)
       .innerJoin(sessionItems, eq(attempts.sessionItemId, sessionItems.id))
       .innerJoin(trainingSessions, eq(sessionItems.sessionId, trainingSessions.id))
-      .innerJoin(questionTemplates, eq(sessionItems.questionTemplateId, questionTemplates.id))
       .where(eq(attempts.clientSubmissionId, command.clientSubmissionId))
       .get();
 
     if (existing) {
-      if (existing.childId !== command.childId) throw new TrainingAccessError();
+      if (
+        existing.childId !== command.childId
+        || existing.sessionItemId !== command.sessionItemId
+      ) {
+        throw new TrainingAccessError();
+      }
       return {
         correct: existing.correct,
-        normalizedAnswer: scoreAnswer(
-          existing.answerText,
-          parseAnswerSpec(existing.answerSpec),
-        ).normalizedAnswer,
+        normalizedAnswer: existing.normalizedAnswer,
         explanation: existing.explanation,
-        sessionCompleted: existing.sessionStatus === "completed",
+        sessionCompleted: existing.sessionCompleted,
       };
     }
 
@@ -93,15 +94,6 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
 
     const score = scoreAnswer(command.answerText, parseAnswerSpec(item.answerSpec));
     const now = Date.now();
-    tx.insert(attempts).values({
-      id: randomUUID(),
-      sessionItemId: command.sessionItemId,
-      clientSubmissionId: command.clientSubmissionId,
-      answerText: command.answerText,
-      isCorrect: score.correct,
-      submittedAt: now,
-    }).run();
-
     const currentMastery = tx.select({
       evidenceCount: masteryStates.evidenceCount,
       correctCount: masteryStates.correctCount,
@@ -126,7 +118,8 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
       .where(eq(sessionItems.sessionId, item.sessionId))
       .all();
     const sessionCompleted = allItems.length > 0 && allItems.every((sessionItem) => (
-      tx.select({ id: attempts.id })
+      (sessionItem.id === command.sessionItemId && score.correct)
+      || tx.select({ id: attempts.id })
         .from(attempts)
         .where(and(
           eq(attempts.sessionItemId, sessionItem.id),
@@ -135,6 +128,18 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
         .limit(1)
         .get() !== undefined
     ));
+
+    tx.insert(attempts).values({
+      id: randomUUID(),
+      sessionItemId: command.sessionItemId,
+      clientSubmissionId: command.clientSubmissionId,
+      answerText: command.answerText,
+      isCorrect: score.correct,
+      normalizedAnswer: score.normalizedAnswer,
+      explanation: item.explanation,
+      sessionCompleted,
+      submittedAt: now,
+    }).run();
 
     if (sessionCompleted) {
       tx.update(trainingSessions).set({ status: "completed", completedAt: now })

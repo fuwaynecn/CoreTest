@@ -54,6 +54,9 @@ export const attempts = sqliteTable("attempts", {
   clientSubmissionId: text("client_submission_id").notNull().unique(),
   answerText: text("answer_text").notNull(),
   isCorrect: integer("is_correct", { mode: "boolean" }).notNull(),
+  normalizedAnswer: text("normalized_answer").notNull(),
+  explanation: text("explanation").notNull(),
+  sessionCompleted: integer("session_completed", { mode: "boolean" }).notNull(),
   submittedAt: integer("submitted_at").notNull(),
 });
 
