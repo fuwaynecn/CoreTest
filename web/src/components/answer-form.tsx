@@ -19,6 +19,13 @@ type AnswerFormProps = {
   }) => Promise<AttemptResult>;
 };
 
+class AttemptResponseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AttemptResponseError";
+  }
+}
+
 async function postAttempt(payload: {
   sessionItemId: string;
   clientSubmissionId: string;
@@ -29,9 +36,14 @@ async function postAttempt(payload: {
     headers: { "content-type": "application/json" },
     body: JSON.stringify(payload),
   });
-  const data = await response.json();
+  const data: unknown = await response.json().catch(() => null);
 
-  if (!response.ok) throw new Error(data.error ?? "Unable to submit answer");
+  if (!response.ok) {
+    const message = typeof data === "object" && data !== null && "error" in data && typeof data.error === "string"
+      ? data.error
+      : "提交没有成功，请修改答案后重试。";
+    throw new AttemptResponseError(message);
+  }
   return data as AttemptResult;
 }
 
@@ -53,8 +65,13 @@ export function AnswerForm({ sessionItemId, nextHref = "/child", submitAnswer = 
       const nextResult = await submitAnswer({ sessionItemId, clientSubmissionId, answerText });
       setResult(nextResult);
       setSubmissionId(null);
-    } catch {
-      setError("提交没有成功，请重试。");
+    } catch (error) {
+      if (error instanceof AttemptResponseError) {
+        setSubmissionId(null);
+        setError(error.message);
+      } else {
+        setError("提交没有成功，请重试。");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -71,7 +88,7 @@ export function AnswerForm({ sessionItemId, nextHref = "/child", submitAnswer = 
         onChange={(event) => setAnswerText(event.target.value)}
         disabled={answerLocked}
       />
-      <button type="submit" disabled={submitting || result !== null}>{submitting ? "正在提交" : error ? "重试提交" : "提交答案"}</button>
+      <button type="submit" disabled={submitting || result !== null}>{submitting ? "正在提交" : submissionId ? "重试提交" : "提交答案"}</button>
       {error && <p className="answerError" role="alert">{error}</p>}
       {result && !result.correct && (
         <section className="answerFeedback answerFeedbackIncorrect" aria-live="polite">
