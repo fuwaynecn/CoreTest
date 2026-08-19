@@ -26,6 +26,19 @@ class AttemptResponseError extends Error {
   }
 }
 
+function isAttemptResult(data: unknown): data is AttemptResult {
+  return typeof data === "object"
+    && data !== null
+    && "correct" in data
+    && typeof data.correct === "boolean"
+    && "normalizedAnswer" in data
+    && typeof data.normalizedAnswer === "string"
+    && "explanation" in data
+    && typeof data.explanation === "string"
+    && "sessionCompleted" in data
+    && typeof data.sessionCompleted === "boolean";
+}
+
 async function postAttempt(payload: {
   sessionItemId: string;
   clientSubmissionId: string;
@@ -44,7 +57,8 @@ async function postAttempt(payload: {
       : "提交没有成功，请修改答案后重试。";
     throw new AttemptResponseError(message);
   }
-  return data as AttemptResult;
+  if (!isAttemptResult(data)) throw new Error("Unexpected attempt response");
+  return data;
 }
 
 export function AnswerForm({ sessionItemId, nextHref = "/child", submitAnswer = postAttempt }: AnswerFormProps) {
