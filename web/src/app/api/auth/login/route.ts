@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    secure: process.env.SESSION_COOKIE_SECURE === "true",
+    secure: process.env.NODE_ENV === "production" || process.env.SESSION_COOKIE_SECURE === "true",
     expires: new Date(expiresAt),
   });
 
