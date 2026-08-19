@@ -11,7 +11,21 @@ export default defineConfig({
   },
   use: { baseURL: "http://127.0.0.1:3000", trace: "retain-on-failure" },
   projects: [
-    { name: "tablet", grep: /@tablet/, use: { ...devices["iPad (gen 7) landscape"] } },
-    { name: "parent-mobile", grep: /@parent/, dependencies: ["tablet"], use: { ...devices["iPhone 13"] } },
+    {
+      name: "tablet-webkit",
+      grep: /@tablet/,
+      use: { ...devices["iPad (gen 7) landscape"], browserName: "webkit" },
+    },
+    {
+      name: "tablet-chromium",
+      grep: /@tablet/,
+      use: { ...devices["iPad (gen 7) landscape"], browserName: "chromium", channel: "chrome" },
+    },
+    {
+      name: "parent-mobile",
+      grep: /@parent/,
+      dependencies: ["tablet-webkit"],
+      use: { ...devices["iPhone 13"], browserName: "webkit" },
+    },
   ],
 });
