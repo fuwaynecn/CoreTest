@@ -1,0 +1,9 @@
+:root { color-scheme: light; --ink: #24312f; --paper: #fbfaf6; --brand: #236b62; --sand: #e6dccb; }
+* { box-sizing: border-box; }
+html { background: var(--paper); color: var(--ink); }
+body { margin: 0; font-family: Arial, "Microsoft YaHei", sans-serif; }
+a { color: inherit; }
+button, input { font: inherit; }
+.landing { min-height: 100dvh; display: grid; place-content: center; gap: 1rem; padding: 2rem; text-align: center; }
+.eyebrow { color: var(--brand); font-weight: 700; }
+.primaryButton { display: inline-block; justify-self: center; padding: .9rem 1.4rem; border-radius: .75rem; background: var(--brand); color: white; text-decoration: none; }
