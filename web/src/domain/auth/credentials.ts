@@ -1,9 +1,12 @@
 import { randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
+import { z } from "zod";
 
 const scryptAsync = promisify(scrypt);
 const SALT_BYTES = 16;
 const KEY_BYTES = 64;
+
+export const credentialInputSchema = z.string().min(4).max(128);
 
 async function deriveKey(value: string, salt: Buffer) {
   return (await scryptAsync(value, salt, KEY_BYTES)) as Buffer;

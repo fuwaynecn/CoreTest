@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getDatabase } from "@/db/client";
-import { requireRole } from "@/lib/auth/current-user";
+import { getCurrentUser } from "@/lib/auth/current-user";
 import {
   InvalidAnswerError,
   submitAttempt,
@@ -15,7 +15,15 @@ const attemptInput = z.object({
 });
 
 export async function POST(request: Request) {
-  const child = await requireRole("child");
+  const child = await getCurrentUser();
+
+  if (!child) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+  if (child.role !== "child") {
+    return NextResponse.json({ error: "Child access required" }, { status: 403 });
+  }
+
   const input = attemptInput.safeParse(await request.json().catch(() => null));
 
   if (!input.success) {

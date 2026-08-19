@@ -29,13 +29,24 @@ beforeEach(() => {
   }).run();
   state.db = db;
   getParentEvidence.mockReturnValue({
-    summary: { answered: 2, correct: 1, accuracy: 0.5 },
+    summary: {
+      cumulative: { answered: 3, correct: 2, accuracy: 2 / 3 },
+      today: { answered: 1, correct: 0, accuracy: 0 },
+      week: { answered: 1, correct: 1, accuracy: 1 },
+    },
     recent: [
       {
         stem: "每盒彩笔 7.5 元，买 1 盒需要付多少钱？请写单位。",
         answerText: "7.5",
         correct: false,
         submittedAt: Date.UTC(2026, 7, 19, 12),
+        skillName: "读题与单位",
+      },
+      {
+        stem: "每盒彩笔 7.5 元，买 1 盒需要付多少钱？请写单位。",
+        answerText: "7.5 元",
+        correct: true,
+        submittedAt: Date.UTC(2026, 7, 19, 12, 1),
         skillName: "读题与单位",
       },
     ],
@@ -47,18 +58,25 @@ beforeEach(() => {
   });
 });
 
-test("shows supporting evidence and a measured recommendation without a final diagnosis", async () => {
+test("labels first-attempt periods and bases the recommendation on this week", async () => {
   render(await ParentPage());
 
   expect(requireRole).toHaveBeenCalledWith("parent");
   expect(getParentEvidence).toHaveBeenCalledWith(state.db, "child-1");
   expect(screen.getByRole("heading", { name: "小雨的学习证据" })).toBeInTheDocument();
   expect(screen.getByText("首次作答证据")).toBeInTheDocument();
-  expect(screen.getByText("50%", { exact: false })).toBeInTheDocument();
-  expect(screen.getByText("本周先看错题原因，不额外加量")).toBeInTheDocument();
+  expect(screen.getByText("累计首次作答")).toBeInTheDocument();
+  expect(screen.getByText("累计首次答对率 67%")).toBeInTheDocument();
+  expect(screen.getByText("今日首次作答")).toBeInTheDocument();
+  expect(screen.getByText("今日首次答对率 0%")).toBeInTheDocument();
+  expect(screen.getByText("本周首次作答")).toBeInTheDocument();
+  expect(screen.getByText("本周首次答对率 100%")).toBeInTheDocument();
+  expect(screen.getByText("保持当前训练节奏")).toBeInTheDocument();
 
-  const row = screen.getByRole("row", { name: /每盒彩笔/ });
-  expect(within(row).getByText("7.5")).toBeInTheDocument();
-  expect(within(row).getByText("未答对")).toBeInTheDocument();
+  const rows = screen.getAllByRole("row", { name: /每盒彩笔/ });
+  expect(within(rows[0]).getByText("7.5")).toBeInTheDocument();
+  expect(within(rows[0]).getByText("未答对")).toBeInTheDocument();
+  expect(within(rows[1]).getByText("7.5 元")).toBeInTheDocument();
+  expect(within(rows[1]).getByText("已答对")).toBeInTheDocument();
   expect(screen.queryByText(/能力诊断|最终诊断/)).not.toBeInTheDocument();
 });

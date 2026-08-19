@@ -4,7 +4,7 @@ import { createTestDatabase } from "@/test/test-db";
 
 const testState = vi.hoisted(() => ({
   db: undefined as unknown,
-  requireRole: vi.fn(async () => ({ id: "child-1", role: "child", displayName: "孩子" })),
+  getCurrentUser: vi.fn(),
 }));
 
 vi.mock("@/db/client", async (importOriginal) => {
@@ -12,7 +12,7 @@ vi.mock("@/db/client", async (importOriginal) => {
   return { ...actual, getDatabase: () => testState.db };
 });
 
-vi.mock("@/lib/auth/current-user", () => ({ requireRole: testState.requireRole }));
+vi.mock("@/lib/auth/current-user", () => ({ getCurrentUser: testState.getCurrentUser }));
 
 import { POST } from "./route";
 
@@ -20,7 +20,8 @@ type TestDatabase = ReturnType<typeof createTestDatabase>;
 let db: TestDatabase;
 
 beforeEach(() => {
-  testState.requireRole.mockClear();
+  testState.getCurrentUser.mockReset();
+  testState.getCurrentUser.mockResolvedValue({ id: "child-1", role: "child", displayName: "孩子" });
   db = createTestDatabase();
   testState.db = db;
   db.insert(users).values({
@@ -64,7 +65,7 @@ test("requires the child role and returns the scored attempt", async () => {
     answerText: "6",
   }));
 
-  expect(testState.requireRole).toHaveBeenCalledWith("child");
+  expect(testState.getCurrentUser).toHaveBeenCalledOnce();
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual({
     correct: true,
@@ -72,6 +73,31 @@ test("requires the child role and returns the scored attempt", async () => {
     explanation: "对齐十分位。",
     sessionCompleted: true,
   });
+});
+
+test.each([
+  {
+    user: null,
+    status: 401,
+    body: { error: "Authentication required" },
+  },
+  {
+    user: { id: "parent-1", role: "parent", displayName: "家长" },
+    status: 403,
+    body: { error: "Child access required" },
+  },
+])("returns safe JSON $status when attempt authentication fails", async ({ user, status, body }) => {
+  testState.getCurrentUser.mockResolvedValue(user);
+
+  const response = await POST(attemptRequest({
+    sessionItemId: "item",
+    clientSubmissionId: "56565656-5656-4656-8656-565656565656",
+    answerText: "6",
+  }));
+
+  expect(response.status).toBe(status);
+  expect(response.headers.get("content-type")).toContain("application/json");
+  expect(await response.json()).toEqual(body);
 });
 
 test("returns 400 for malformed attempt input", async () => {

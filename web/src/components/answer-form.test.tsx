@@ -133,6 +133,34 @@ test("shows the safe 404 response error without trapping the answer field", asyn
   expect(answer).toBeEnabled();
 });
 
+test("unlocks the answer after an expired-session JSON response", async () => {
+  const fetchSpy = vi.spyOn(globalThis, "fetch")
+    .mockResolvedValueOnce(new Response(JSON.stringify({
+      error: "Authentication required",
+    }), { status: 401 }))
+    .mockResolvedValueOnce(new Response(JSON.stringify({
+      correct: true,
+      normalizedAnswer: "6",
+      explanation: "把十分位对齐后再相加。",
+      sessionCompleted: false,
+    })));
+
+  render(<AnswerForm sessionItemId="item-1" />);
+
+  const answer = screen.getByLabelText("你的答案");
+  await userEvent.type(answer, "6");
+  await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
+
+  expect(await screen.findByRole("alert")).toHaveTextContent("Authentication required");
+  expect(answer).toBeEnabled();
+
+  await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
+  expect(await screen.findByText("做对了，别忘了检查题目问的是什么。")).toBeInTheDocument();
+  const firstPayload = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
+  const secondPayload = JSON.parse(fetchSpy.mock.calls[1][1]?.body as string);
+  expect(secondPayload.clientSubmissionId).not.toBe(firstPayload.clientSubmissionId);
+});
+
 test("retries an unparseable 2xx response with the same id", async () => {
   const fetchSpy = vi.spyOn(globalThis, "fetch")
     .mockResolvedValueOnce(new Response("not JSON"))

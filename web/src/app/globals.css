@@ -51,10 +51,11 @@ button, input { min-height: 48px; }
 .evidenceSummary { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(18rem, 1fr); gap: 2rem; align-items: center; margin: 2rem 0; padding: clamp(1.25rem, 4vw, 2.5rem); border: 1px solid var(--sand); border-radius: 1rem; background: white; box-shadow: 0 .75rem 2rem rgb(36 49 47 / .06); }
 .summaryIntro h2 { margin: .2rem 0; font-family: Georgia, "Noto Serif SC", serif; font-size: clamp(1.75rem, 4vw, 2.75rem); }
 .summaryIntro p:last-child { margin-bottom: 0; color: #57635f; }
-.summaryMetrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; }
+.summaryMetrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; }
 .summaryMetrics div { min-width: 0; padding: .5rem 1rem; border-left: 1px solid var(--sand); }
 .summaryMetrics dt { color: #57635f; font-size: .85rem; font-weight: 700; }
 .summaryMetrics dd { margin: .4rem 0 0; color: var(--brand); font-family: Georgia, serif; font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 700; white-space: nowrap; }
+.summaryMetrics dd span { display: block; margin-top: .35rem; color: #57635f; font-family: var(--font-geist-sans); font-size: .78rem; white-space: normal; }
 .parentSection { margin-top: 2.5rem; }
 .sectionHeading { display: flex; justify-content: space-between; gap: 1rem; align-items: baseline; margin-bottom: 1rem; }
 .sectionHeading h2 { margin: 0; font-family: Georgia, "Noto Serif SC", serif; font-size: 1.75rem; }

@@ -1,6 +1,6 @@
 import { rmSync } from "node:fs";
 import path from "node:path";
-import { hashCredential } from "@/domain/auth/credentials";
+import { credentialInputSchema, hashCredential } from "@/domain/auth/credentials";
 import { answerSpecSchema } from "@/domain/questions/answer-spec";
 import { createDatabase } from "@/db/client";
 import { migrateDatabase } from "@/db/migrate";
@@ -43,6 +43,12 @@ async function seed() {
   const childPin = process.env.CHILD_PIN;
   if (!parentPassword || !childPin) {
     throw new Error("PARENT_PASSWORD and CHILD_PIN must both be set");
+  }
+  if (
+    !credentialInputSchema.safeParse(parentPassword).success
+    || !credentialInputSchema.safeParse(childPin).success
+  ) {
+    throw new Error("PARENT_PASSWORD and CHILD_PIN must each be 4-128 characters");
   }
 
   const databasePath = path.resolve(process.cwd(), expectedDatabaseName);

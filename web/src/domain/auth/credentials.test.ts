@@ -1,4 +1,13 @@
-import { hashCredential, verifyCredential } from "./credentials";
+import { credentialInputSchema, hashCredential, verifyCredential } from "./credentials";
+
+test.each([
+  ["123", false],
+  ["1234", true],
+  ["x".repeat(128), true],
+  ["x".repeat(129), false],
+])("accepts only 4-128 character login and seed credentials", (value, accepted) => {
+  expect(credentialInputSchema.safeParse(value).success).toBe(accepted);
+});
 
 test("verifies the original credential and rejects a different value", async () => {
   const encoded = await hashCredential("safe-parent-password");

@@ -46,6 +46,11 @@ export const sessionItems = sqliteTable("session_items", {
   sessionId: text("session_id").notNull().references(() => trainingSessions.id, { onDelete: "cascade" }),
   questionTemplateId: text("question_template_id").notNull().references(() => questionTemplates.id),
   position: integer("position").notNull(),
+  stemSnapshot: text("stem_snapshot").notNull(),
+  answerSpecSnapshot: text("answer_spec_snapshot").notNull(),
+  explanationSnapshot: text("explanation_snapshot").notNull(),
+  skillIdSnapshot: text("skill_id_snapshot").notNull().references(() => skills.id),
+  skillNameSnapshot: text("skill_name_snapshot").notNull(),
 });
 
 export const attempts = sqliteTable("attempts", {

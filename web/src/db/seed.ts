@@ -1,5 +1,5 @@
 import path from "node:path";
-import { hashCredential } from "@/domain/auth/credentials";
+import { credentialInputSchema, hashCredential } from "@/domain/auth/credentials";
 import { answerSpecSchema } from "@/domain/questions/answer-spec";
 import { getDatabase } from "./client";
 import { migrateDatabase } from "./migrate";
@@ -17,6 +17,12 @@ async function seed() {
 
   if (!parentPassword || !childPin) {
     throw new Error("PARENT_PASSWORD and CHILD_PIN must both be set");
+  }
+  if (
+    !credentialInputSchema.safeParse(parentPassword).success
+    || !credentialInputSchema.safeParse(childPin).success
+  ) {
+    throw new Error("PARENT_PASSWORD and CHILD_PIN must each be 4-128 characters");
   }
 
   const [parentCredentialHash, childCredentialHash] = await Promise.all([

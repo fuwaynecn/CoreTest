@@ -5,6 +5,7 @@ import {
   attempts,
   questionTemplates,
   sessionItems,
+  skills,
   trainingSessions,
 } from "@/db/schema";
 import type { SessionView } from "@/domain/training/types";
@@ -21,9 +22,8 @@ function loadSessionView(db: AppDatabase, sessionId: string): SessionView {
     const items = tx.select({
       id: sessionItems.id,
       position: sessionItems.position,
-      stem: questionTemplates.stem,
+      stem: sessionItems.stemSnapshot,
     }).from(sessionItems)
-      .innerJoin(questionTemplates, eq(sessionItems.questionTemplateId, questionTemplates.id))
       .where(eq(sessionItems.sessionId, sessionId))
       .orderBy(asc(sessionItems.position))
       .all();
@@ -63,8 +63,16 @@ export function getOrCreateDailySession(
     if (existing) return existing.id;
 
     const id = randomUUID();
-    const questions = tx.select({ id: questionTemplates.id })
+    const questions = tx.select({
+      id: questionTemplates.id,
+      stem: questionTemplates.stem,
+      answerSpec: questionTemplates.answerSpec,
+      explanation: questionTemplates.explanation,
+      skillId: questionTemplates.skillId,
+      skillName: skills.name,
+    })
       .from(questionTemplates)
+      .innerJoin(skills, eq(questionTemplates.skillId, skills.id))
       .where(eq(questionTemplates.active, true))
       .orderBy(asc(questionTemplates.difficulty), asc(questionTemplates.id))
       .limit(3)
@@ -83,6 +91,11 @@ export function getOrCreateDailySession(
         sessionId: id,
         questionTemplateId: question.id,
         position,
+        stemSnapshot: question.stem,
+        answerSpecSnapshot: question.answerSpec,
+        explanationSnapshot: question.explanation,
+        skillIdSnapshot: question.skillId,
+        skillNameSnapshot: question.skillName,
       }))).run();
     }
 

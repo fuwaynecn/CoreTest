@@ -16,6 +16,10 @@ function recommendation(answered: number, correct: number) {
   return "保持当前训练节奏";
 }
 
+function formatAccuracy(accuracy: number | null) {
+  return accuracy === null ? "暂无" : `${Math.round(accuracy * 100)}%`;
+}
+
 function formatSubmittedAt(value: number) {
   return new Intl.DateTimeFormat("zh-CN", {
     timeZone: "Asia/Shanghai",
@@ -46,9 +50,11 @@ export default async function ParentPage() {
   }
 
   const evidence = getParentEvidence(db, child.id);
-  const accuracy = evidence.summary.accuracy === null
-    ? "暂无"
-    : `${Math.round(evidence.summary.accuracy * 100)}%`;
+  const summaryPeriods = [
+    { label: "累计", metric: evidence.summary.cumulative },
+    { label: "今日", metric: evidence.summary.today },
+    { label: "本周", metric: evidence.summary.week },
+  ];
 
   return (
     <main className="parentPage">
@@ -60,25 +66,26 @@ export default async function ParentPage() {
         </div>
         <aside className="parentRecommendation" aria-labelledby="recommendation-heading">
           <p id="recommendation-heading">本周建议</p>
-          <strong>{recommendation(evidence.summary.answered, evidence.summary.correct)}</strong>
+          <strong>{recommendation(evidence.summary.week.answered, evidence.summary.week.correct)}</strong>
         </aside>
       </header>
 
       <section className="evidenceSummary" aria-labelledby="summary-heading">
         <div className="summaryIntro">
-          <p className="eyebrow">今日 / 累计</p>
+          <p className="eyebrow">今日 / 本周 / 累计</p>
           <h2 id="summary-heading">首次作答证据</h2>
-          <p>每次提交都计入，订正前后的答案会分别保留。</p>
+          <p>每道题只用最早一次提交计算答对率；订正前后的答案仍会分别保留。</p>
         </div>
         <dl className="summaryMetrics">
-          <div>
-            <dt>累计作答</dt>
-            <dd>{evidence.summary.answered} 次</dd>
-          </div>
-          <div>
-            <dt>累计答对率</dt>
-            <dd>{accuracy}</dd>
-          </div>
+          {summaryPeriods.map(({ label, metric }) => (
+            <div key={label}>
+              <dt>{label}首次作答</dt>
+              <dd>
+                {metric.answered} 次
+                <span>{label}首次答对率 {formatAccuracy(metric.accuracy)}</span>
+              </dd>
+            </div>
+          ))}
         </dl>
       </section>
 

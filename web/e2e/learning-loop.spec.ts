@@ -45,6 +45,10 @@ test("@parent parent sees the supporting evidence", async ({ page }) => {
 
   await expect(page.getByRole("heading", { name: "孩子的学习证据" })).toBeVisible();
   await expect(page.getByText("首次作答证据")).toBeVisible();
+  await expect(page.getByText("累计首次作答", { exact: true })).toBeVisible();
+  const cumulativeMetric = page.getByRole("definition").filter({ hasText: "累计首次答对率" });
+  await expect(cumulativeMetric).toContainText("3 次");
+  await expect(cumulativeMetric).toContainText("累计首次答对率 67%");
   await expect(page.getByText("每盒彩笔 7.5 元，买 1 盒需要付多少钱？请写单位。").first()).toBeVisible();
   await expect(page.getByText("7.5", { exact: true })).toBeVisible();
   await expect(page.getByText("7.5 元", { exact: true })).toBeVisible();

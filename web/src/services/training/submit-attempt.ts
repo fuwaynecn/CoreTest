@@ -4,7 +4,6 @@ import type { AppDatabase } from "@/db/client";
 import {
   attempts,
   masteryStates,
-  questionTemplates,
   sessionItems,
   trainingSessions,
 } from "@/db/schema";
@@ -78,12 +77,11 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
 
     const item = tx.select({
       sessionId: trainingSessions.id,
-      skillId: questionTemplates.skillId,
-      answerSpec: questionTemplates.answerSpec,
-      explanation: questionTemplates.explanation,
+      skillId: sessionItems.skillIdSnapshot,
+      answerSpec: sessionItems.answerSpecSnapshot,
+      explanation: sessionItems.explanationSnapshot,
     }).from(sessionItems)
       .innerJoin(trainingSessions, eq(sessionItems.sessionId, trainingSessions.id))
-      .innerJoin(questionTemplates, eq(sessionItems.questionTemplateId, questionTemplates.id))
       .where(and(
         eq(sessionItems.id, command.sessionItemId),
         eq(trainingSessions.childId, command.childId),

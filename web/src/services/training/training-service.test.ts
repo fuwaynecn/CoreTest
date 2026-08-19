@@ -15,6 +15,7 @@ import {
 } from "@/db/schema";
 import { createTestDatabase } from "@/test/test-db";
 import { getOrCreateDailySession } from "./create-daily-session";
+import { getParentEvidence } from "./get-parent-evidence";
 import {
   InvalidAnswerError,
   submitAttempt,
@@ -80,6 +81,36 @@ test("creates one reusable session with three reviewed questions without answer 
   ]);
   expect(db.select().from(trainingSessions).all()).toHaveLength(1);
   expect(first.currentPosition).toBe(0);
+});
+
+test("keeps session scoring and parent evidence stable after a template edit", () => {
+  const db = seedTrainingDatabase();
+  const session = getOrCreateDailySession(db, "child-1", "2026-08-19");
+
+  db.update(questionTemplates).set({
+    skillId: "skill-equation",
+    stem: "后来修改的题目",
+    answerSpec: JSON.stringify({ kind: "number", value: 99, tolerance: 0, unit: null }),
+    explanation: "后来修改的解析。",
+  }).where(eq(questionTemplates.id, "q-decimal-1")).run();
+
+  expect(getOrCreateDailySession(db, "child-1", "2026-08-19").questions[0].stem)
+    .toBe("3.6 + 2.4 = ?");
+  expect(submitAttempt(db, {
+    childId: "child-1",
+    sessionItemId: session.questions[0].id,
+    clientSubmissionId: "12121212-1212-4212-8212-121212121212",
+    answerText: "6",
+  })).toMatchObject({
+    correct: true,
+    explanation: "对齐十分位。",
+  });
+  expect(db.select().from(masteryStates).where(eq(masteryStates.childId, "child-1")).get())
+    .toMatchObject({ skillId: "skill-decimal", correctCount: 1 });
+  expect(getParentEvidence(db, "child-1").recent[0]).toMatchObject({
+    stem: "3.6 + 2.4 = ?",
+    skillName: "小数计算",
+  });
 });
 
 test("does not duplicate an attempt or evidence for the same client submission", () => {

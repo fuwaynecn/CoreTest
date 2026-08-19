@@ -2,14 +2,14 @@ import { randomUUID } from "node:crypto";
 import { eq, lte } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { verifyCredential } from "@/domain/auth/credentials";
+import { credentialInputSchema, verifyCredential } from "@/domain/auth/credentials";
 import { createSessionToken } from "@/domain/auth/session-token";
 import { getDatabase } from "@/db/client";
 import { authSessions, users } from "@/db/schema";
 
 const loginInput = z.object({
   role: z.enum(["parent", "child"]),
-  credential: z.string().min(4).max(128),
+  credential: credentialInputSchema,
 });
 
 const invalidCredentials = { error: "身份或凭据不正确" };

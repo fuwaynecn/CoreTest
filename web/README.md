@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 家庭数学训练（Phase 1）
 
-## Getting Started
+这是家庭数学训练的首个可运行闭环：孩子登录后完成每日 3 道确定性判分题，家长登录后查看首次作答指标、订正记录和技能证据。
 
-First, run the development server:
+## 运行要求
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- Node.js 24.x 与随 Node 安装的 npm。
+- 一个可写、可持久化的本地目录，用于 SQLite 数据库。
+- 生产环境只运行一个应用实例；Phase 1 不支持多个实例共享 SQLite。
+
+先确认版本，再安装锁定依赖：
+
+```powershell
+node --version
+npm --version
+npm ci
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`node --version` 应显示 `v24.x`。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 环境变量与数据库初始化
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| 变量 | 用途 |
+| --- | --- |
+| `DB_FILE_NAME` | SQLite 文件路径；默认 `data/math-trainer.sqlite`。必须位于可写且重启后仍保留的磁盘。 |
+| `PARENT_PASSWORD` | `npm run db:seed` 使用的家长密码，长度必须为 4–128 个字符。 |
+| `CHILD_PIN` | `npm run db:seed` 使用的孩子 PIN，长度必须为 4–128 个字符。 |
+| `SESSION_COOKIE_SECURE` | 本地 HTTP 开发设为 `false`；HTTPS 环境可设为 `true`。生产构建始终发送 Secure 会话 Cookie。 |
 
-## Learn More
+不要把真实凭据提交到仓库。PowerShell 本地初始化示例：
 
-To learn more about Next.js, take a look at the following resources:
+```powershell
+$env:DB_FILE_NAME = "data/math-trainer.sqlite"
+$env:PARENT_PASSWORD = "<4-128 character password>"
+$env:CHILD_PIN = "<4-128 character PIN>"
+$env:SESSION_COOKIE_SECURE = "false"
+npm run db:seed
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+`npm run db:seed` 会先执行 `drizzle/` 中尚未应用的迁移，再幂等更新一个家长、一个孩子、技能和审核题目。对已有数据库执行前应先备份数据库文件。应用默认位于 [http://localhost:3000](http://localhost:3000)。
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 浏览器端到端依赖
 
-## Deploy on Vercel
+Playwright 配置保留两个平板浏览器项目：`tablet-webkit` 使用 Playwright WebKit，`tablet-chromium` 明确设置 `channel: "chrome"`，因此后者需要稳定版 Google Chrome，而不是 Playwright 自带的 Chromium。
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+本地安装所需浏览器：
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```powershell
+npx playwright install webkit
+npx playwright install chrome
+npx playwright install --list
+```
+
+`npx playwright install --list` 应列出本项目版本对应的 WebKit。稳定版 Chrome 也可通过系统安装；可直接确认其版本：
+
+```powershell
+& "$env:ProgramFiles\Google\Chrome\Application\chrome.exe" --version
+```
+
+如果 Chrome 安装在用户目录，请改用 `$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe`。Linux CI 可使用：
+
+```bash
+npx playwright install --with-deps webkit chrome
+google-chrome --version
+```
+
+## 验证
+
+```powershell
+npm run verify
+npm run test:e2e
+git diff --check
+```
+
+`npm run verify` 依次运行 ESLint、TypeScript、全部 Vitest 测试和生产构建。`npm run test:e2e` 先运行 WebKit 的孩子/家长依赖流程，再运行稳定版 Chrome 平板流程；E2E 会且只会重建 `.tmp/e2e.sqlite`。
+
+也可以分别运行浏览器项目：
+
+```powershell
+npm run test:e2e:webkit
+npm run test:e2e:chromium
+```
+
+## HTTPS 与部署边界
+
+本地 `npm run dev` 使用 HTTP 时保持 `SESSION_COOKIE_SECURE=false`。在 `NODE_ENV=production` 下，会话 Cookie 无论该变量取值如何都带 `Secure`；浏览器必须通过 HTTPS 访问站点，否则不会回传 Cookie。不要为了绕过此要求关闭 TLS 或降低 Cookie 安全属性。
+
+Phase 1 的 SQLite 文件必须放在单个长期运行的 Node.js 实例所挂载的持久化磁盘上，并在部署与重启之间保留同一路径。临时文件系统、无状态 Serverless、横向扩容和多个应用实例同时使用本地 SQLite 均不受支持；因此本阶段不适合部署到使用临时磁盘的 Vercel/Serverless 运行时。生产部署应使用单实例、持久卷和常规数据库备份。
