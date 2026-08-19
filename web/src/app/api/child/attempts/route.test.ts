@@ -1,0 +1,97 @@
+import { questionTemplates, skills, users } from "@/db/schema";
+import { getOrCreateDailySession } from "@/services/training/create-daily-session";
+import { createTestDatabase } from "@/test/test-db";
+
+const testState = vi.hoisted(() => ({
+  db: undefined as unknown,
+  requireRole: vi.fn(async () => ({ id: "child-1", role: "child", displayName: "孩子" })),
+}));
+
+vi.mock("@/db/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/db/client")>();
+  return { ...actual, getDatabase: () => testState.db };
+});
+
+vi.mock("@/lib/auth/current-user", () => ({ requireRole: testState.requireRole }));
+
+import { POST } from "./route";
+
+type TestDatabase = ReturnType<typeof createTestDatabase>;
+let db: TestDatabase;
+
+beforeEach(() => {
+  testState.requireRole.mockClear();
+  db = createTestDatabase();
+  testState.db = db;
+  db.insert(users).values({
+    id: "child-1",
+    role: "child",
+    displayName: "孩子",
+    credentialHash: "hash",
+    createdAt: 1,
+  }).run();
+  db.insert(skills).values({
+    id: "skill-decimal",
+    code: "decimal",
+    name: "小数计算",
+    domain: "数与运算",
+  }).run();
+  db.insert(questionTemplates).values({
+    id: "q-decimal-1",
+    skillId: "skill-decimal",
+    stem: "3.6 + 2.4 = ?",
+    answerSpec: JSON.stringify({ kind: "number", value: 6, tolerance: 0, unit: null }),
+    explanation: "对齐十分位。",
+    difficulty: 1,
+    active: true,
+  }).run();
+});
+
+function attemptRequest(body: unknown) {
+  return new Request("http://localhost/api/child/attempts", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+test("requires the child role and returns the scored attempt", async () => {
+  const session = getOrCreateDailySession(db, "child-1", "2026-08-19");
+
+  const response = await POST(attemptRequest({
+    sessionItemId: session.questions[0].id,
+    clientSubmissionId: "55555555-5555-4555-8555-555555555555",
+    answerText: "6",
+  }));
+
+  expect(testState.requireRole).toHaveBeenCalledWith("child");
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({
+    correct: true,
+    normalizedAnswer: "6",
+    explanation: "对齐十分位。",
+    sessionCompleted: true,
+  });
+});
+
+test("returns 400 for malformed attempt input", async () => {
+  const response = await POST(attemptRequest({
+    sessionItemId: "item",
+    clientSubmissionId: "not-a-uuid",
+    answerText: "1".repeat(129),
+  }));
+
+  expect(response.status).toBe(400);
+  expect(await response.json()).toEqual({ error: "Invalid attempt input" });
+});
+
+test("returns 404 when the item is not available to the signed-in child", async () => {
+  const response = await POST(attemptRequest({
+    sessionItemId: "missing-item",
+    clientSubmissionId: "66666666-6666-4666-8666-666666666666",
+    answerText: "6",
+  }));
+
+  expect(response.status).toBe(404);
+  expect(await response.json()).toEqual({ error: "Training item not found" });
+});
