@@ -1,6 +1,12 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth/current-user";
 
-export default function Home() {
+export default async function Home() {
+  const user = await getCurrentUser();
+
+  if (user) redirect(user.role === "parent" ? "/parent" : "/child");
+
   return (
     <main className="landing">
       <p className="eyebrow">家庭数学训练</p>

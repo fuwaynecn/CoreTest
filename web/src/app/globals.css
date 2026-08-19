@@ -7,3 +7,19 @@ button, input { font: inherit; }
 .landing { min-height: 100dvh; display: grid; place-content: center; gap: 1rem; padding: 2rem; text-align: center; }
 .eyebrow { color: var(--brand); font-weight: 700; }
 .primaryButton { display: inline-block; justify-self: center; padding: .9rem 1.4rem; border-radius: .75rem; background: var(--brand); color: white; text-decoration: none; }
+.loginPage { min-height: 100dvh; display: grid; place-items: center; padding: 2rem; }
+.loginPanel { width: min(100%, 42rem); }
+.loginPanel h1 { margin: .25rem 0; font-size: clamp(2rem, 7vw, 3.25rem); }
+.loginPanel > p:not(.eyebrow) { color: #57635f; }
+.loginForm { display: grid; gap: 1.25rem; margin-top: 2rem; }
+.roleCards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.roleCard { min-height: 9rem; display: grid; place-content: center; gap: .5rem; border: 2px solid var(--sand); border-radius: 1rem; background: white; color: var(--ink); cursor: pointer; }
+.roleCard strong { font-size: 1.35rem; }
+.roleCard[aria-pressed="true"] { border-color: var(--brand); background: #edf5f2; box-shadow: 0 0 0 3px #d7e9e4; }
+.credentialField { display: grid; gap: .5rem; font-weight: 700; }
+.credentialField input { width: 100%; padding: .9rem 1rem; border: 1px solid #9ca7a3; border-radius: .75rem; background: white; }
+.credentialField input:focus { outline: 3px solid #b8d8d1; border-color: var(--brand); }
+.loginError { margin: 0; color: #9b2424; font-weight: 700; }
+.loginSubmit { border: 0; cursor: pointer; }
+.loginSubmit:disabled { cursor: wait; opacity: .65; }
+@media (max-width: 35rem) { .roleCards { grid-template-columns: 1fr; } }
