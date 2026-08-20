@@ -162,6 +162,7 @@ export const masteryEvidence = sqliteTable("mastery_evidence", {
   childId: text("child_id").notNull().references(() => users.id),
   skillId: text("skill_id").notNull().references(() => skills.id),
   sessionItemId: text("session_item_id").notNull().references(() => sessionItems.id),
+  templateId: text("template_id").notNull().references(() => questionTemplates.id),
   purpose: text("purpose", { enum: ["diagnostic", "learning", "review", "assessment"] }).notNull(),
   firstAttemptCorrect: integer("first_attempt_correct", { mode: "boolean" }).notNull(),
   independent: integer("independent", { mode: "boolean" }).notNull(),

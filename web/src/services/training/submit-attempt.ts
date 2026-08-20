@@ -4,15 +4,15 @@ import type { AppDatabase } from "@/db/client";
 import {
   attempts,
   hintEvents,
-  masteryStates,
   sessionItems,
   trainingSessions,
 } from "@/db/schema";
 import { answerSpecSchema } from "@/domain/questions/answer-spec";
 import { scoreAnswer } from "@/domain/questions/score-answer";
-import { nextMasteryEvidence } from "@/domain/training/mastery";
 import { normalizeTelemetry } from "@/domain/training/attempt-telemetry";
+import { shanghaiDateKey } from "@/domain/time/shanghai-calendar";
 import { recordSystemErrorObservation } from "./error-observation-service";
+import { recordLearningEvidence } from "./record-learning-evidence";
 
 export type SubmitAttemptCommand = {
   childId: string;
@@ -101,6 +101,8 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
       sessionId: trainingSessions.id,
       sessionKind: trainingSessions.kind,
       skillId: sessionItems.skillIdSnapshot,
+      templateId: sessionItems.questionTemplateId,
+      difficulty: sessionItems.difficultySnapshot,
       stem: sessionItems.stemSnapshot,
       structureTag: sessionItems.structureTagSnapshot,
       answerSpec: sessionItems.answerSpecSnapshot,
@@ -137,25 +139,6 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
     const now = Date.now();
     const priorAttemptCount = tx.select({ id: attempts.id }).from(attempts)
       .where(eq(attempts.sessionItemId, command.sessionItemId)).all().length;
-    const currentMastery = tx.select({
-      evidenceCount: masteryStates.evidenceCount,
-      correctCount: masteryStates.correctCount,
-    }).from(masteryStates).where(and(
-      eq(masteryStates.childId, command.childId),
-      eq(masteryStates.skillId, item.skillId),
-    )).get() ?? { evidenceCount: 0, correctCount: 0 };
-    const nextMastery = nextMasteryEvidence(currentMastery, score.correct);
-
-    tx.insert(masteryStates).values({
-      childId: command.childId,
-      skillId: item.skillId,
-      ...nextMastery,
-      updatedAt: now,
-    }).onConflictDoUpdate({
-      target: [masteryStates.childId, masteryStates.skillId],
-      set: { ...nextMastery, updatedAt: now },
-    }).run();
-
     const allItems = tx.select({ id: sessionItems.id })
       .from(sessionItems)
       .where(eq(sessionItems.sessionId, item.sessionId))
@@ -186,6 +169,33 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
       correctionNumber: priorAttemptCount,
       submittedAt: now,
     }).run();
+
+    if (priorAttemptCount === 0 && item.sessionKind !== "practice") {
+      const purpose = item.sessionKind === "review" ? "review"
+        : item.sessionKind === "assessment" ? "assessment" : "learning";
+      let reviewIntervalDays: 0 | 1 | 3 | 7 | 14 | 30 = 0;
+      if (purpose === "review") {
+        const parsed = JSON.parse(item.metadataSnapshot) as { reviewIntervalDays?: unknown };
+        if (![1, 3, 7, 14, 30].includes(parsed.reviewIntervalDays as number)) {
+          throw new Error("Review item interval snapshot is invalid");
+        }
+        reviewIntervalDays = parsed.reviewIntervalDays as 1 | 3 | 7 | 14 | 30;
+      }
+      recordLearningEvidence(tx, {
+        childId: command.childId,
+        skillId: item.skillId,
+        sessionItemId: command.sessionItemId,
+        templateId: item.templateId,
+        purpose,
+        firstAttemptCorrect: score.correct,
+        independent: hintCount === 0,
+        difficulty: item.difficulty as 1 | 2 | 3 | 4,
+        structureTag: item.structureTag,
+        occurredOn: shanghaiDateKey(now),
+        occurredAt: now,
+        reviewIntervalDays,
+      });
+    }
 
     if (!score.correct && priorAttemptCount === 0) {
       recordSystemErrorObservation(tx, {

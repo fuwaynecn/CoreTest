@@ -10,6 +10,8 @@ import {
   diagnosticParts,
   diagnosticRuns,
   errorObservations,
+  masteryEvidence,
+  masteryStates,
   questionTemplates,
   sessionItems,
   skills,
@@ -446,8 +448,34 @@ describe("diagnosis service", () => {
       .where(eq(diagnosticParts.status, "completed")).all()).toHaveLength(3);
     const run = db.select().from(diagnosticRuns).where(eq(diagnosticRuns.id, completed.runId)).get()!;
     expect(JSON.parse(run.reportSnapshot!)).toMatchObject({ skills: expect.any(Array), domains: expect.any(Array) });
+    const evidence = db.select().from(masteryEvidence).all();
+    expect(evidence).toHaveLength(45);
+    expect(evidence.every((row) => row.purpose === "diagnostic" && row.independent)).toBe(true);
+    expect(new Set(evidence.map((row) => row.sessionItemId)).size).toBe(45);
+    expect(evidence.every((row) => row.templateId.length > 0 && row.occurredOn === "2023-11-15")).toBe(true);
+    expect(db.select().from(masteryStates).all().reduce((sum, row) => sum + row.evidenceCount, 0)).toBe(45);
     expect(db.select().from(trainingSessions)
       .where(eq(trainingSessions.kind, "daily")).all()).toHaveLength(0);
+  });
+
+  it("rolls back the final diagnosis attempt when evidence import fails", () => {
+    const db = seedDiagnosisDatabase();
+    getOrCreateDiagnosis(db, "child-1", 1);
+    for (let index = 1; index <= 44; index += 1) submitCurrent(db, "child-1", index);
+    const before = getDiagnosisView(db, "child-1");
+    db.$client.exec(`
+      CREATE TRIGGER fail_diagnosis_evidence BEFORE INSERT ON mastery_evidence
+      BEGIN SELECT RAISE(ABORT, 'forced evidence failure'); END;
+    `);
+    expect(() => submitDiagnosticAttempt(db, {
+      childId: "child-1", sessionItemId: before.currentItem!.id,
+      clientSubmissionId: "99999999-0000-4000-8000-000000000045",
+      answerText: correctAnswerFor(db, before.currentItem!.id),
+    }, 1_700_000_000_045)).toThrow("Failed query");
+    expect(db.select().from(attempts).all()).toHaveLength(44);
+    expect(db.select().from(masteryEvidence).all()).toHaveLength(0);
+    expect(db.select().from(masteryStates).all()).toHaveLength(0);
+    expect(getDiagnosisView(db, "child-1")).toMatchObject({ status: "in_progress", completedSlots: 44 });
   });
 
   it("rejects premature retests and preserves completed version one when starting version two", () => {

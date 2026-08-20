@@ -6,6 +6,7 @@ import {
   attempts,
   diagnosticParts,
   diagnosticRuns,
+  hintEvents,
   questionTemplates,
   sessionItems,
   skills,
@@ -29,6 +30,7 @@ import type { ReviewedTemplate } from "@/domain/questions/template-schema";
 import { scoreAnswer } from "@/domain/questions/score-answer";
 import { shanghaiDateKey } from "@/domain/time/shanghai-calendar";
 import { recordSystemErrorObservation } from "@/services/training/error-observation-service";
+import { recordLearningEvidence } from "@/services/training/record-learning-evidence";
 
 type AppTransaction = Parameters<Parameters<AppDatabase["transaction"]>[0]>[0];
 
@@ -181,6 +183,41 @@ function answerHistory(tx: AppTransaction, runId: string): DiagnosticAnswer[] {
       correct: row.correct,
       independent: true,
     }));
+}
+
+function importDiagnosticEvidence(tx: AppTransaction, runId: string, childId: string) {
+  const rows = tx.select({
+    sessionItemId: sessionItems.id,
+    templateId: sessionItems.questionTemplateId,
+    skillId: sessionItems.skillIdSnapshot,
+    difficulty: sessionItems.difficultySnapshot,
+    structureTag: sessionItems.structureTagSnapshot,
+    correct: attempts.isCorrect,
+    occurredAt: attempts.submittedAt,
+  }).from(attempts)
+    .innerJoin(sessionItems, eq(attempts.sessionItemId, sessionItems.id))
+    .innerJoin(trainingSessions, eq(sessionItems.sessionId, trainingSessions.id))
+    .where(eq(trainingSessions.diagnosticRunId, runId))
+    .orderBy(asc(attempts.submittedAt), asc(attempts.id))
+    .all();
+  for (const row of rows) {
+    const usedHint = tx.select({ id: hintEvents.id }).from(hintEvents)
+      .where(eq(hintEvents.sessionItemId, row.sessionItemId)).limit(1).get() !== undefined;
+    recordLearningEvidence(tx, {
+      childId,
+      skillId: row.skillId,
+      sessionItemId: row.sessionItemId,
+      templateId: row.templateId,
+      purpose: "diagnostic",
+      firstAttemptCorrect: row.correct,
+      independent: !usedHint,
+      difficulty: row.difficulty as 1 | 2 | 3 | 4,
+      structureTag: row.structureTag,
+      occurredOn: shanghaiDateKey(row.occurredAt),
+      occurredAt: row.occurredAt,
+      reviewIntervalDays: 0,
+    });
+  }
 }
 
 function viewForRun(tx: AppTransaction, childId: string, runId: string): DiagnosisView {
@@ -601,6 +638,7 @@ export function submitDiagnosticAttempt(
         }, nextPart, now, runtime);
       } else {
         const report = deriveInitialReport(answerHistory(tx, item.runId));
+        importDiagnosticEvidence(tx, item.runId, command.childId);
         tx.update(diagnosticRuns).set({
           status: "completed",
           currentPart: 3,

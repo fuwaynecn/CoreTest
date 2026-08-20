@@ -731,7 +731,9 @@ test("adds Phase 2B learning state without inventing legacy telemetry or losing 
       "active_duration_ms", "hint_level", "hint_count", "correction_number",
     ]));
     expect(primaryKeyColumns(sqlite, "mastery_evidence")).toEqual(["id"]);
-    expect(columns(sqlite, "mastery_evidence")).toContain("review_interval_days");
+    expect(columns(sqlite, "mastery_evidence")).toEqual(expect.arrayContaining([
+      "template_id", "review_interval_days",
+    ]));
     expect(indexColumns(sqlite, "mastery_evidence", "mastery_evidence_source_idx"))
       .toEqual(["session_item_id"]);
     expect(primaryKeyColumns(sqlite, "review_schedules")).toEqual(["child_id", "skill_id"]);
@@ -743,6 +745,7 @@ test("adds Phase 2B learning state without inventing legacy telemetry or losing 
       { from: "child_id", table: "users", to: "id", onDelete: "NO ACTION" },
       { from: "skill_id", table: "skills", to: "id", onDelete: "NO ACTION" },
       { from: "session_item_id", table: "session_items", to: "id", onDelete: "NO ACTION" },
+      { from: "template_id", table: "question_templates", to: "id", onDelete: "NO ACTION" },
     ]));
     expect(foreignKeyTargets(sqlite, "error_observations")).toEqual(expect.arrayContaining([
       { from: "session_item_id", table: "session_items", to: "id", onDelete: "NO ACTION" },
@@ -807,11 +810,11 @@ test("adds Phase 2B learning state without inventing legacy telemetry or losing 
 
     expect(() => sqlite.prepare(`
       INSERT INTO mastery_evidence (
-        id, child_id, skill_id, session_item_id, purpose, first_attempt_correct,
+        id, child_id, skill_id, session_item_id, template_id, purpose, first_attempt_correct,
         independent, difficulty, structure_tag, occurred_on, occurred_at,
         review_interval_days
       ) VALUES (
-        'bad-evidence', 'phase2b-child', 'phase2b-skill', 'phase2b-item',
+        'bad-evidence', 'phase2b-child', 'phase2b-skill', 'phase2b-item', 'phase2b-question',
         'guess', 1, 1, 2, 'decimal-add', '2026-08-19', 55, 0
       )
     `).run()).toThrow();
@@ -846,10 +849,10 @@ test("adds Phase 2B learning state without inventing legacy telemetry or losing 
 
     sqlite.prepare(`
       INSERT INTO mastery_evidence (
-        id, child_id, skill_id, session_item_id, purpose, first_attempt_correct,
+        id, child_id, skill_id, session_item_id, template_id, purpose, first_attempt_correct,
         independent, difficulty, structure_tag, occurred_on, occurred_at
       ) VALUES (
-        'evidence-1', 'phase2b-child', 'phase2b-skill', 'phase2b-item',
+        'evidence-1', 'phase2b-child', 'phase2b-skill', 'phase2b-item', 'phase2b-question',
         'learning', 0, 1, 2, 'decimal-add', '2026-08-19', 55
       )
     `).run();
@@ -869,10 +872,10 @@ test("adds Phase 2B learning state without inventing legacy telemetry or losing 
     `).run()).toThrow();
     expect(() => sqlite.prepare(`
       INSERT INTO mastery_evidence (
-        id, child_id, skill_id, session_item_id, purpose, first_attempt_correct,
+        id, child_id, skill_id, session_item_id, template_id, purpose, first_attempt_correct,
         independent, difficulty, structure_tag, occurred_on, occurred_at
       ) VALUES (
-        'evidence-duplicate', 'phase2b-child', 'phase2b-skill', 'phase2b-item',
+        'evidence-duplicate', 'phase2b-child', 'phase2b-skill', 'phase2b-item', 'phase2b-question',
         'learning', 1, 1, 2, 'decimal-add', '2026-08-19', 60
       )
     `).run()).toThrow();
@@ -1006,11 +1009,11 @@ test("adds Phase 2B learning state without inventing legacy telemetry or losing 
     `).run();
     sqlite.prepare(`
       INSERT INTO mastery_evidence (
-        id, child_id, skill_id, session_item_id, purpose, first_attempt_correct,
+        id, child_id, skill_id, session_item_id, template_id, purpose, first_attempt_correct,
         independent, difficulty, structure_tag, occurred_on, occurred_at,
         review_interval_days
       ) VALUES (
-        'evidence-restrict', 'phase2b-child', 'phase2b-skill', 'evidence-only-item',
+        'evidence-restrict', 'phase2b-child', 'phase2b-skill', 'evidence-only-item', 'phase2b-question',
         'review', 1, 1, 2, 'decimal-add', '2026-08-19', 63, 7
       )
     `).run();
@@ -1022,6 +1025,46 @@ test("adds Phase 2B learning state without inventing legacy telemetry or losing 
       .toEqual({ count: 2 });
     expect(sqlite.prepare("SELECT count(*) AS count FROM hint_events WHERE session_item_id = 'phase2b-item'").get())
       .toEqual({ count: 1 });
+    expect(foreignKeyCheck(sqlite)).toEqual([]);
+  } finally {
+    sqlite.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("backfills immutable template identity for already-populated mastery evidence", () => {
+  const directory = mkdtempSync(join(tmpdir(), "math-trainer-evidence-template-"));
+  const filename = join(directory, "before-template-id.sqlite");
+  const beforeLatest = join(directory, "before-latest");
+  mkdirSync(beforeLatest);
+  for (const migration of [
+    "20260819140335_last_mimic", "20260819151632_concerned_professor_monster",
+    "20260819172252_opposite_rumiko_fujikawa", "20260820035833_phase2a_diagnosis",
+    "20260820083528_phase2a_template_metadata", "20260820101400_phase2b_learning_state",
+    "20260820102921_phase2b_learning_state_constraints",
+  ]) cpSync(resolve(process.cwd(), "drizzle", migration), join(beforeLatest, migration), { recursive: true });
+  const db = createDatabase(filename);
+  const sqlite = db.$client;
+  try {
+    migrateDatabase(db, beforeLatest);
+    sqlite.exec(`
+      INSERT INTO users VALUES ('child', 'child', '孩子', 'hash', 1);
+      INSERT INTO skills VALUES ('skill', 'skill', '能力', 'number_operations');
+      INSERT INTO question_templates (id, skill_id, stem, answer_spec, explanation, difficulty, active)
+        VALUES ('template', 'skill', '1+1=?', '{"kind":"number","value":2,"tolerance":0,"unit":null}', '2', 1, 1);
+      INSERT INTO training_sessions (id, child_id, session_date, kind, status, started_at)
+        VALUES ('session', 'child', '2026-08-20', 'daily', 'completed', 1);
+      INSERT INTO session_items (id, session_id, question_template_id, position, stem_snapshot,
+        answer_spec_snapshot, explanation_snapshot, skill_id_snapshot, skill_name_snapshot)
+        VALUES ('item', 'session', 'template', 0, '1+1=?',
+          '{"kind":"number","value":2,"tolerance":0,"unit":null}', '2', 'skill', '能力');
+      INSERT INTO mastery_evidence (id, child_id, skill_id, session_item_id, purpose,
+        first_attempt_correct, independent, difficulty, structure_tag, occurred_on, occurred_at)
+        VALUES ('evidence', 'child', 'skill', 'item', 'learning', 1, 1, 1, 'sum', '2026-08-20', 2);
+    `);
+    migrateDatabase(db, resolve(process.cwd(), "drizzle"));
+    expect(sqlite.prepare("SELECT template_id AS templateId FROM mastery_evidence WHERE id='evidence'").get())
+      .toEqual({ templateId: "template" });
     expect(foreignKeyCheck(sqlite)).toEqual([]);
   } finally {
     sqlite.close();
