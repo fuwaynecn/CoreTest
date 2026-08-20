@@ -46,10 +46,15 @@ function selectionReason(answers: readonly DifficultyEvidence[]): DiagnosticSele
 export function selectNextDiagnosticQuestion(
   input: DiagnosticSelectionInput,
 ): DiagnosticSelection | null {
+  if (input.completedInPart >= 15) return null;
+
   const rotation = partDomainRotations[input.partNumber];
-  const slotIndex = input.answers.length % 15;
+  const slotIndex = input.completedInPart;
   const targetDomain = rotation[slotIndex % rotation.length];
-  const domainEvidence = input.answers.filter((answer) => answer.domain === targetDomain);
+  const currentPartAnswers = input.completedInPart === 0
+    ? []
+    : input.answers.slice(-input.completedInPart);
+  const domainEvidence = currentPartAnswers.filter((answer) => answer.domain === targetDomain);
   const targetDifficulty = nextDifficulty(domainEvidence);
   const usedTemplateIds = new Set(input.answers.map((answer) => answer.templateId));
   const skillEvidenceCounts = new Map<string, number>();
@@ -70,6 +75,7 @@ export function selectNextDiagnosticQuestion(
 
   return {
     templateId: candidate.templateId,
+    targetDifficulty,
     difficulty: candidate.difficulty,
     reason: selectionReason(domainEvidence),
     variantSeed: `${input.runSeed}:part-${input.partNumber}:slot-${slotIndex + 1}:${candidate.templateId}`,

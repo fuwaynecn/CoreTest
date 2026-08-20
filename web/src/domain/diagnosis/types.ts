@@ -21,6 +21,7 @@ export type DiagnosticTemplateSummary = {
 export type DiagnosticSelection = {
   templateId: string;
   variantSeed: string;
+  targetDifficulty: Difficulty;
   difficulty: Difficulty;
   reason: "part_anchor" | "raise_after_two" | "lower_after_error" | "hold_level";
 };
@@ -32,6 +33,7 @@ export type DiagnosticSelectionInput = {
   answers: readonly DiagnosticAnswer[];
   runSeed: string;
   partNumber: DiagnosticPartNumber;
+  completedInPart: number;
 };
 
 export type InitialDiagnosisStatus = Extract<MasteryStatus, "needs_support" | "learning" | "basic">;

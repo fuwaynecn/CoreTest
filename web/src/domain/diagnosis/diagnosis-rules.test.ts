@@ -38,7 +38,9 @@ function selectPart(partNumber: 1 | 2 | 3, runSeed: string): {
   const selections: NonNullable<ReturnType<typeof selectNextDiagnosticQuestion>>[] = [];
 
   for (let slot = 0; slot < 15; slot += 1) {
-    const selection = selectNextDiagnosticQuestion({ catalog, answers, runSeed, partNumber });
+    const selection = selectNextDiagnosticQuestion({
+      catalog, answers, runSeed, partNumber, completedInPart: slot,
+    });
     expect(selection).not.toBeNull();
     selections.push(selection!);
     answers.push(answerFor(selection!));
@@ -87,7 +89,7 @@ describe("diagnosis selection", () => {
     for (const partNumber of [1, 2, 3] as const) {
       for (let slot = 0; slot < 15; slot += 1) {
         const selection = selectNextDiagnosticQuestion({
-          catalog, answers, runSeed: "full-run", partNumber,
+          catalog, answers, runSeed: "full-run", partNumber, completedInPart: slot,
         });
         expect(selection).not.toBeNull();
         templateIds.push(selection!.templateId);
@@ -104,8 +106,11 @@ describe("diagnosis selection", () => {
     const anotherRun = selectPart(2, "run-2").selections;
 
     expect(repeated).toEqual(first);
-    expect(anotherRun.map(({ templateId, difficulty, reason }) => ({ templateId, difficulty, reason })))
-      .toEqual(first.map(({ templateId, difficulty, reason }) => ({ templateId, difficulty, reason })));
+    expect(anotherRun.map(({ templateId, targetDifficulty, difficulty, reason }) => (
+      { templateId, targetDifficulty, difficulty, reason }
+    ))).toEqual(first.map(({ templateId, targetDifficulty, difficulty, reason }) => (
+      { templateId, targetDifficulty, difficulty, reason }
+    )));
     expect(anotherRun.map((selection) => selection.variantSeed))
       .not.toEqual(first.map((selection) => selection.variantSeed));
   });
@@ -136,13 +141,84 @@ describe("diagnosis selection", () => {
     }];
 
     expect(selectNextDiagnosticQuestion({
-      catalog: smallCatalog, answers, runSeed: "sort", partNumber: 1,
+      catalog: smallCatalog, answers, runSeed: "sort", partNumber: 1, completedInPart: 1,
     })?.templateId).toBe("a-near-fresh-skill");
   });
 
   it("returns null when the rotated domain has no unused candidate", () => {
     expect(selectNextDiagnosticQuestion({
-      catalog: [], answers: [], runSeed: "empty", partNumber: 1,
+      catalog: [], answers: [], runSeed: "empty", partNumber: 1, completedInPart: 0,
+    })).toBeNull();
+  });
+
+  it("reports target difficulty separately when all-wrong answers exhaust exact low-level templates", () => {
+    const answers: DiagnosticAnswer[] = [];
+    const selections: NonNullable<ReturnType<typeof selectNextDiagnosticQuestion>>[] = [];
+
+    for (let slot = 0; slot < 15; slot += 1) {
+      const selection = selectNextDiagnosticQuestion({
+        catalog, answers, runSeed: "all-wrong", partNumber: 1, completedInPart: slot,
+      })!;
+      selections.push(selection);
+      answers.push(answerFor(selection, false));
+    }
+
+    expect(selections[0]).toMatchObject({ targetDifficulty: 2, difficulty: 2, reason: "part_anchor" });
+    expect(selections.map((selection) => selection.targetDifficulty))
+      .toEqual([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2]);
+    expect(selections.map((selection) => selection.difficulty))
+      .toEqual([2, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3]);
+    expect(selections.slice(1).every((selection) => selection.reason === "lower_after_error"))
+      .toBe(true);
+  });
+
+  it("caps an all-correct target at 4 while transparently falling back to the nearest catalog level", () => {
+    const answers: DiagnosticAnswer[] = [];
+    const selections: NonNullable<ReturnType<typeof selectNextDiagnosticQuestion>>[] = [];
+
+    for (let slot = 0; slot < 15; slot += 1) {
+      const selection = selectNextDiagnosticQuestion({
+        catalog, answers, runSeed: "all-correct", partNumber: 1, completedInPart: slot,
+      })!;
+      selections.push(selection);
+      answers.push(answerFor(selection, true));
+    }
+
+    expect(selections.map((selection) => selection.targetDifficulty))
+      .toEqual([2, 2, 3, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 2]);
+    expect(selections.map((selection) => selection.difficulty))
+      .toEqual([2, 2, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 1, 1]);
+    expect(selections.slice(2).every((selection) => selection.reason === "raise_after_two"))
+      .toBe(true);
+  });
+
+  it("uses explicit current-part progress for rotation and recent movement evidence", () => {
+    const oldApplicationAnswer: DiagnosticAnswer = {
+      templateId: "app-price-01", skillId: "skill-price-model", domain: "application_modeling",
+      difficulty: 2, correct: false, independent: true,
+    };
+    const currentPartAnswers: DiagnosticAnswer[] = [
+      { templateId: "geo-angle-01", skillId: "skill-angle", domain: "geometry_space", difficulty: 2, correct: true, independent: true },
+      { templateId: "data-table-01", skillId: "skill-data-table", domain: "data_statistics", difficulty: 2, correct: true, independent: true },
+    ];
+
+    const selection = selectNextDiagnosticQuestion({
+      catalog,
+      answers: [oldApplicationAnswer, ...currentPartAnswers],
+      runSeed: "part-boundary",
+      partNumber: 3,
+      completedInPart: 2,
+    });
+
+    expect(selection).toMatchObject({ targetDifficulty: 2, reason: "part_anchor" });
+    expect(catalog.find((item) => item.templateId === selection?.templateId)?.domain)
+      .toBe("application_modeling");
+  });
+
+  it("returns null instead of creating a sixteenth item in a completed part", () => {
+    const { answers } = selectPart(1, "complete-part");
+    expect(selectNextDiagnosticQuestion({
+      catalog, answers, runSeed: "complete-part", partNumber: 1, completedInPart: 15,
     })).toBeNull();
   });
 });
