@@ -405,21 +405,124 @@ function rangeContains(range: string, value: number): boolean {
   throw new Error("Unsupported range");
 }
 
-function equationStatementIsTrue(statement: string): boolean {
-  const sides = statement.split("=");
-  return sides.length === 2
-    && Math.abs(arithmeticValue(sides[0]) - arithmeticValue(sides[1])) <= 1e-8;
+type BinaryOperator = "+" | "-" | "*" | "/";
+type BinaryOperation = { left: number; operator: BinaryOperator; right: number };
+type CheckEquation = { operation: BinaryOperation; result: number };
+
+function sameNumber(left: number, right: number): boolean {
+  return Math.abs(left - right) <= 1e-8;
 }
 
-function firstNumericOperand(expression: string): number {
-  const match = expression.match(/-?\d+(?:\.\d+)?/);
-  if (!match) throw new Error("Missing operand");
-  return Number(match[0]);
+function parseNumber(expression: string): number | null {
+  const normalized = compactMath(expression);
+  return /^-?(?:\d+(?:\.\d+)?|\.\d+)$/.test(normalized) ? Number(normalized) : null;
 }
 
-function includesNumericToken(expression: string, expected: number): boolean {
+function parseBinaryOperation(expression: string): BinaryOperation | null {
+  const match = compactMath(expression).match(
+    /^(-?(?:\d+(?:\.\d+)?|\.\d+))([+\-*/])(-?(?:\d+(?:\.\d+)?|\.\d+))$/,
+  );
+  return match ? {
+    left: Number(match[1]),
+    operator: match[2] as BinaryOperator,
+    right: Number(match[3]),
+  } : null;
+}
+
+function evaluateBinary(operation: BinaryOperation): number {
+  if (operation.operator === "+") return operation.left + operation.right;
+  if (operation.operator === "-") return operation.left - operation.right;
+  if (operation.operator === "*") return operation.left * operation.right;
+  return operation.left / operation.right;
+}
+
+function parseCheckEquation(statement: string): CheckEquation | null {
+  const sides = compactMath(statement.replace("是否等于", "=")).split("=");
+  if (sides.length !== 2) return null;
+  const leftOperation = parseBinaryOperation(sides[0]);
+  const rightOperation = parseBinaryOperation(sides[1]);
+  const leftNumber = parseNumber(sides[0]);
+  const rightNumber = parseNumber(sides[1]);
+  if (leftOperation && rightNumber !== null && !rightOperation) {
+    return { operation: leftOperation, result: rightNumber };
+  }
+  if (rightOperation && leftNumber !== null && !leftOperation) {
+    return { operation: rightOperation, result: leftNumber };
+  }
+  return null;
+}
+
+function inverseChecks(original: BinaryOperation, claim: number): CheckEquation[] {
+  if (original.operator === "+") return [
+    { operation: { left: claim, operator: "-", right: original.right }, result: original.left },
+    { operation: { left: claim, operator: "-", right: original.left }, result: original.right },
+  ];
+  if (original.operator === "-") return [
+    { operation: { left: claim, operator: "+", right: original.right }, result: original.left },
+    { operation: { left: original.left, operator: "-", right: claim }, result: original.right },
+  ];
+  if (original.operator === "*") return [
+    { operation: { left: claim, operator: "/", right: original.right }, result: original.left },
+    { operation: { left: claim, operator: "/", right: original.left }, result: original.right },
+  ];
+  return [
+    { operation: { left: claim, operator: "*", right: original.right }, result: original.left },
+    { operation: { left: original.left, operator: "/", right: claim }, result: original.right },
+  ];
+}
+
+function sameOperation(left: BinaryOperation, right: BinaryOperation): boolean {
+  return left.operator === right.operator
+    && sameNumber(left.left, right.left)
+    && sameNumber(left.right, right.right);
+}
+
+function sameCheck(left: CheckEquation, right: CheckEquation): boolean {
+  return sameOperation(left.operation, right.operation) && sameNumber(left.result, right.result);
+}
+
+function relatedInverseExpression(originalText: string, claim: number, candidateText: string): boolean {
+  const original = parseBinaryOperation(originalText);
+  const candidate = parseBinaryOperation(candidateText);
+  if (!original || !candidate) return false;
+  const candidateCheck = { operation: candidate, result: evaluateBinary(candidate) };
+  return inverseChecks(original, claim).some((expected) => sameCheck(expected, candidateCheck));
+}
+
+function relatedInverseCheck(originalText: string, claim: number, statement: string): boolean {
+  const original = parseBinaryOperation(originalText);
+  const evidence = parseCheckEquation(statement);
+  return Boolean(original && evidence
+    && inverseChecks(original, claim).some((expected) => sameCheck(expected, evidence)));
+}
+
+function checkIsTrue(evidence: CheckEquation): boolean {
+  return Number.isFinite(evidence.result)
+    && sameNumber(evaluateBinary(evidence.operation), evidence.result);
+}
+
+function claimTokenCount(expression: string, claim: number): number {
   return [...expression.matchAll(/-?\d+(?:\.\d+)?/g)]
-    .some((match) => Math.abs(Number(match[0]) - expected) <= 1e-8);
+    .filter((match) => sameNumber(Number(match[0]), claim)).length;
+}
+
+function isNonIdentity(operation: BinaryOperation): boolean {
+  if (operation.operator === "+") return !sameNumber(operation.left, 0) && !sameNumber(operation.right, 0);
+  if (operation.operator === "-") return !sameNumber(operation.right, 0);
+  if (operation.operator === "*") {
+    return !sameNumber(operation.left, 0) && !sameNumber(operation.right, 0)
+      && !sameNumber(operation.left, 1) && !sameNumber(operation.right, 1);
+  }
+  return !sameNumber(operation.left, 0) && !sameNumber(operation.right, 0)
+    && !sameNumber(operation.right, 1);
+}
+
+function supportsClaimWithNontrivialCheck(statement: string, claim: number): boolean {
+  const evidence = parseCheckEquation(statement);
+  return Boolean(evidence
+    && claimTokenCount(statement, claim) === 1
+    && isNonIdentity(evidence.operation)
+    && checkIsTrue(evidence));
 }
 
 function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOption[] | null {
@@ -449,16 +552,9 @@ function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOptio
 
   match = question.match(/^算式 (.+) 的结果是 (-?\d+(?:\.\d+)?)。下面哪一个算式能直接检查这个结果？$/);
   if (match) {
-    const target = firstNumericOperand(match[1]);
+    const original = match[1];
     const claim = Number(match[2]);
-    return options.filter(({ text }) => {
-      try {
-        return includesNumericToken(text, claim)
-          && Math.abs(arithmeticValue(text) - target) <= 1e-8;
-      } catch {
-        return false;
-      }
-    });
+    return options.filter(({ text }) => relatedInverseExpression(original, claim, text));
   }
 
   match = question.match(/^同学计算 (.+) 得到 (-?\d+(?:\.\d+)?)，又用 (.+) 检查。根据两条信息，最合理的判断是：$/);
@@ -466,10 +562,13 @@ function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOptio
     const exact = arithmeticValue(match[1]);
     const claim = Number(match[2]);
     const check = match[3].replace("是否等于", "=");
-    const checkSupports = equationStatementIsTrue(check);
-    const expected = Math.abs(exact - claim) <= 1e-8 && checkSupports
-      ? "原计算一定正确"
-      : "检查发现原结果有误";
+    const related = relatedInverseCheck(match[1], claim, check);
+    const evidence = parseCheckEquation(check);
+    const expected = !related
+      ? "检查式与原式无关"
+      : sameNumber(exact, claim) && evidence && checkIsTrue(evidence)
+        ? "原计算一定正确"
+        : "检查发现原结果有误";
     return optionsEqualTo(options, expected);
   }
 
@@ -574,8 +673,7 @@ function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOptio
   if (match) {
     const claim = Number(match[3]);
     const evidenceSupports = rangeContains(match[1], claim)
-      && includesNumericToken(match[2], claim)
-      && equationStatementIsTrue(match[2]);
+      && supportsClaimWithNontrivialCheck(match[2], claim);
     return optionsEqualTo(options, evidenceSupports ? "两项检查都支持答案" : "证据互相矛盾，需重算");
   }
 

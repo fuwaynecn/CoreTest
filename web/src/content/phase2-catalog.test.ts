@@ -329,3 +329,66 @@ test("rejects inverse and checking evidence disconnected from the rendered claim
     expect.stringContaining("incorrect_choice_answer"),
   ]));
 });
+
+test("rejects a true check equation unrelated to the rendered original calculation", () => {
+  const template = phase2Catalog.find(({ id }) => id === "num-reverse-check-02")!;
+  const unrelatedCheck = {
+    ...template,
+    id: "renamed-error-analysis",
+    structureTag: "renamed-error-analysis",
+    answerSpecPattern: { kind: "choice", value: "A" },
+    variantSpec: {
+      variables: {
+        ...template.variantSpec.variables,
+        claim: [9, 8.8, 168],
+        check: [
+          "1 + 1 是否等于 2",
+          "1 + 1 是否等于 2",
+          "1 + 1 是否等于 2",
+        ],
+      },
+    },
+  };
+
+  expect(validateCatalog([unrelatedCheck])).toEqual(expect.arrayContaining([
+    expect.stringContaining("incorrect_choice_answer"),
+  ]));
+});
+
+test("rejects identity equations presented as inverse-operation evidence", () => {
+  const template = phase2Catalog.find(({ id }) => id === "habit-check-02")!;
+  const identityEvidence = {
+    ...template,
+    id: "renamed-check-evidence",
+    structureTag: "renamed-check-evidence",
+    variantSpec: {
+      variables: {
+        ...template.variantSpec.variables,
+        inverse: ["55 + 0 = 55", "100 × 1 = 100", "8 ÷ 1 = 8"],
+      },
+    },
+  };
+
+  expect(validateCatalog([identityEvidence])).toEqual(expect.arrayContaining([
+    expect.stringContaining("incorrect_choice_answer"),
+  ]));
+});
+
+test("rejects coincidental arithmetic that is not the original operation's inverse", () => {
+  const template = phase2Catalog.find(({ id }) => id === "num-reverse-check-01")!;
+  const coincidentalOptions = {
+    ...template,
+    id: "renamed-inverse-check",
+    structureTag: "renamed-inverse-check",
+    variantSpec: {
+      variables: {
+        ...template.variantSpec.variables,
+        c: ["47 × 2 - 10", "9.2 - 3 + 0.2", "105 - 20 - 70"],
+      },
+    },
+  };
+
+  expect(validateCatalog([coincidentalOptions])).toEqual(expect.arrayContaining([
+    expect.stringContaining("incorrect_choice_answer"),
+  ]));
+});
