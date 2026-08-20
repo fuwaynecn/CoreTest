@@ -54,7 +54,8 @@ async function postDiagnosisAnswer(submission: Submission): Promise<DiagnosisAtt
     const message = typeof data === "object" && data !== null && "error" in data && typeof data.error === "string"
       ? data.error
       : "答案需要修改后再提交。";
-    throw new CertainSubmissionError(message);
+    if ([400, 401, 403].includes(response.status)) throw new CertainSubmissionError(message);
+    throw new Error("Uncertain diagnosis server response");
   }
   if (!isDiagnosisAttemptResult(data)) throw new Error("Uncertain diagnosis response");
   return data;

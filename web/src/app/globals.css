@@ -28,6 +28,9 @@ button, input { min-height: 48px; }
 .trainingPage h1 { margin: .25rem 0 1rem; font-size: clamp(2rem, 6vw, 3.5rem); }
 .trainingStart { margin-top: 1rem; }
 .diagnosisHomeCount { width: fit-content; margin: 1.5rem 0 .25rem; padding: .65rem .9rem; border-left: .35rem solid var(--brand); background: #edf5f2; font-weight: 700; }
+.activeRetest { width: fit-content; margin-top: 1.5rem; padding: 1rem 1.15rem; border: 1px solid var(--sand); border-radius: .75rem; background: white; }
+.activeRetest p { margin-top: 0; }
+.activeRetest a { color: var(--brand); font-weight: 700; }
 .sessionProgress { margin: 0 0 1rem; color: #57635f; font-weight: 700; }
 .diagnosisPage { overflow-x: clip; }
 .diagnosisProgress { margin-bottom: 1.25rem; }
@@ -62,7 +65,10 @@ button, input { min-height: 48px; }
 .diagnosisSummaryHeading { align-items: end; }
 .diagnosisSummaryHeading h2 { margin: .2rem 0 0; }
 .parentDiagnosisRail { margin: 1.25rem 0; }
-.difficultyPath { margin: 1rem 0 0; color: #57635f; line-height: 1.8; overflow-wrap: anywhere; }
+.difficultyPaths { display: grid; gap: .35rem; margin: 1rem 0 0; color: #57635f; line-height: 1.65; overflow-wrap: anywhere; }
+.difficultyPaths > strong { color: var(--ink); }
+.difficultyPaths p { margin: 0; }
+.difficultyPaths p span { color: var(--ink); font-weight: 700; }
 .provisionalNote { margin: 1.25rem 0 0; padding: .85rem 1rem; border-left: .35rem solid #a98414; background: #fff7d8; }
 .diagnosisDomainGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem; padding: 0; margin: 1rem 0 0; list-style: none; }
 .diagnosisDomainGrid li { display: flex; min-width: 0; justify-content: space-between; gap: .75rem; align-items: center; padding: 1rem; border: 1px solid var(--sand); border-radius: .75rem; }

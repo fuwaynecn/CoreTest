@@ -70,6 +70,11 @@ export type DiagnosticAttemptResult = {
   diagnosis: DiagnosisView;
 };
 
+export type DiagnosisLearningGate = {
+  formalDailyUnlocked: boolean;
+  activeDiagnosis: DiagnosisView | null;
+};
+
 export class DiagnosisAccessError extends Error {
   constructor() {
     super("Diagnosis item is not available");
@@ -334,6 +339,22 @@ export function getOrCreateDiagnosis(db: AppDatabase, childId: string, now = Dat
     const runId = existing?.id ?? createRun(tx, childId, 1, now);
     return viewForRun(tx, childId, runId);
   }, { behavior: "immediate" });
+}
+
+export function getDiagnosisLearningGate(db: AppDatabase, childId: string): DiagnosisLearningGate {
+  return db.transaction((tx) => {
+    const current = latestRun(tx, childId);
+    const completed = tx.select({ id: diagnosticRuns.id }).from(diagnosticRuns).where(and(
+      eq(diagnosticRuns.childId, childId),
+      eq(diagnosticRuns.status, "completed"),
+    )).limit(1).get();
+    return {
+      formalDailyUnlocked: completed !== undefined,
+      activeDiagnosis: current?.status === "in_progress"
+        ? viewForRun(tx, childId, current.id)
+        : null,
+    };
+  });
 }
 
 export function getDiagnosisView(db: AppDatabase, childId: string): DiagnosisView {

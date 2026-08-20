@@ -3,6 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { DiagnosisAnswerForm } from "./diagnosis-answer-form";
 import { DiagnosisProgress } from "./diagnosis-progress";
 
+afterEach(() => vi.restoreAllMocks());
+
 test("shows the persisted position in the three-part diagnosis", () => {
   render(<DiagnosisProgress part={2} completedInPart={7} totalInPart={15} />);
 
@@ -71,4 +73,68 @@ test("reuses the submission id only while success is uncertain", async () => {
   expect(screen.getByLabelText("你的答案")).toBeEnabled();
   await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
   expect(rejected.mock.calls[1][0].clientSubmissionId).not.toBe(rejected.mock.calls[0][0].clientSubmissionId);
+});
+
+test.each([400, 401, 403])("uses a new submission id after a definite %s response", async (status) => {
+  const fetchSpy = vi.spyOn(globalThis, "fetch")
+    .mockResolvedValueOnce(new Response(JSON.stringify({ error: "需要修改后重试" }), { status }))
+    .mockResolvedValueOnce(new Response(JSON.stringify({
+      correct: true,
+      normalizedAnswer: "6",
+      explanation: "正确。",
+      diagnosis: { runId: "run-1", status: "in_progress", completedSlots: 1 },
+    })));
+  render(<DiagnosisAnswerForm sessionItemId="item-http" runId="run-1" />);
+
+  await userEvent.type(screen.getByLabelText("你的答案"), "6");
+  await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("需要修改后重试");
+  expect(screen.getByLabelText("你的答案")).toBeEnabled();
+  await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
+
+  const first = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
+  const second = JSON.parse(fetchSpy.mock.calls[1][1]?.body as string);
+  expect(second.clientSubmissionId).not.toBe(first.clientSubmissionId);
+});
+
+test("reuses the submission id after a 503 response", async () => {
+  const fetchSpy = vi.spyOn(globalThis, "fetch")
+    .mockResolvedValueOnce(new Response(JSON.stringify({ error: "暂时不可用" }), { status: 503 }))
+    .mockResolvedValueOnce(new Response(JSON.stringify({
+      correct: true,
+      normalizedAnswer: "6",
+      explanation: "正确。",
+      diagnosis: { runId: "run-1", status: "in_progress", completedSlots: 1 },
+    })));
+  render(<DiagnosisAnswerForm sessionItemId="item-503" runId="run-1" />);
+
+  await userEvent.type(screen.getByLabelText("你的答案"), "6");
+  await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("提交状态还不能确认，请重试。");
+  expect(screen.getByLabelText("你的答案")).toBeDisabled();
+  await userEvent.click(screen.getByRole("button", { name: "重试提交" }));
+
+  const first = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
+  const second = JSON.parse(fetchSpy.mock.calls[1][1]?.body as string);
+  expect(second.clientSubmissionId).toBe(first.clientSubmissionId);
+});
+
+test("reuses the submission id after a malformed 2xx response", async () => {
+  const fetchSpy = vi.spyOn(globalThis, "fetch")
+    .mockResolvedValueOnce(new Response(JSON.stringify({ correct: true })))
+    .mockResolvedValueOnce(new Response(JSON.stringify({
+      correct: true,
+      normalizedAnswer: "6",
+      explanation: "正确。",
+      diagnosis: { runId: "run-1", status: "in_progress", completedSlots: 1 },
+    })));
+  render(<DiagnosisAnswerForm sessionItemId="item-malformed" runId="run-1" />);
+
+  await userEvent.type(screen.getByLabelText("你的答案"), "6");
+  await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
+  await userEvent.click(await screen.findByRole("button", { name: "重试提交" }));
+
+  const first = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
+  const second = JSON.parse(fetchSpy.mock.calls[1][1]?.body as string);
+  expect(second.clientSubmissionId).toBe(first.clientSubmissionId);
 });

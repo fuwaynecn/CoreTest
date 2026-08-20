@@ -1,5 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
-import { diagnosticRuns, questionTemplates, skills, users } from "@/db/schema";
+import { diagnosticRuns, questionTemplates, sessionItems, skills, trainingSessions, users } from "@/db/schema";
 import { createTestDatabase } from "@/test/test-db";
 import ParentPage from "./page";
 
@@ -81,6 +81,43 @@ test("labels first-attempt periods and bases the recommendation on this week", a
   expect(screen.queryByText(/能力诊断|最终诊断/)).not.toBeInTheDocument();
 });
 
+function seedThreePartDifficultyPath(db: ReturnType<typeof createTestDatabase>, runId: string) {
+  db.insert(skills).values({ id: "path-skill", code: "path", name: "路径技能", domain: "数与运算" }).run();
+  db.insert(questionTemplates).values({
+    id: "path-template",
+    skillId: "path-skill",
+    stem: "路径题",
+    answerSpec: "{}",
+    explanation: "讲解",
+    difficulty: 2,
+  }).run();
+  for (const part of [1, 2, 3]) {
+    db.insert(trainingSessions).values({
+      id: `path-session-${part}`,
+      childId: "child-1",
+      sessionDate: `2026-08-${19 + part}`,
+      status: "completed",
+      kind: "diagnostic",
+      diagnosticRunId: runId,
+      diagnosticPartNumber: part,
+      startedAt: part,
+      completedAt: part + 1,
+    }).run();
+    db.insert(sessionItems).values(Array.from({ length: 15 }, (_, index) => ({
+      id: `path-item-${part}-${index}`,
+      sessionId: `path-session-${part}`,
+      questionTemplateId: "path-template",
+      position: index + 1,
+      stemSnapshot: "路径题",
+      answerSpecSnapshot: "{}",
+      explanationSnapshot: "讲解",
+      skillIdSnapshot: "path-skill",
+      skillNameSnapshot: "路径技能",
+      difficultySnapshot: ((part + index) % 4) + 1,
+    }))).run();
+  }
+}
+
 test("shows diagnosis progress before completion", async () => {
   const db = state.db as ReturnType<typeof createTestDatabase>;
   db.insert(diagnosticRuns).values({
@@ -138,9 +175,15 @@ test("labels all six completed-domain results as provisional version one", async
     startedAt: 1,
     completedAt: 2,
   }).run();
+  seedThreePartDifficultyPath(db, "run-complete");
 
   render(await ParentPage());
   expect(screen.getByText("初始诊断报告 · 第 1 版 · 45/45")).toBeVisible();
   expect(screen.getByText("这些是暂定状态，会随之后的跨日练习更新。")).toBeVisible();
   expect(screen.getAllByTestId("diagnosis-domain-status")).toHaveLength(6);
+  const paths = screen.getAllByTestId("diagnosis-difficulty-part");
+  expect(paths).toHaveLength(3);
+  expect(paths[0]).toHaveTextContent("第 1 部分：2 → 3 → 4 → 1");
+  expect(paths[1]).toHaveTextContent("第 2 部分：3 → 4 → 1 → 2");
+  expect(paths[2]).toHaveTextContent("第 3 部分：4 → 1 → 2 → 3");
 });

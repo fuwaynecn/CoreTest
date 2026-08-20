@@ -79,14 +79,21 @@ export default async function ParentPage() {
     .innerJoin(trainingSessions, eq(sessionItems.sessionId, trainingSessions.id))
     .where(eq(trainingSessions.diagnosticRunId, diagnosisRun.id))
     .get()?.value ?? 0) : 0;
-  const difficultyPath = diagnosisRun ? db.select({ difficulty: sessionItems.difficultySnapshot })
+  const difficultyRows = diagnosisRun ? db.select({
+    part: trainingSessions.diagnosticPartNumber,
+    difficulty: sessionItems.difficultySnapshot,
+  })
     .from(sessionItems)
     .innerJoin(trainingSessions, eq(sessionItems.sessionId, trainingSessions.id))
     .where(eq(trainingSessions.diagnosticRunId, diagnosisRun.id))
     .orderBy(asc(trainingSessions.diagnosticPartNumber), asc(sessionItems.position))
-    .all()
-    .map(({ difficulty }) => difficulty)
-    .filter((difficulty): difficulty is number => difficulty !== null) : [];
+    .all() : [];
+  const difficultyPaths = [1, 2, 3].map((part) => ({
+    part,
+    values: difficultyRows
+      .filter((row) => row.part === part && row.difficulty !== null)
+      .map((row) => row.difficulty as number),
+  }));
   const diagnosisReport = diagnosisRun?.status === "completed"
     ? parseInitialReport(diagnosisRun.reportSnapshot)
     : null;
@@ -130,8 +137,15 @@ export default async function ParentPage() {
               </span>
             ))}
           </div>
-          {difficultyPath.length > 0 && (
-            <p className="difficultyPath"><strong>难度路径：</strong>{difficultyPath.join(" → ")}</p>
+          {difficultyPaths.some(({ values }) => values.length > 0) && (
+            <div className="difficultyPaths" aria-label="三部分实际难度路径">
+              <strong>难度路径</strong>
+              {difficultyPaths.map(({ part, values }) => values.length > 0 && (
+                <p key={part} data-testid="diagnosis-difficulty-part">
+                  <span>第 {part} 部分：</span>{values.join(" → ")}
+                </p>
+              ))}
+            </div>
           )}
           {diagnosisReport && (
             <>

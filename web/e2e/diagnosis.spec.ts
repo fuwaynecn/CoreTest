@@ -31,6 +31,7 @@ async function expectNoHorizontalOverflow(page: Page) {
 }
 
 test("@tablet child resumes and completes all three diagnosis parts", async ({ page }) => {
+  const tabletViewport = page.viewportSize();
   await page.goto("/login");
   await page.getByRole("button", { name: /我是孩子/ }).click();
   await page.getByLabel("PIN").fill("2468");
@@ -46,6 +47,20 @@ test("@tablet child resumes and completes all three diagnosis parts", async ({ p
   let reloadedStem = "";
   for (let index = 0; index < 45; index += 1) {
     const answer = index === 2 ? "一定不是正确答案" : currentCorrectAnswer();
+    const narrowActiveAnswer = index === 3;
+    if (narrowActiveAnswer) {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await expectNoHorizontalOverflow(page);
+      const interactiveLocators = [page.getByLabel("你的答案"), page.getByRole("button", { name: "提交答案" })];
+      for (const locator of [page.locator(".questionCard"), ...interactiveLocators]) {
+        const box = await locator.boundingBox();
+        expect(box).not.toBeNull();
+        expect(box!.x).toBeGreaterThanOrEqual(0);
+        expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+      }
+      for (const locator of interactiveLocators) expect((await locator.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      await page.screenshot({ path: ".tmp/diagnosis-390-active.png", fullPage: true });
+    }
     await page.getByLabel("你的答案").fill(answer);
     await page.getByRole("button", { name: "提交答案" }).click();
     await expect(page.getByRole("heading", { name: "这题已记录" })).toBeVisible();
@@ -56,6 +71,7 @@ test("@tablet child resumes and completes all three diagnosis parts", async ({ p
     await page.getByRole("button", { name: buttonName }).click();
     if (index === 44) break;
     await expect(page.getByLabel("你的答案")).toBeVisible();
+    if (narrowActiveAnswer && tabletViewport) await page.setViewportSize(tabletViewport);
 
     if (index === 2) {
       reloadedStem = await page.getByRole("heading", { level: 1 }).innerText();
@@ -69,6 +85,21 @@ test("@tablet child resumes and completes all three diagnosis parts", async ({ p
   await expectNoHorizontalOverflow(page);
 
   await page.setViewportSize({ width: 390, height: 844 });
+  await expectNoHorizontalOverflow(page);
+});
+
+test("@tablet parent diagnosis report is available in the tablet browser", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByRole("button", { name: /我是家长/ }).click();
+  await page.getByLabel("家长密码").fill("parent-test-1234");
+  await Promise.all([
+    page.waitForURL("**/parent"),
+    page.getByRole("button", { name: "登录", exact: true }).click(),
+  ]);
+
+  await expect(page.getByRole("heading", { name: "初始诊断报告 · 第 1 版 · 45/45" })).toBeVisible();
+  await expect(page.getByTestId("diagnosis-domain-status")).toHaveCount(6);
+  await expect(page.getByTestId("diagnosis-difficulty-part")).toHaveCount(3);
   await expectNoHorizontalOverflow(page);
 });
 

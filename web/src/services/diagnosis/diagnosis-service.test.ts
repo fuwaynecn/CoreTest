@@ -21,6 +21,7 @@ import { createTestDatabase } from "@/test/test-db";
 import {
   DiagnosisAccessError,
   DiagnosisStateError,
+  getDiagnosisLearningGate,
   getDiagnosisView,
   getOrCreateDiagnosis,
   startDiagnosisRetest,
@@ -264,6 +265,10 @@ describe("diagnosis service", () => {
 
     const second = startDiagnosisRetest(db, "child-1", 100);
     expect(second).toMatchObject({ version: 2, status: "in_progress", completedSlots: 0 });
+    expect(getDiagnosisLearningGate(db, "child-1")).toMatchObject({
+      formalDailyUnlocked: true,
+      activeDiagnosis: { runId: second.runId, version: 2, status: "in_progress" },
+    });
     expect(() => startDiagnosisRetest(db, "child-1", 101)).toThrow(DiagnosisStateError);
     expect(db.select({ version: diagnosticRuns.version, status: diagnosticRuns.status })
       .from(diagnosticRuns).where(eq(diagnosticRuns.childId, "child-1"))
