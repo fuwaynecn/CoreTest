@@ -189,10 +189,14 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
         purpose,
         firstAttemptCorrect: score.correct,
         independent: hintCount === 0,
+        hintLevel: hintLevel as 0 | 1 | 2 | 3,
         difficulty: item.difficulty as 1 | 2 | 3 | 4,
         structureTag: item.structureTag,
         occurredOn: shanghaiDateKey(now),
         occurredAt: now,
+        diagnosticRunId: null,
+        diagnosticCompletedOn: null,
+        diagnosticCompletedAt: null,
         reviewIntervalDays,
       });
     }

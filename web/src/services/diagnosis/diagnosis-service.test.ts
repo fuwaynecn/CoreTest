@@ -450,7 +450,9 @@ describe("diagnosis service", () => {
     expect(JSON.parse(run.reportSnapshot!)).toMatchObject({ skills: expect.any(Array), domains: expect.any(Array) });
     const evidence = db.select().from(masteryEvidence).all();
     expect(evidence).toHaveLength(45);
-    expect(evidence.every((row) => row.purpose === "diagnostic" && row.independent)).toBe(true);
+    expect(evidence.every((row) => row.purpose === "diagnostic" && row.independent
+      && row.hintLevel === 0 && row.diagnosticRunId === completed.runId
+      && row.diagnosticCompletedAt === 1_700_000_000_045)).toBe(true);
     expect(new Set(evidence.map((row) => row.sessionItemId)).size).toBe(45);
     expect(evidence.every((row) => row.templateId.length > 0 && row.occurredOn === "2023-11-15")).toBe(true);
     expect(db.select().from(masteryStates).all().reduce((sum, row) => sum + row.evidenceCount, 0)).toBe(45);

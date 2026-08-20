@@ -37,7 +37,8 @@ test("a wrong first submission appends one immutable evidence row and correction
   expect(db.select().from(masteryEvidence).where(eq(masteryEvidence.sessionItemId, itemId)).all())
     .toEqual([expect.objectContaining({
       templateId: "q-decimal-1", firstAttemptCorrect: false, independent: true,
-      purpose: "learning", occurredOn: shanghaiDateKey(),
+      hintLevel: 0, purpose: "learning", occurredOn: shanghaiDateKey(),
+      diagnosticRunId: null, diagnosticCompletedAt: null,
     })]);
   expect(db.select().from(masteryStates).where(eq(masteryStates.skillId, "skill-decimal")).get())
     .toMatchObject({ evidenceCount: 1, correctCount: 0, evidenceVersion: 1 });
@@ -54,7 +55,7 @@ test("persisted hints make first-attempt evidence non-independent", () => {
   submitAttempt(db, { childId: "child-1", sessionItemId: itemId,
     clientSubmissionId: "43434343-4343-4343-8343-434343434343", answerText: "6" });
   expect(db.select().from(masteryEvidence).where(eq(masteryEvidence.sessionItemId, itemId)).get())
-    .toMatchObject({ firstAttemptCorrect: true, independent: false });
+    .toMatchObject({ firstAttemptCorrect: true, independent: false, hintLevel: 1 });
 });
 
 test("evidence keeps the immutable item template snapshot after catalog edits", () => {

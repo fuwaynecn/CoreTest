@@ -185,7 +185,12 @@ function answerHistory(tx: AppTransaction, runId: string): DiagnosticAnswer[] {
     }));
 }
 
-function importDiagnosticEvidence(tx: AppTransaction, runId: string, childId: string) {
+function importDiagnosticEvidence(
+  tx: AppTransaction,
+  runId: string,
+  childId: string,
+  completedAt: number,
+) {
   const rows = tx.select({
     sessionItemId: sessionItems.id,
     templateId: sessionItems.questionTemplateId,
@@ -201,8 +206,10 @@ function importDiagnosticEvidence(tx: AppTransaction, runId: string, childId: st
     .orderBy(asc(attempts.submittedAt), asc(attempts.id))
     .all();
   for (const row of rows) {
-    const usedHint = tx.select({ id: hintEvents.id }).from(hintEvents)
-      .where(eq(hintEvents.sessionItemId, row.sessionItemId)).limit(1).get() !== undefined;
+    const persistedHints = tx.select({ level: hintEvents.hintLevel }).from(hintEvents)
+      .where(eq(hintEvents.sessionItemId, row.sessionItemId)).all();
+    const hintLevel = persistedHints.reduce<number>((highest, hint) => Math.max(highest, hint.level), 0) as
+      0 | 1 | 2 | 3;
     recordLearningEvidence(tx, {
       childId,
       skillId: row.skillId,
@@ -210,11 +217,15 @@ function importDiagnosticEvidence(tx: AppTransaction, runId: string, childId: st
       templateId: row.templateId,
       purpose: "diagnostic",
       firstAttemptCorrect: row.correct,
-      independent: !usedHint,
+      independent: hintLevel === 0,
+      hintLevel,
       difficulty: row.difficulty as 1 | 2 | 3 | 4,
       structureTag: row.structureTag,
       occurredOn: shanghaiDateKey(row.occurredAt),
       occurredAt: row.occurredAt,
+      diagnosticRunId: runId,
+      diagnosticCompletedOn: shanghaiDateKey(completedAt),
+      diagnosticCompletedAt: completedAt,
       reviewIntervalDays: 0,
     });
   }
@@ -638,7 +649,7 @@ export function submitDiagnosticAttempt(
         }, nextPart, now, runtime);
       } else {
         const report = deriveInitialReport(answerHistory(tx, item.runId));
-        importDiagnosticEvidence(tx, item.runId, command.childId);
+        importDiagnosticEvidence(tx, item.runId, command.childId, now);
         tx.update(diagnosticRuns).set({
           status: "completed",
           currentPart: 3,

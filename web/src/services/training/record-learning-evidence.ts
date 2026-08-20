@@ -19,10 +19,14 @@ export type RecordLearningEvidenceCommand = {
   purpose: EvidencePurpose;
   firstAttemptCorrect: boolean;
   independent: boolean;
+  hintLevel: 0 | 1 | 2 | 3 | null;
   difficulty: 1 | 2 | 3 | 4;
   structureTag: string;
   occurredOn: string;
   occurredAt: number;
+  diagnosticRunId: string | null;
+  diagnosticCompletedOn: string | null;
+  diagnosticCompletedAt: number | null;
   reviewIntervalDays?: ReviewIntervalDays;
 };
 
@@ -53,13 +57,19 @@ export function recordLearningEvidence(
     asc(masteryEvidence.id),
   ).all();
   const state = deriveMasteryState(rows.map((row) => ({
+    id: row.id,
     purpose: row.purpose,
     templateId: row.templateId,
     structureTag: row.structureTag,
     difficulty: row.difficulty as 1 | 2 | 3 | 4,
     firstAttemptCorrect: row.firstAttemptCorrect,
     independent: row.independent,
+    hintLevel: row.hintLevel as 0 | 1 | 2 | 3 | null,
     occurredOn: row.occurredOn,
+    occurredAt: row.occurredAt,
+    diagnosticRunId: row.diagnosticRunId,
+    diagnosticCompletedOn: row.diagnosticCompletedOn,
+    diagnosticCompletedAt: row.diagnosticCompletedAt,
     reviewIntervalDays: row.reviewIntervalDays as ReviewIntervalDays,
   })), current?.status);
   const cursor = rows.at(-1)?.id ?? null;

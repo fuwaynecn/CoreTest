@@ -166,19 +166,30 @@ export const masteryEvidence = sqliteTable("mastery_evidence", {
   purpose: text("purpose", { enum: ["diagnostic", "learning", "review", "assessment"] }).notNull(),
   firstAttemptCorrect: integer("first_attempt_correct", { mode: "boolean" }).notNull(),
   independent: integer("independent", { mode: "boolean" }).notNull(),
+  hintLevel: integer("hint_level"),
   difficulty: integer("difficulty").notNull(),
   structureTag: text("structure_tag").notNull(),
   occurredOn: text("occurred_on").notNull(),
   occurredAt: integer("occurred_at").notNull(),
+  diagnosticRunId: text("diagnostic_run_id").references(() => diagnosticRuns.id),
+  diagnosticCompletedOn: text("diagnostic_completed_on"),
+  diagnosticCompletedAt: integer("diagnostic_completed_at"),
   reviewIntervalDays: integer("review_interval_days").notNull().default(0),
 }, (table) => [
   uniqueIndex("mastery_evidence_source_idx").on(table.sessionItemId),
   check("mastery_evidence_purpose", sql`${table.purpose} IN ('diagnostic', 'learning', 'review', 'assessment')`),
   check("mastery_evidence_first_correct_boolean", sql`${table.firstAttemptCorrect} IN (0, 1)`),
   check("mastery_evidence_independent_boolean", sql`${table.independent} IN (0, 1)`),
+  check("mastery_evidence_hint_level", sql`${table.hintLevel} IS NULL OR ${table.hintLevel} BETWEEN 0 AND 3`),
+  check("mastery_evidence_hint_independence", sql`${table.independent} = 0 OR ${table.hintLevel} = 0`),
   check("mastery_evidence_difficulty_range", sql`${table.difficulty} BETWEEN 1 AND 4`),
   check("mastery_evidence_review_interval", sql`${table.reviewIntervalDays} IN (0, 1, 3, 7, 14, 30)`),
   check("mastery_evidence_review_purpose", sql`(${table.purpose} = 'review' AND ${table.reviewIntervalDays} IN (1, 3, 7, 14, 30)) OR (${table.purpose} <> 'review' AND ${table.reviewIntervalDays} = 0)`),
+  check("mastery_evidence_diagnostic_group", sql`(
+    ${table.purpose} = 'diagnostic'
+    AND ((${table.diagnosticRunId} IS NULL AND ${table.diagnosticCompletedOn} IS NULL AND ${table.diagnosticCompletedAt} IS NULL)
+      OR (${table.diagnosticRunId} IS NOT NULL AND ${table.diagnosticCompletedOn} IS NOT NULL AND ${table.diagnosticCompletedAt} IS NOT NULL))
+  ) OR (${table.purpose} <> 'diagnostic' AND ${table.diagnosticRunId} IS NULL AND ${table.diagnosticCompletedOn} IS NULL AND ${table.diagnosticCompletedAt} IS NULL)`),
 ]);
 
 const errorCauses = [

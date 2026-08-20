@@ -4,19 +4,25 @@ function evidence(overrides: Partial<MasteryEvidenceInput> = {}): MasteryEvidenc
   return {
     purpose: "learning", templateId: "template-1", structureTag: "structure-1",
     difficulty: 1, firstAttemptCorrect: true, independent: true,
-    occurredOn: "2026-08-20", reviewIntervalDays: 0, ...overrides,
+    occurredOn: "2026-08-20", occurredAt: 1, id: "evidence-1", hintLevel: 0,
+    diagnosticRunId: null, diagnosticCompletedOn: null, diagnosticCompletedAt: null,
+    reviewIntervalDays: 0, ...overrides,
   };
 }
 
 function diagnosticRate(correctWeight: number, totalWeight: number, templates = 1) {
   const rows: MasteryEvidenceInput[] = [];
   for (let index = 0; index < correctWeight; index += 1) rows.push(evidence({
+    id: `diagnostic-correct-${index}`, occurredAt: index + 1,
     purpose: "diagnostic", templateId: `correct-${index % templates}`,
     structureTag: `diagnostic-${index}`, firstAttemptCorrect: true,
+    diagnosticRunId: "diagnostic-run", diagnosticCompletedOn: "2026-08-20", diagnosticCompletedAt: 1_000,
   }));
   for (let index = correctWeight; index < totalWeight; index += 1) rows.push(evidence({
+    id: `diagnostic-wrong-${index}`, occurredAt: index + 1,
     purpose: "diagnostic", templateId: `wrong-${index}`,
     structureTag: `diagnostic-${index}`, firstAttemptCorrect: false,
+    diagnosticRunId: "diagnostic-run", diagnosticCompletedOn: "2026-08-20", diagnosticCompletedAt: 1_000,
   }));
   return rows;
 }
@@ -30,12 +36,88 @@ test("maps exact diagnostic weighted-rate boundaries and requires two correct te
   expect(deriveMasteryState(diagnosticRate(80, 100, 1)).status).toBe("learning");
 });
 
+test("orders diagnosis batches at completion so a successful retest resets earlier review failures", () => {
+  const first = diagnosticRate(4, 5, 2).map((row, index) => ({
+    ...row, id: `first-${index}`, occurredAt: 10 + index,
+    diagnosticRunId: "run-1", diagnosticCompletedOn: "2026-08-20", diagnosticCompletedAt: 100,
+  }));
+  const failed = evidence({
+    id: "failed-review", purpose: "review", occurredOn: "2026-08-27", occurredAt: 200,
+    reviewIntervalDays: 7, firstAttemptCorrect: false,
+  });
+  const retest = diagnosticRate(5, 5, 2).map((row, index) => ({
+    ...row, id: `retest-${index}`, occurredOn: "2026-08-21", occurredAt: 300 + index,
+    diagnosticRunId: "run-2", diagnosticCompletedOn: "2026-09-01", diagnosticCompletedAt: 400,
+  }));
+  expect(deriveMasteryState([failed, ...retest.toReversed(), ...first.toReversed()]))
+    .toMatchObject({ status: "basic", reasonCode: "diagnostic_basic" });
+});
+
+test("uses occurred date, timestamp, then id as the deterministic event tie-break", () => {
+  const diagnosis = diagnosticRate(4, 5, 2).map((row, index) => ({
+    ...row, id: `diagnostic-${index}`, diagnosticRunId: "m-run",
+    diagnosticCompletedOn: "2026-08-20", diagnosticCompletedAt: 100,
+  }));
+  const review = evidence({
+    id: "z-review", purpose: "review", occurredOn: "2026-08-20", occurredAt: 100,
+    reviewIntervalDays: 7, firstAttemptCorrect: false,
+  });
+  expect(deriveMasteryState([review, ...diagnosis]).status).toBe("learning");
+  expect(deriveMasteryState([{ ...review, id: "a-review" }, ...diagnosis]).status).toBe("basic");
+});
+
+test("does not turn unknown legacy diagnostic hint telemetry into incorrect evidence", () => {
+  const unknown = diagnosticRate(5, 5, 2).map((row) => ({
+    ...row, hintLevel: null, independent: false,
+  }));
+  expect(deriveMasteryState(unknown, "basic"))
+    .toMatchObject({ status: "basic", reasonCode: "diagnostic_group_unknown" });
+});
+
+test("recent five allows level-one help but rejects level two and reports exact hold reasons", () => {
+  const initial = diagnosticRate(1, 2);
+  const recent = [0, 1, 2, 3, 4].map((index) => evidence({
+    id: `recent-${index}`, occurredAt: 10 + index,
+    occurredOn: index < 2 ? "2026-08-21" : "2026-08-22",
+    templateId: `template-${index}`, hintLevel: index === 0 ? 1 : 0,
+    independent: index !== 0,
+  }));
+  expect(deriveMasteryState([...initial, ...recent])).toMatchObject({
+    status: "basic", reasonCode: "learning_recent_five_basic",
+  });
+  expect(deriveMasteryState([...initial, ...recent.map((row, index) => (
+    index === 0 ? { ...row, hintLevel: 2 as const } : row
+  ))])).toMatchObject({ status: "learning", reasonCode: "recent_five_high_or_unknown_hint" });
+  expect(deriveMasteryState([...initial, ...recent.map((row, index) => (
+    index < 2 ? { ...row, firstAttemptCorrect: false } : row
+  ))])).toMatchObject({ status: "learning", reasonCode: "recent_five_below_basic" });
+  expect(deriveMasteryState([...initial, ...recent.slice(0, 4)]))
+    .toMatchObject({ status: "learning", reasonCode: "recent_five_insufficient_count" });
+});
+
+test("stable cannot reuse a different structure from before its last demotion", () => {
+  const initial = diagnosticRate(4, 5, 2);
+  const alternate = evidence({ id: "old-alternate", occurredOn: "2026-08-21", occurredAt: 10, structureTag: "alternate" });
+  const pass = evidence({ id: "first-pass", purpose: "review", occurredAt: 20,
+    occurredOn: "2026-08-27", structureTag: "review", reviewIntervalDays: 7 });
+  const fail = evidence({ id: "fail", purpose: "review", occurredAt: 30,
+    occurredOn: "2026-09-03", structureTag: "failed", reviewIntervalDays: 7, firstAttemptCorrect: false });
+  const secondPass = evidence({ id: "second-pass", purpose: "review", occurredAt: 40,
+    occurredOn: "2026-09-10", structureTag: "new-review", reviewIntervalDays: 7 });
+  expect(deriveMasteryState([...initial, alternate, pass, fail, secondPass]))
+    .toMatchObject({ status: "basic" });
+});
+
 test("weights diagnostic evidence by difficulty", () => {
   const rows = [
-    evidence({ purpose: "diagnostic", difficulty: 4, firstAttemptCorrect: true, templateId: "a" }),
-    evidence({ purpose: "diagnostic", difficulty: 4, firstAttemptCorrect: true, templateId: "b" }),
-    evidence({ purpose: "diagnostic", difficulty: 1, firstAttemptCorrect: false, templateId: "c" }),
-    evidence({ purpose: "diagnostic", difficulty: 1, firstAttemptCorrect: false, templateId: "d" }),
+    evidence({ purpose: "diagnostic", difficulty: 4, firstAttemptCorrect: true, templateId: "a",
+      diagnosticRunId: "weighted", diagnosticCompletedOn: "2026-08-20", diagnosticCompletedAt: 10 }),
+    evidence({ purpose: "diagnostic", difficulty: 4, firstAttemptCorrect: true, templateId: "b",
+      diagnosticRunId: "weighted", diagnosticCompletedOn: "2026-08-20", diagnosticCompletedAt: 10 }),
+    evidence({ purpose: "diagnostic", difficulty: 1, firstAttemptCorrect: false, templateId: "c",
+      diagnosticRunId: "weighted", diagnosticCompletedOn: "2026-08-20", diagnosticCompletedAt: 10 }),
+    evidence({ purpose: "diagnostic", difficulty: 1, firstAttemptCorrect: false, templateId: "d",
+      diagnosticRunId: "weighted", diagnosticCompletedOn: "2026-08-20", diagnosticCompletedAt: 10 }),
   ];
   expect(deriveMasteryState(rows)).toMatchObject({ status: "basic", reasonCode: "diagnostic_basic" });
 });
@@ -64,7 +146,7 @@ test("moves learning to basic at four of the latest five across two dates and te
   expect(deriveMasteryState([...initial, ...recent]))
     .toMatchObject({ status: "basic", reasonCode: "learning_recent_five_basic" });
   expect(deriveMasteryState([...initial, ...recent.slice(0, 4),
-    evidence({ occurredOn: "2026-08-22", templateId: "e", independent: false }),
+    evidence({ occurredOn: "2026-08-22", templateId: "e", independent: false, hintLevel: 2 }),
   ]).status).toBe("learning");
 });
 

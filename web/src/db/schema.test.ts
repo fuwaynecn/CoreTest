@@ -732,7 +732,8 @@ test("adds Phase 2B learning state without inventing legacy telemetry or losing 
     ]));
     expect(primaryKeyColumns(sqlite, "mastery_evidence")).toEqual(["id"]);
     expect(columns(sqlite, "mastery_evidence")).toEqual(expect.arrayContaining([
-      "template_id", "review_interval_days",
+      "template_id", "hint_level", "diagnostic_run_id", "diagnostic_completed_on",
+      "diagnostic_completed_at", "review_interval_days",
     ]));
     expect(indexColumns(sqlite, "mastery_evidence", "mastery_evidence_source_idx"))
       .toEqual(["session_item_id"]);
@@ -746,6 +747,7 @@ test("adds Phase 2B learning state without inventing legacy telemetry or losing 
       { from: "skill_id", table: "skills", to: "id", onDelete: "NO ACTION" },
       { from: "session_item_id", table: "session_items", to: "id", onDelete: "NO ACTION" },
       { from: "template_id", table: "question_templates", to: "id", onDelete: "NO ACTION" },
+      { from: "diagnostic_run_id", table: "diagnostic_runs", to: "id", onDelete: "NO ACTION" },
     ]));
     expect(foreignKeyTargets(sqlite, "error_observations")).toEqual(expect.arrayContaining([
       { from: "session_item_id", table: "session_items", to: "id", onDelete: "NO ACTION" },
@@ -811,11 +813,11 @@ test("adds Phase 2B learning state without inventing legacy telemetry or losing 
     expect(() => sqlite.prepare(`
       INSERT INTO mastery_evidence (
         id, child_id, skill_id, session_item_id, template_id, purpose, first_attempt_correct,
-        independent, difficulty, structure_tag, occurred_on, occurred_at,
+        independent, hint_level, difficulty, structure_tag, occurred_on, occurred_at,
         review_interval_days
       ) VALUES (
         'bad-evidence', 'phase2b-child', 'phase2b-skill', 'phase2b-item', 'phase2b-question',
-        'guess', 1, 1, 2, 'decimal-add', '2026-08-19', 55, 0
+        'guess', 1, 1, 0, 2, 'decimal-add', '2026-08-19', 55, 0
       )
     `).run()).toThrow();
     expect(() => sqlite.prepare(`
@@ -850,16 +852,19 @@ test("adds Phase 2B learning state without inventing legacy telemetry or losing 
     sqlite.prepare(`
       INSERT INTO mastery_evidence (
         id, child_id, skill_id, session_item_id, template_id, purpose, first_attempt_correct,
-        independent, difficulty, structure_tag, occurred_on, occurred_at
+        independent, hint_level, difficulty, structure_tag, occurred_on, occurred_at
       ) VALUES (
         'evidence-1', 'phase2b-child', 'phase2b-skill', 'phase2b-item', 'phase2b-question',
-        'learning', 0, 1, 2, 'decimal-add', '2026-08-19', 55
+        'learning', 0, 1, 0, 2, 'decimal-add', '2026-08-19', 55
       )
     `).run();
     expect(sqlite.prepare(`
       SELECT review_interval_days AS reviewIntervalDays
       FROM mastery_evidence WHERE id = 'evidence-1'
     `).get()).toEqual({ reviewIntervalDays: 0 });
+    expect(() => sqlite.prepare(`
+      UPDATE mastery_evidence SET hint_level = 2 WHERE id = 'evidence-1'
+    `).run()).toThrow();
     expect(() => sqlite.prepare(`
       UPDATE mastery_evidence SET review_interval_days = 7 WHERE id = 'evidence-1'
     `).run()).toThrow();
@@ -873,10 +878,10 @@ test("adds Phase 2B learning state without inventing legacy telemetry or losing 
     expect(() => sqlite.prepare(`
       INSERT INTO mastery_evidence (
         id, child_id, skill_id, session_item_id, template_id, purpose, first_attempt_correct,
-        independent, difficulty, structure_tag, occurred_on, occurred_at
+        independent, hint_level, difficulty, structure_tag, occurred_on, occurred_at
       ) VALUES (
         'evidence-duplicate', 'phase2b-child', 'phase2b-skill', 'phase2b-item', 'phase2b-question',
-        'learning', 1, 1, 2, 'decimal-add', '2026-08-19', 60
+        'learning', 1, 1, 0, 2, 'decimal-add', '2026-08-19', 60
       )
     `).run()).toThrow();
     expect(() => sqlite.prepare("DELETE FROM session_items WHERE id = 'phase2b-item'").run())
@@ -1010,11 +1015,11 @@ test("adds Phase 2B learning state without inventing legacy telemetry or losing 
     sqlite.prepare(`
       INSERT INTO mastery_evidence (
         id, child_id, skill_id, session_item_id, template_id, purpose, first_attempt_correct,
-        independent, difficulty, structure_tag, occurred_on, occurred_at,
+        independent, hint_level, difficulty, structure_tag, occurred_on, occurred_at,
         review_interval_days
       ) VALUES (
         'evidence-restrict', 'phase2b-child', 'phase2b-skill', 'evidence-only-item', 'phase2b-question',
-        'review', 1, 1, 2, 'decimal-add', '2026-08-19', 63, 7
+        'review', 1, 1, 0, 2, 'decimal-add', '2026-08-19', 63, 7
       )
     `).run();
     expect(() => sqlite.prepare("DELETE FROM session_items WHERE id = 'evidence-only-item'").run())
@@ -1061,10 +1066,39 @@ test("backfills immutable template identity for already-populated mastery eviden
       INSERT INTO mastery_evidence (id, child_id, skill_id, session_item_id, purpose,
         first_attempt_correct, independent, difficulty, structure_tag, occurred_on, occurred_at)
         VALUES ('evidence', 'child', 'skill', 'item', 'learning', 1, 1, 1, 'sum', '2026-08-20', 2);
+      INSERT INTO diagnostic_runs (id, child_id, version, status, current_part, seed, started_at, completed_at)
+        VALUES ('run', 'child', 1, 'completed', 3, 'seed', 10, 1700000000000);
+      INSERT INTO training_sessions (id, child_id, session_date, kind, diagnostic_run_id,
+        diagnostic_part_number, status, started_at, completed_at)
+        VALUES ('diagnostic-session', 'child', '2023-11-15', 'diagnostic', 'run', 1,
+          'completed', 10, 20);
+      INSERT INTO session_items (id, session_id, question_template_id, position, stem_snapshot,
+        answer_spec_snapshot, explanation_snapshot, skill_id_snapshot, skill_name_snapshot)
+        VALUES ('diagnostic-item', 'diagnostic-session', 'template', 0, '1+1=?',
+          '{"kind":"number","value":2,"tolerance":0,"unit":null}', '2', 'skill', '能力');
+      INSERT INTO attempts (id, session_item_id, client_submission_id, answer_text, is_correct,
+        normalized_answer, explanation, session_completed, active_duration_ms, hint_level,
+        hint_count, correction_number, submitted_at)
+        VALUES ('attempt', 'diagnostic-item', 'submission', '2', 1, '2', '2', 1,
+          1000, 1, 1, 0, 15);
+      INSERT INTO mastery_evidence (id, child_id, skill_id, session_item_id, purpose,
+        first_attempt_correct, independent, difficulty, structure_tag, occurred_on, occurred_at)
+        VALUES ('diagnostic-evidence', 'child', 'skill', 'diagnostic-item', 'diagnostic',
+          1, 0, 1, 'sum', '2023-11-15', 15);
     `);
     migrateDatabase(db, resolve(process.cwd(), "drizzle"));
-    expect(sqlite.prepare("SELECT template_id AS templateId FROM mastery_evidence WHERE id='evidence'").get())
-      .toEqual({ templateId: "template" });
+    expect(sqlite.prepare(`
+      SELECT template_id AS templateId, hint_level AS hintLevel, independent
+      FROM mastery_evidence WHERE id='evidence'
+    `).get()).toEqual({ templateId: "template", hintLevel: null, independent: 0 });
+    expect(sqlite.prepare(`
+      SELECT hint_level AS hintLevel, independent, diagnostic_run_id AS runId,
+        diagnostic_completed_on AS completedOn, diagnostic_completed_at AS completedAt
+      FROM mastery_evidence WHERE id='diagnostic-evidence'
+    `).get()).toEqual({
+      hintLevel: 1, independent: 0, runId: "run",
+      completedOn: "2023-11-15", completedAt: 1700000000000,
+    });
     expect(foreignKeyCheck(sqlite)).toEqual([]);
   } finally {
     sqlite.close();
