@@ -1,9 +1,13 @@
 import { asc, count, desc, eq } from "drizzle-orm";
+import { AbilityMap } from "@/components/ability-map";
+import { DosageSummary } from "@/components/dosage-summary";
+import { ErrorSummary } from "@/components/error-summary";
 import { ParentRetestButton } from "@/components/parent-retest-button";
 import { getDatabase } from "@/db/client";
 import { attempts, diagnosticRuns, sessionItems, trainingSessions, users } from "@/db/schema";
 import type { InitialDiagnosisReport } from "@/domain/diagnosis/types";
 import { requireRole } from "@/lib/auth/current-user";
+import { getLearningState } from "@/services/parent/get-learning-state";
 import { getParentEvidence } from "@/services/training/get-parent-evidence";
 
 const statusLabels = {
@@ -90,6 +94,7 @@ export default async function ParentPage() {
   }
 
   const evidence = getParentEvidence(db, child.id);
+  const learningState = getLearningState(db, child.id);
   const diagnosisHistory = db.select().from(diagnosticRuns)
     .where(eq(diagnosticRuns.childId, child.id))
     .orderBy(desc(diagnosticRuns.version))
@@ -243,6 +248,10 @@ export default async function ParentPage() {
         </section>
       )}
 
+      <AbilityMap abilities={learningState.abilityMap} />
+
+      <DosageSummary dosage={learningState.dosage} dueReviews={learningState.dueReviews} />
+
       <section className="evidenceSummary" aria-labelledby="summary-heading">
         <div className="summaryIntro">
           <p className="eyebrow">今日 / 本周 / 累计</p>
@@ -262,29 +271,7 @@ export default async function ParentPage() {
         </dl>
       </section>
 
-      <section className="parentSection" aria-labelledby="skills-heading">
-        <div className="sectionHeading">
-          <h2 id="skills-heading">技能状态</h2>
-          <p>状态只反映当前收集到的作答证据。</p>
-        </div>
-        {evidence.skills.length === 0 ? (
-          <p className="emptyEvidence">完成训练后，这里会出现技能状态。</p>
-        ) : (
-          <ul className="skillEvidenceList">
-            {evidence.skills.map((skill) => (
-              <li key={skill.skillName}>
-                <div>
-                  <strong>{skill.skillName}</strong>
-                  <span>{skill.evidenceCount} 条作答证据</span>
-                </div>
-                <span className="skillStatus" data-status={skill.status}>
-                  {statusLabels[skill.status]}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <ErrorSummary summary={learningState.errorSummary} errors={learningState.errors} />
 
       <section className="parentSection" aria-labelledby="recent-heading">
         <div className="sectionHeading">

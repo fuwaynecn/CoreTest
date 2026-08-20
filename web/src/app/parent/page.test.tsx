@@ -5,6 +5,7 @@ import ParentPage from "./page";
 
 const state = vi.hoisted(() => ({ db: undefined as unknown }));
 const getParentEvidence = vi.hoisted(() => vi.fn());
+const getLearningState = vi.hoisted(() => vi.fn());
 const requireRole = vi.hoisted(() => vi.fn().mockResolvedValue({
   id: "parent",
   role: "parent",
@@ -17,6 +18,7 @@ vi.mock("@/db/client", async (importOriginal) => {
 });
 vi.mock("@/lib/auth/current-user", () => ({ requireRole }));
 vi.mock("@/services/training/get-parent-evidence", () => ({ getParentEvidence }));
+vi.mock("@/services/parent/get-learning-state", () => ({ getLearningState }));
 
 beforeEach(() => {
   const db = createTestDatabase();
@@ -56,6 +58,56 @@ beforeEach(() => {
       { skillName: "一步方程", status: "basic", evidenceCount: 3 },
     ],
   });
+  getLearningState.mockReturnValue({
+    asOf: "2026-08-23",
+    abilityMap: [
+      {
+        skillId: "skill-reading",
+        skillCode: "reading-unit",
+        skillName: "读题与单位",
+        domain: "thinking_habits",
+        status: "learning",
+        reasonCode: "recent_five_below_basic",
+        reason: "最近 5 次独立首答中有 3 次正确，尚未达到基础掌握门槛。",
+        evidenceCount: 5,
+        updatedOn: "2026-08-23",
+        evidence: [{ id: "evidence-reading", sessionItemId: "item-reading", occurredOn: "2026-08-23", stem: "单位题", firstAnswer: "7.5", firstAttemptCorrect: false, independent: true, hintLevel: 0, activeDurationMs: 45_000 }],
+      },
+    ],
+    errorSummary: { knowledge: 1, habit: 1, unknown: 0 },
+    errors: [{
+      rootObservationId: "error-reading",
+      sessionItemId: "item-reading",
+      stem: "单位题",
+      firstAnswer: "7.5",
+      correctedAnswer: "7.5 元",
+      skillName: "读题与单位",
+      occurredOn: "2026-08-23",
+      activeDurationMs: 45_000,
+      effectiveCause: "missing_unit",
+      effectiveCategory: "habit",
+      effectiveSource: "child",
+      history: [{ id: "error-reading", source: "system", value: "missing_unit", previousValue: null, actorName: null, observedAt: Date.parse("2026-08-23T09:00:00+08:00") }],
+    }],
+    dueReviews: [{ skillId: "skill-reading", skillCode: "reading-unit", skillName: "读题与单位", level: 1, dueOn: "2026-08-23", overdueDays: 0, lastResult: "corrected" }],
+    dosage: {
+      computation: { track: "computation", level: 3, weeklyTarget: 72, sessionMin: 12, sessionTarget: 15, sessionMax: 19, reasonCode: "hold", parentInterventionSuggested: false },
+      equation: { track: "equation", level: 4, weeklyTarget: 18, sessionMin: 4, sessionTarget: 5, sessionMax: 6, reasonCode: "support", parentInterventionSuggested: true },
+    },
+  });
+});
+
+test("shows all five state labels, reasons, and exact evidence links", async () => {
+  render(await ParentPage());
+
+  for (const label of ["尚未诊断", "需要支持", "正在学习", "基础掌握", "稳定保持"]) {
+    expect(screen.getByText(label, { exact: true })).toBeInTheDocument();
+  }
+  expect(screen.getByText("为什么是这个状态", { exact: true })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: /查看 2026-08-23 的原始证据/ })).toHaveAttribute("href", "#mastery-evidence-evidence-reading");
+  expect(screen.getByRole("link", { name: /查看习惯性失误证据/ })).toHaveAttribute("href", "#error-evidence-error-reading");
+  expect(screen.getByText("方程 4 级")).toBeInTheDocument();
+  expect(screen.getByText("2026-08-23 · 今天到期")).toBeInTheDocument();
 });
 
 test("labels first-attempt periods and bases the recommendation on this week", async () => {
