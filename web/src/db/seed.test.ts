@@ -2,6 +2,11 @@ import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { DatabaseSync } from "node:sqlite";
+import { phase2Catalog } from "@/content/phase2-catalog";
+import { createDatabase } from "./client";
+import { seedDatabase } from "./seed";
+import { seedE2eDatabase } from "../../scripts/seed-e2e";
 
 test.each([
   { parentPassword: "123", childPin: "2468" },
@@ -31,6 +36,85 @@ test.each([
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("4-128");
+    expect(existsSync(filename)).toBe(false);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("seeds the 72 reviewed templates idempotently", () => {
+  const directory = mkdtempSync(join(tmpdir(), "math-trainer-valid-seed-"));
+  const filename = join(directory, "seed.sqlite");
+  const env = {
+    ...process.env,
+    DB_FILE_NAME: filename,
+    PARENT_PASSWORD: "parent-password",
+    CHILD_PIN: "2468",
+  };
+
+  try {
+    const first = spawnSync(
+      process.execPath,
+      ["--import", "tsx", resolve(process.cwd(), "src/db/seed.ts")],
+      { cwd: process.cwd(), encoding: "utf8", env },
+    );
+    const second = spawnSync(
+      process.execPath,
+      ["--import", "tsx", resolve(process.cwd(), "src/db/seed.ts")],
+      { cwd: process.cwd(), encoding: "utf8", env },
+    );
+
+    expect(first.status, first.stderr).toBe(0);
+    expect(second.status, second.stderr).toBe(0);
+
+    const sqlite = new DatabaseSync(filename);
+    try {
+      expect(sqlite.prepare("SELECT COUNT(*) AS count FROM question_templates").get())
+        .toEqual({ count: 72 });
+      expect(sqlite.prepare("SELECT COUNT(*) AS count FROM skills").get())
+        .toEqual({ count: 37 });
+      expect(sqlite.prepare(`
+        SELECT COUNT(*) AS count
+        FROM question_templates
+        WHERE content_tier = 'transition'
+      `).get()).toEqual({ count: 7 });
+    } finally {
+      sqlite.close();
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("rejects an invalid catalog before opening a database", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "math-trainer-invalid-catalog-"));
+  const filename = join(directory, "seed.sqlite");
+  const invalidCatalog = [phase2Catalog[0], phase2Catalog[0]];
+
+  try {
+    await expect(seedDatabase({
+      catalog: invalidCatalog,
+      parentPassword: "parent-password",
+      childPin: "2468",
+      openDatabase: () => createDatabase(filename),
+    })).rejects.toThrow("Catalog validation failed");
+    expect(existsSync(filename)).toBe(false);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("the E2E entry point rejects an invalid catalog before touching its database", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "math-trainer-invalid-e2e-catalog-"));
+  const filename = join(directory, ".tmp", "e2e.sqlite");
+
+  try {
+    await expect(seedE2eDatabase({
+      catalog: [phase2Catalog[0], phase2Catalog[0]],
+      parentPassword: "parent-password",
+      childPin: "2468",
+      workingDirectory: directory,
+    })).rejects.toThrow("Catalog validation failed");
     expect(existsSync(filename)).toBe(false);
   } finally {
     rmSync(directory, { recursive: true, force: true });

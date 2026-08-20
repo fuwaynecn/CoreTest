@@ -1,19 +1,41 @@
 import path from "node:path";
+import { pathToFileURL } from "node:url";
+import { phase2Catalog, phase2Skills } from "@/content/phase2-catalog";
 import { credentialInputSchema, hashCredential } from "@/domain/auth/credentials";
-import { answerSpecSchema } from "@/domain/questions/answer-spec";
-import { getDatabase } from "./client";
+import { instantiateTemplate } from "@/domain/questions/instantiate-template";
+import { validateCatalog, type ReviewedTemplate } from "@/domain/questions/template-schema";
+import { getDatabase, type AppDatabase } from "./client";
 import { migrateDatabase } from "./migrate";
 import { questionTemplates, skills, users } from "./schema";
 
-const seedQuestions = [
-  { id: "q-decimal-1", skillId: "skill-decimal", stem: "3.6 + 2.4 = ?", answerSpec: { kind: "number", value: 6, tolerance: 0, unit: null }, explanation: "把十分位对齐相加，结果是 6。", difficulty: 1 },
-  { id: "q-equation-1", skillId: "skill-equation", stem: "3x + 5 = 26，x 等于多少？", answerSpec: { kind: "number", value: 7, tolerance: 0, unit: null }, explanation: "先从等式两边都减去 5，再把两边都除以 3。", difficulty: 2 },
-  { id: "q-reading-1", skillId: "skill-reading", stem: "每盒彩笔 7.5 元，买 1 盒需要付多少钱？请写单位。", answerSpec: { kind: "number", value: 7.5, tolerance: 0, unit: "元" }, explanation: "问题问付多少钱，因此答案必须带单位‘元’。", difficulty: 1 },
-] as const;
+type SeedDatabaseOptions = {
+  catalog?: readonly unknown[];
+  parentPassword?: string;
+  childPin?: string;
+  openDatabase?: () => AppDatabase;
+};
 
-async function seed() {
-  const parentPassword = process.env.PARENT_PASSWORD;
-  const childPin = process.env.CHILD_PIN;
+export function requireReviewedCatalog(catalog: readonly unknown[]): ReviewedTemplate[] {
+  const errors = validateCatalog(catalog);
+  if (errors.length > 0) {
+    throw new Error(`Catalog validation failed:\n${errors.join("\n")}`);
+  }
+
+  const knownSkills = new Set(phase2Skills.map(({ code }) => code));
+  const missingSkills = (catalog as ReviewedTemplate[])
+    .filter(({ skillCode }) => !knownSkills.has(skillCode))
+    .map(({ id, skillCode }) => `${id}:${skillCode}`);
+  if (missingSkills.length > 0) {
+    throw new Error(`Catalog validation failed: unknown skills ${missingSkills.join(", ")}`);
+  }
+
+  return catalog as ReviewedTemplate[];
+}
+
+export async function seedDatabase(options: SeedDatabaseOptions = {}) {
+  const catalog = requireReviewedCatalog(options.catalog ?? phase2Catalog);
+  const parentPassword = options.parentPassword ?? process.env.PARENT_PASSWORD;
+  const childPin = options.childPin ?? process.env.CHILD_PIN;
 
   if (!parentPassword || !childPin) {
     throw new Error("PARENT_PASSWORD and CHILD_PIN must both be set");
@@ -29,7 +51,7 @@ async function seed() {
     hashCredential(parentPassword),
     hashCredential(childPin),
   ]);
-  const db = getDatabase();
+  const db = (options.openDatabase ?? getDatabase)();
   migrateDatabase(db, path.resolve(process.cwd(), "drizzle"));
   const createdAt = Date.now();
 
@@ -62,11 +84,7 @@ async function seed() {
     },
   });
 
-  for (const skill of [
-    { id: "skill-decimal", code: "decimal", name: "小数计算", domain: "数与运算" },
-    { id: "skill-equation", code: "equation", name: "一步方程", domain: "方程与代数意识" },
-    { id: "skill-reading", code: "reading", name: "读题与单位", domain: "数学思维与学习习惯" },
-  ]) {
+  for (const skill of phase2Skills) {
     await db.insert(skills).values(skill).onConflictDoUpdate({
       target: skills.id,
       set: {
@@ -77,32 +95,41 @@ async function seed() {
     });
   }
 
-  for (const question of seedQuestions) {
-    const answerSpec = answerSpecSchema.parse(question.answerSpec);
-    await db.insert(questionTemplates).values({
-      id: question.id,
-      skillId: question.skillId,
-      stem: question.stem,
-      answerSpec: JSON.stringify(answerSpec),
-      explanation: question.explanation,
-      difficulty: question.difficulty,
+  for (const template of catalog) {
+    const instance = instantiateTemplate(template, `seed:${template.id}`);
+    const values = {
+      id: template.id,
+      skillId: `skill-${template.skillCode}`,
+      domain: template.domain,
+      contentTier: template.contentTier,
+      structureTag: template.structureTag,
+      estimatedSeconds: template.estimatedSeconds,
+      readingLoad: template.readingLoad,
+      answerMode: template.answerMode,
+      variantSpec: JSON.stringify(template.variantSpec),
+      hintLadder: JSON.stringify(template.hintLadder),
+      stem: instance.stem,
+      answerSpec: JSON.stringify(instance.answerSpec),
+      explanation: instance.explanation,
+      difficulty: template.difficulty,
       active: true,
-    }).onConflictDoUpdate({
+    };
+    await db.insert(questionTemplates).values(values).onConflictDoUpdate({
       target: questionTemplates.id,
-      set: {
-        skillId: question.skillId,
-        stem: question.stem,
-        answerSpec: JSON.stringify(answerSpec),
-        explanation: question.explanation,
-        difficulty: question.difficulty,
-        active: true,
-      },
+      set: values,
     });
   }
 }
 
-seed().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : "Unknown error";
-  process.stderr.write(`Database seed failed: ${message}\n`);
-  process.exitCode = 1;
-});
+function isDirectExecution(): boolean {
+  const entryPoint = process.argv[1];
+  return entryPoint !== undefined && pathToFileURL(path.resolve(entryPoint)).href === import.meta.url;
+}
+
+if (isDirectExecution()) {
+  seedDatabase().catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    process.stderr.write(`Database seed failed: ${message}\n`);
+    process.exitCode = 1;
+  });
+}
