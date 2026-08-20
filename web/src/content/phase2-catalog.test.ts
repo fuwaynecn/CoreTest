@@ -157,6 +157,8 @@ test("rejects a wrong answer label for every canonical choice template", () => {
     const answer = template.answerSpecPattern as { kind: "choice"; value: keyof typeof nextLabel };
     const mutated = {
       ...template,
+      id: `renamed-${template.id}`,
+      structureTag: `renamed-${template.structureTag}`,
       answerSpecPattern: { kind: "choice", value: nextLabel[answer.value] },
     };
 
@@ -177,6 +179,8 @@ test("rejects a wrong generated answer for every supported numeric template", ()
     const answers = template.variantSpec.variables.answer;
     const mutated = {
       ...template,
+      id: `renamed-${template.id}`,
+      structureTag: `renamed-${template.structureTag}`,
       variantSpec: {
         variables: {
           ...template.variantSpec.variables,
@@ -189,4 +193,139 @@ test("rejects a wrong generated answer for every supported numeric template", ()
       expect.stringContaining("incorrect_number_answer"),
     ]));
   }
+});
+
+test("rejects a wrong solution for every canonical equation after metadata renaming", () => {
+  const equationTemplates = phase2Catalog.filter((template) => (
+    template.answerMode === "equation"
+    && (template.answerSpecPattern as { kind?: string }).kind === "number"
+  ));
+
+  expect(equationTemplates).toHaveLength(11);
+  for (const template of equationTemplates) {
+    const answers = template.variantSpec.variables.answer;
+    const mutated = {
+      ...template,
+      id: `renamed-${template.id}`,
+      structureTag: `renamed-${template.structureTag}`,
+      variantSpec: {
+        variables: {
+          ...template.variantSpec.variables,
+          answer: answers.map((answer) => Number(answer) + 999),
+        },
+      },
+    };
+
+    expect(validateCatalog([mutated]), template.id).toEqual(expect.arrayContaining([
+      expect.stringContaining("incorrect_equation_answer"),
+    ]));
+  }
+});
+
+test("rejects a wrong unit for every canonical numeric target without metadata dispatch", () => {
+  const numericTemplates = phase2Catalog.filter((template) => (
+    (template.answerSpecPattern as { kind?: string }).kind === "number"
+  ));
+
+  expect(numericTemplates).toHaveLength(49);
+  for (const template of numericTemplates) {
+    const answer = template.answerSpecPattern as {
+      kind: "number"; value: unknown; tolerance: number; unit: string | null;
+    };
+    const mutated = {
+      ...template,
+      id: `renamed-${template.id}`,
+      structureTag: `renamed-${template.structureTag}`,
+      answerSpecPattern: {
+        ...answer,
+        unit: answer.unit === "米" ? "厘米" : "米",
+      },
+    };
+
+    expect(validateCatalog([mutated]), template.id).toEqual(expect.arrayContaining([
+      expect.stringContaining("unit_mismatch"),
+    ]));
+  }
+});
+
+test("rejects units that contradict canonical rendered answer targets", () => {
+  const unitless = phase2Catalog.find(({ id }) => id === "num-int-mental-01")!;
+  const boxes = phase2Catalog.find(({ id }) => id === "eq-l4-two-step-03")!;
+
+  expect(validateCatalog([{
+    ...unitless,
+    answerSpecPattern: { ...unitless.answerSpecPattern as object, unit: "米" },
+  }])).toEqual(expect.arrayContaining([expect.stringContaining("unit_mismatch")]));
+  expect(validateCatalog([{
+    ...boxes,
+    answerSpecPattern: { ...boxes.answerSpecPattern as object, unit: "米" },
+  }])).toEqual(expect.arrayContaining([expect.stringContaining("unit_mismatch")]));
+});
+
+test("derives numeric correctness from rendered arithmetic rather than metadata", () => {
+  const template = phase2Catalog.find(({ id }) => id === "num-int-mental-01")!;
+  const displayedSubtraction = {
+    ...template,
+    stemPattern: template.stemPattern.replace("+", "-"),
+  };
+  const typoedTagAndAnswer = {
+    ...template,
+    structureTag: "mental-smu",
+    variantSpec: {
+      variables: {
+        ...template.variantSpec.variables,
+        answer: [999, 999, 999],
+      },
+    },
+  };
+
+  expect(validateCatalog([displayedSubtraction])).toEqual(expect.arrayContaining([
+    expect.stringContaining("incorrect_number_answer"),
+  ]));
+  expect(validateCatalog([typoedTagAndAnswer])).toEqual(expect.arrayContaining([
+    expect.stringContaining("incorrect_number_answer"),
+  ]));
+});
+
+test("derives choice correctness from rendered content after an id rename", () => {
+  const template = phase2Catalog.find(({ id }) => id === "habit-condition-01")!;
+  const renamedWrongAnswer = {
+    ...template,
+    id: "renamed-habit-condition",
+    answerSpecPattern: { kind: "choice", value: "B" },
+  };
+
+  expect(validateCatalog([renamedWrongAnswer])).toEqual(expect.arrayContaining([
+    expect.stringContaining("incorrect_choice_answer"),
+  ]));
+});
+
+test("rejects inverse and checking evidence disconnected from the rendered claim", () => {
+  const inverse = phase2Catalog.find(({ id }) => id === "num-reverse-check-01")!;
+  const evidence = phase2Catalog.find(({ id }) => id === "habit-check-02")!;
+  const unrelatedInverse = {
+    ...inverse,
+    variantSpec: {
+      variables: {
+        ...inverse.variantSpec.variables,
+        claim: [999, 999, 999],
+      },
+    },
+  };
+  const unrelatedEvidence = {
+    ...evidence,
+    variantSpec: {
+      variables: {
+        ...evidence.variantSpec.variables,
+        inverse: ["1 + 1 = 2", "1 + 1 = 2", "1 + 1 = 2"],
+      },
+    },
+  };
+
+  expect(validateCatalog([unrelatedInverse])).toEqual(expect.arrayContaining([
+    expect.stringContaining("incorrect_choice_answer"),
+  ]));
+  expect(validateCatalog([unrelatedEvidence])).toEqual(expect.arrayContaining([
+    expect.stringContaining("incorrect_choice_answer"),
+  ]));
 });

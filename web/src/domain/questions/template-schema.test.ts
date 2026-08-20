@@ -120,6 +120,20 @@ test.each([
     expected: "unit_mismatch",
   },
   {
+    name: "a spurious unit on a unitless arithmetic prompt",
+    catalog: [validTemplate({
+      answerSpecPattern: { kind: "number", value: "{{answer}}", tolerance: 0, unit: "米" },
+    })],
+    expected: "unit_mismatch",
+  },
+  {
+    name: "an empty non-null unit on a unitless arithmetic prompt",
+    catalog: [validTemplate({
+      answerSpecPattern: { kind: "number", value: "{{answer}}", tolerance: 0, unit: "" },
+    })],
+    expected: "unit_mismatch",
+  },
+  {
     name: "a non-equation answer key inconsistent with its generated operands",
     catalog: [validTemplate({
       variantSpec: {
@@ -127,6 +141,25 @@ test.each([
       },
     })],
     expected: "incorrect_number_answer",
+  },
+  {
+    name: "a wrong numeric answer hidden by an overly broad scoring tolerance",
+    catalog: [validTemplate({
+      answerSpecPattern: { kind: "number", value: 999, tolerance: 1000, unit: null },
+      variantSpec: { variables: { left: [18], right: [7], answer: [25] } },
+    })],
+    expected: "incorrect_number_answer",
+  },
+  {
+    name: "an unsupported numeric question grammar",
+    catalog: [validTemplate({
+      structureTag: "unknown-number-pattern",
+      stemPattern: "根据神秘规则写出结果。",
+      answerSpecPattern: { kind: "number", value: 999, tolerance: 0, unit: null },
+      explanationPattern: "规则未声明，不能证明答案。",
+      variantSpec: { variables: {} },
+    })],
+    expected: "unsupported_number_pattern",
   },
   {
     name: "duplicate choice options that make more than one label correct",
@@ -149,6 +182,35 @@ test.each([
       explanationPattern: "先计算，再选择唯一对应的选项。",
     })],
     expected: "incorrect_choice_answer",
+  },
+  {
+    name: "an unsupported choice question grammar",
+    catalog: [validTemplate({
+      id: "renamed-choice",
+      structureTag: "unknown-choice-pattern",
+      answerMode: "choice",
+      stemPattern: "根据未声明规则选择。A. 甲  B. 乙  C. 丙  D. 丁",
+      answerSpecPattern: { kind: "choice", value: "A" },
+      explanationPattern: "规则未声明，不能证明答案。",
+      variantSpec: { variables: {} },
+    })],
+    expected: "unsupported_choice_pattern",
+  },
+  {
+    name: "a choice answer attached to a non-choice answer mode",
+    catalog: [validTemplate({
+      answerMode: "mental",
+      stemPattern: "计算 18 + 7。A. 24  B. 26  C. 25  D. 27",
+      answerSpecPattern: { kind: "choice", value: "C" },
+      explanationPattern: "计算结果是 25，应选择 C。",
+      variantSpec: { variables: {} },
+    })],
+    expected: "answer_mode_mismatch",
+  },
+  {
+    name: "a numeric answer attached to choice answer mode",
+    catalog: [validTemplate({ answerMode: "choice" })],
+    expected: "answer_mode_mismatch",
   },
   {
     name: "equations without a unique solution",
@@ -187,12 +249,45 @@ test.each([
     expected: "incorrect_equation_answer",
   },
   {
+    name: "a wrong equation solution hidden by an overly broad scoring tolerance",
+    catalog: [validTemplate({
+      answerMode: "equation",
+      stemPattern: "解方程：2x + 3 = 11。",
+      answerSpecPattern: { kind: "number", value: 999, tolerance: 1000, unit: null },
+      explanationPattern: "代入答案检查等号两边。",
+      variantSpec: { variables: {} },
+    })],
+    expected: "incorrect_equation_answer",
+  },
+  {
     name: "nonlinear equations that mimic an affine expression at three sample points",
     catalog: [validTemplate({
       answerMode: "equation",
       stemPattern: "解方程：x - x(x - 1)(x - 2) = 0。",
       answerSpecPattern: { kind: "number", value: 0, tolerance: 0, unit: null },
       explanationPattern: "先判断方程是否只有一个解。",
+      variantSpec: { variables: {} },
+    })],
+    expected: "unsolvable_equation",
+  },
+  {
+    name: "equations with a non-affine prefix before an otherwise affine suffix",
+    catalog: [validTemplate({
+      answerMode: "equation",
+      stemPattern: "解方程：x^2 + x = 2。",
+      answerSpecPattern: { kind: "number", value: 0, tolerance: 0, unit: null },
+      explanationPattern: "必须完整解析方程，不能忽略平方项。",
+      variantSpec: { variables: {} },
+    })],
+    expected: "unsolvable_equation",
+  },
+  {
+    name: "equations with undeclared postfix-style implicit multiplication",
+    catalog: [validTemplate({
+      answerMode: "equation",
+      stemPattern: "解方程：x2 + 1 = 3。",
+      answerSpecPattern: { kind: "number", value: 1, tolerance: 0, unit: null },
+      explanationPattern: "相乘必须使用受支持的正式写法。",
       variantSpec: { variables: {} },
     })],
     expected: "unsolvable_equation",
