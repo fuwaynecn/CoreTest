@@ -3,12 +3,20 @@ import { and, asc, eq } from "drizzle-orm";
 import type { AppDatabase } from "@/db/client";
 import {
   attempts,
+  diagnosticRuns,
   questionTemplates,
   sessionItems,
   skills,
   trainingSessions,
 } from "@/db/schema";
 import type { SessionView } from "@/domain/training/types";
+
+export class DailyTrainingLockedError extends Error {
+  constructor() {
+    super("Diagnosis must be completed before daily training");
+    this.name = "DailyTrainingLockedError";
+  }
+}
 
 function loadSessionView(db: AppDatabase, sessionId: string): SessionView {
   return db.transaction((tx) => {
@@ -58,9 +66,17 @@ export function getOrCreateDailySession(
       .where(and(
         eq(trainingSessions.childId, childId),
         eq(trainingSessions.sessionDate, date),
+        eq(trainingSessions.kind, "daily"),
       ))
       .get();
     if (existing) return existing.id;
+
+    const completedDiagnosis = tx.select({ id: diagnosticRuns.id }).from(diagnosticRuns)
+      .where(and(
+        eq(diagnosticRuns.childId, childId),
+        eq(diagnosticRuns.status, "completed"),
+      )).limit(1).get();
+    if (!completedDiagnosis) throw new DailyTrainingLockedError();
 
     const id = randomUUID();
     const questions = tx.select({

@@ -7,6 +7,7 @@ import { createDatabase, type AppDatabase } from "@/db/client";
 import { migrateDatabase } from "@/db/migrate";
 import {
   attempts,
+  diagnosticRuns,
   masteryStates,
   questionTemplates,
   skills,
@@ -64,8 +65,37 @@ function seedTrainingDatabase(db: AppDatabase = createTestDatabase()) {
       active: true,
     },
   ]).run();
+  db.insert(diagnosticRuns).values({
+    id: "completed-diagnosis", childId: "child-1", version: 1, status: "completed",
+    currentPart: 3, seed: "seed", startedAt: 1, completedAt: 2, reportSnapshot: "{}",
+  }).run();
   return db;
 }
+
+test("blocks a new daily session until diagnosis completes but still reads historical daily sessions", () => {
+  const db = seedTrainingDatabase();
+  const historical = getOrCreateDailySession(db, "child-1", "2026-08-18");
+  db.delete(diagnosticRuns).where(eq(diagnosticRuns.id, "completed-diagnosis")).run();
+
+  expect(getOrCreateDailySession(db, "child-1", "2026-08-18").id).toBe(historical.id);
+  expect(() => getOrCreateDailySession(db, "child-1", "2026-08-19")).toThrow("Diagnosis must be completed");
+  expect(db.select().from(trainingSessions).where(eq(trainingSessions.kind, "daily")).all())
+    .toHaveLength(1);
+});
+
+test("does not mistake a same-day diagnostic session for an existing daily session", () => {
+  const db = seedTrainingDatabase();
+  db.insert(trainingSessions).values({
+    id: "diagnostic-session", childId: "child-1", sessionDate: "2026-08-19",
+    kind: "diagnostic", diagnosticRunId: "completed-diagnosis", diagnosticPartNumber: 1,
+    status: "completed", startedAt: 1, completedAt: 2,
+  }).run();
+
+  const daily = getOrCreateDailySession(db, "child-1", "2026-08-19");
+  expect(daily.id).not.toBe("diagnostic-session");
+  expect(db.select().from(trainingSessions).where(eq(trainingSessions.kind, "daily")).all())
+    .toHaveLength(1);
+});
 
 test("creates one reusable session with three reviewed questions without answer data", () => {
   const db = seedTrainingDatabase();
@@ -140,6 +170,10 @@ test("rejects a reused submission ID for a different, missing, or foreign item",
     displayName: "另一个孩子",
     credentialHash: "hash",
     createdAt: 1,
+  }).run();
+  db.insert(diagnosticRuns).values({
+    id: "completed-diagnosis-2", childId: "child-2", version: 1, status: "completed",
+    currentPart: 3, seed: "seed-2", startedAt: 1, completedAt: 2, reportSnapshot: "{}",
   }).run();
   const session = getOrCreateDailySession(db, "child-1", "2026-08-19");
   const foreignSession = getOrCreateDailySession(db, "child-2", "2026-08-19");

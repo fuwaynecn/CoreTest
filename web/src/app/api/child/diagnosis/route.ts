@@ -11,7 +11,7 @@ import {
 } from "@/services/diagnosis/diagnosis-service";
 
 const diagnosisAttemptInput = z.strictObject({
-  sessionItemId: z.string().min(1),
+  sessionItemId: z.string().uuid(),
   clientSubmissionId: z.string().uuid(),
   answerText: z.string().max(128),
 });

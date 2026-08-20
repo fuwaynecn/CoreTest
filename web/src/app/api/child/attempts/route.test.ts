@@ -1,4 +1,5 @@
 import {
+  attempts,
   diagnosticParts,
   diagnosticRuns,
   questionTemplates,
@@ -38,6 +39,10 @@ beforeEach(() => {
     displayName: "孩子",
     credentialHash: "hash",
     createdAt: 1,
+  }).run();
+  db.insert(diagnosticRuns).values({
+    id: "completed-diagnosis", childId: "child-1", version: 1, status: "completed",
+    currentPart: 3, seed: "completed", startedAt: 1, completedAt: 2, reportSnapshot: "{}",
   }).run();
   db.insert(skills).values({
     id: "skill-decimal",
@@ -131,8 +136,9 @@ test("returns 404 when the item is not available to the signed-in child", async 
 });
 
 test("does not let the general attempt endpoint bypass diagnosis transitions", async () => {
+  const daily = getOrCreateDailySession(db, "child-1", "2026-08-19");
   db.insert(diagnosticRuns).values({
-    id: "run-1", childId: "child-1", version: 1, status: "in_progress",
+    id: "run-1", childId: "child-1", version: 2, status: "in_progress",
     currentPart: 1, seed: "seed", startedAt: 1,
   }).run();
   db.insert(diagnosticParts).values({
@@ -159,4 +165,18 @@ test("does not let the general attempt endpoint bypass diagnosis transitions", a
 
   expect(response.status).toBe(404);
   expect(await response.json()).toEqual({ error: "Training item not found" });
+
+  db.insert(attempts).values({
+    id: "diagnosis-attempt", sessionItemId: "diagnosis-item",
+    clientSubmissionId: "78787878-7878-4878-8878-787878787878",
+    answerText: "6", isCorrect: true, normalizedAnswer: "6", explanation: "对齐十分位。",
+    sessionCompleted: false, submittedAt: 2,
+  }).run();
+  const reverseReplay = await POST(attemptRequest({
+    sessionItemId: daily.questions[0].id,
+    clientSubmissionId: "78787878-7878-4878-8878-787878787878",
+    answerText: "6",
+  }));
+  expect(reverseReplay.status).toBe(404);
+  expect(await reverseReplay.json()).toEqual({ error: "Training item not found" });
 });

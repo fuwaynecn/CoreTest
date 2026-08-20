@@ -290,6 +290,7 @@ function createNextItem(
     structureTagSnapshot: template.structureTag,
     variantSeed: selection.variantSeed,
     selectionReasonSnapshot: JSON.stringify({
+      snapshotVersion: 1,
       reason: selection.reason,
       targetDifficulty: selection.targetDifficulty,
       selectedDifficulty: selection.difficulty,
@@ -297,6 +298,11 @@ function createNextItem(
       answerMode: template.answerMode,
       hintLadder: instance.hintLadder,
       readingCard: instance.readingCard,
+      estimatedSeconds: instance.estimatedSeconds,
+      readingLoad: instance.readingLoad,
+      commonErrors: instance.commonErrors,
+      source: instance.source,
+      licenseStatus: instance.licenseStatus,
     }),
   }).run();
 }
@@ -348,6 +354,7 @@ export function submitDiagnosticAttempt(
   return db.transaction((tx) => {
     const replay = tx.select({
       childId: trainingSessions.childId,
+      sessionKind: trainingSessions.kind,
       runId: trainingSessions.diagnosticRunId,
       version: diagnosticRuns.version,
       partNumber: trainingSessions.diagnosticPartNumber,
@@ -359,13 +366,15 @@ export function submitDiagnosticAttempt(
     }).from(attempts)
       .innerJoin(sessionItems, eq(attempts.sessionItemId, sessionItems.id))
       .innerJoin(trainingSessions, eq(sessionItems.sessionId, trainingSessions.id))
-      .innerJoin(diagnosticRuns, eq(trainingSessions.diagnosticRunId, diagnosticRuns.id))
+      .leftJoin(diagnosticRuns, eq(trainingSessions.diagnosticRunId, diagnosticRuns.id))
       .where(eq(attempts.clientSubmissionId, command.clientSubmissionId)).get();
     if (replay) {
       if (replay.childId !== command.childId
         || replay.itemId !== command.sessionItemId
+        || replay.sessionKind !== "diagnostic"
         || replay.runId === null
-        || replay.partNumber === null) throw new DiagnosisAccessError();
+        || replay.partNumber === null
+        || replay.version === null) throw new DiagnosisAccessError();
       return {
         correct: replay.correct,
         normalizedAnswer: replay.normalizedAnswer,

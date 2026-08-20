@@ -90,9 +90,30 @@ describe("diagnosis service", () => {
       currentItem: { position: 1 },
     });
     expect(first.currentItem?.answerMode).toBeTruthy();
+    const snapshotBeforeEdit = JSON.parse(db.select({ metadata: sessionItems.selectionReasonSnapshot })
+      .from(sessionItems).where(eq(sessionItems.id, first.currentItem!.id)).get()!.metadata);
+    expect(snapshotBeforeEdit).toMatchObject({
+      snapshotVersion: 1,
+      estimatedSeconds: expect.any(Number),
+      readingLoad: expect.stringMatching(/^(short|medium|long)$/),
+      commonErrors: expect.any(Array),
+      source: "original",
+      licenseStatus: "owned",
+    });
+    const currentTemplateId = db.select({ id: sessionItems.questionTemplateId })
+      .from(sessionItems).where(eq(sessionItems.id, first.currentItem!.id)).get()!.id;
+    db.update(questionTemplates).set({
+      estimatedSeconds: 999,
+      readingLoad: "long",
+      answerMode: "fill",
+    }).where(eq(questionTemplates.id, currentTemplateId)).run();
 
     const resumed = getOrCreateDiagnosis(db, "child-1", 1_700_000_060_000);
     expect(resumed.currentItem?.id).toBe(first.currentItem?.id);
+    expect(resumed.currentItem?.answerMode).toBe(first.currentItem?.answerMode);
+    expect(JSON.parse(db.select({ metadata: sessionItems.selectionReasonSnapshot })
+      .from(sessionItems).where(eq(sessionItems.id, first.currentItem!.id)).get()!.metadata))
+      .toEqual(snapshotBeforeEdit);
     expect(db.select().from(sessionItems).all()).toHaveLength(1);
   });
 
@@ -164,6 +185,34 @@ describe("diagnosis service", () => {
       ...command,
       sessionItemId: result.diagnosis.currentItem!.id,
     }, 3)).toThrow(DiagnosisAccessError);
+    expect(db.select().from(attempts).all()).toHaveLength(1);
+  });
+
+  it("rejects a submission ID previously bound to a daily item with a controlled access error", () => {
+    const db = seedDiagnosisDatabase();
+    const diagnosis = getOrCreateDiagnosis(db, "child-1", 1);
+    db.insert(trainingSessions).values({
+      id: "daily-session", childId: "child-1", sessionDate: "2026-08-20",
+      kind: "daily", status: "in_progress", startedAt: 1,
+    }).run();
+    db.insert(sessionItems).values({
+      id: "daily-item", sessionId: "daily-session", questionTemplateId: "num-int-mental-01",
+      position: 1, stemSnapshot: "daily", answerSpecSnapshot: JSON.stringify({ kind: "number", value: 1, tolerance: 0, unit: null }),
+      explanationSnapshot: "daily", skillIdSnapshot: "skill-integer-mental", skillNameSnapshot: "整数口算",
+    }).run();
+    db.insert(attempts).values({
+      id: "daily-attempt", sessionItemId: "daily-item",
+      clientSubmissionId: "23232323-2323-4323-8323-232323232323",
+      answerText: "1", isCorrect: true, normalizedAnswer: "1", explanation: "daily",
+      sessionCompleted: false, submittedAt: 1,
+    }).run();
+
+    expect(() => submitDiagnosticAttempt(db, {
+      childId: "child-1",
+      sessionItemId: diagnosis.currentItem!.id,
+      clientSubmissionId: "23232323-2323-4323-8323-232323232323",
+      answerText: "1",
+    }, 2)).toThrow(DiagnosisAccessError);
     expect(db.select().from(attempts).all()).toHaveLength(1);
   });
 

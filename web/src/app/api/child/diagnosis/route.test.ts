@@ -64,9 +64,9 @@ test("GET creates and returns the resumable diagnosis view", async () => {
 test("POST validates the command and returns the next diagnosis item", async () => {
   const diagnosis = getOrCreateDiagnosis(db, "child-1", 1);
   const invalid = await POST(request({
-    sessionItemId: diagnosis.currentItem!.id,
-    clientSubmissionId: "not-a-uuid",
-    answerText: "1".repeat(129),
+    sessionItemId: "not-a-uuid",
+    clientSubmissionId: "77777777-7777-4777-8777-777777777777",
+    answerText: "1",
   }));
   expect(invalid.status).toBe(400);
 
