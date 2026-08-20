@@ -374,6 +374,27 @@ test("rejects identity equations presented as inverse-operation evidence", () =>
   ]));
 });
 
+test("rejects every unrelated true equation across the habit-check canonical variants", () => {
+  const template = phase2Catalog.find(({ id }) => id === "habit-check-02")!;
+  const unrelatedTrueChecks = {
+    ...template,
+    id: "renamed-habit-check",
+    structureTag: "renamed-habit-check",
+    variantSpec: {
+      variables: {
+        ...template.variantSpec.variables,
+        inverse: ["55 + 1 = 56", "100 + 1 = 101", "8 + 1 = 9"],
+      },
+    },
+  };
+
+  expect(validateCatalog([unrelatedTrueChecks])).toEqual(expect.arrayContaining([
+    "renamed-habit-check:incorrect_choice_answer:variant-0",
+    "renamed-habit-check:incorrect_choice_answer:variant-1",
+    "renamed-habit-check:incorrect_choice_answer:variant-2",
+  ]));
+});
+
 test("rejects coincidental arithmetic that is not the original operation's inverse", () => {
   const template = phase2Catalog.find(({ id }) => id === "num-reverse-check-01")!;
   const coincidentalOptions = {

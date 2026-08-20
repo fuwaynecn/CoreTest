@@ -658,10 +658,15 @@ const catalogInputs: TemplateInput[] = [
   {
     id: "habit-check-02", skillCode: "check-strategy", domain: "thinking_habits",
     difficulty: 4, structureTag: "check-evidence", answerMode: "choice", readingCard: true,
-    stemPattern: "小安解题后做了两项检查：估算范围为 {{range}}，逆运算得到 {{inverse}}。原答案是 {{claim}}。根据这些证据应判断：A. 两项检查都支持答案  B. 只有书写能判断  C. 证据互相矛盾，需重算  D. 不需要检查",
+    stemPattern: "小安计算原算式 {{original}}，得到答案 {{claim}}。他估算结果范围为 {{range}}，并用逆运算 {{inverse}} 检查。根据这些证据应判断：A. 两项检查都支持答案  B. 只有书写能判断  C. 证据互相矛盾，需重算  D. 不需要检查",
     answerSpecPattern: choiceAnswer("A"),
     explanationPattern: "原答案既落在估算范围内，逆运算信息也还原成功，两条独立证据共同支持结论。",
-    variables: { range: ["50 到 60", "90 到 110", "7 到 9"], inverse: ["55 + 29 = 84", "12.5 × 8 = 100", "72 ÷ 9 = 8"], claim: [55, 100, 8] },
+    variables: {
+      original: ["84 - 29", "12.5 × 8", "72 ÷ 9"],
+      range: ["50 到 60", "90 到 110", "7 到 9"],
+      inverse: ["55 + 29 = 84", "100 ÷ 8 = 12.5", "8 × 9 = 72"],
+      claim: [55, 100, 8],
+    },
   },
 ];
 

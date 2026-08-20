@@ -501,30 +501,6 @@ function checkIsTrue(evidence: CheckEquation): boolean {
     && sameNumber(evaluateBinary(evidence.operation), evidence.result);
 }
 
-function claimTokenCount(expression: string, claim: number): number {
-  return [...expression.matchAll(/-?\d+(?:\.\d+)?/g)]
-    .filter((match) => sameNumber(Number(match[0]), claim)).length;
-}
-
-function isNonIdentity(operation: BinaryOperation): boolean {
-  if (operation.operator === "+") return !sameNumber(operation.left, 0) && !sameNumber(operation.right, 0);
-  if (operation.operator === "-") return !sameNumber(operation.right, 0);
-  if (operation.operator === "*") {
-    return !sameNumber(operation.left, 0) && !sameNumber(operation.right, 0)
-      && !sameNumber(operation.left, 1) && !sameNumber(operation.right, 1);
-  }
-  return !sameNumber(operation.left, 0) && !sameNumber(operation.right, 0)
-    && !sameNumber(operation.right, 1);
-}
-
-function supportsClaimWithNontrivialCheck(statement: string, claim: number): boolean {
-  const evidence = parseCheckEquation(statement);
-  return Boolean(evidence
-    && claimTokenCount(statement, claim) === 1
-    && isNonIdentity(evidence.operation)
-    && checkIsTrue(evidence));
-}
-
 function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOption[] | null {
   const question = choiceQuestion(stem);
   if (!question) return null;
@@ -669,11 +645,17 @@ function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOptio
   match = question.match(/^计算 (.+) 得到 (-?\d+(?:\.\d+)?) 后，哪种检查最有说服力？$/);
   if (match) return optionsEqualTo(options, "用逆运算还原并比较数量级");
 
-  match = question.match(/^小安解题后做了两项检查：估算范围为 (.+)，逆运算得到 (.+)。原答案是 (-?\d+(?:\.\d+)?)。根据这些证据应判断：$/);
+  match = question.match(/^小安计算原算式 (.+)，得到答案 (-?\d+(?:\.\d+)?)。他估算结果范围为 (.+)，并用逆运算 (.+) 检查。根据这些证据应判断：$/);
   if (match) {
-    const claim = Number(match[3]);
-    const evidenceSupports = rangeContains(match[1], claim)
-      && supportsClaimWithNontrivialCheck(match[2], claim);
+    const original = parseBinaryOperation(match[1]);
+    const claim = Number(match[2]);
+    const evidence = parseCheckEquation(match[4]);
+    const evidenceSupports = original !== null
+      && sameNumber(evaluateBinary(original), claim)
+      && rangeContains(match[3], claim)
+      && relatedInverseCheck(match[1], claim, match[4])
+      && evidence !== null
+      && checkIsTrue(evidence);
     return optionsEqualTo(options, evidenceSupports ? "两项检查都支持答案" : "证据互相矛盾，需重算");
   }
 
