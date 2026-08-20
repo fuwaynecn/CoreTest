@@ -22,7 +22,13 @@ type AnswerFormProps = {
     hintCount: number;
   }) => Promise<AttemptResult>;
   requestHint?: (sessionItemId: string) => Promise<HintResult>;
+  saveReflection?: (payload: {
+    sessionItemId: string;
+    reflection: ChildReflection;
+  }) => Promise<void>;
 };
+
+type ChildReflection = "did_not_read" | "missed_condition_or_unit" | "calculation_slip" | "method_unknown";
 
 type HintResult = {
   level: 1 | 2 | 3;
@@ -96,6 +102,15 @@ async function postHint(sessionItemId: string): Promise<HintResult> {
   return data;
 }
 
+async function postReflection(payload: { sessionItemId: string; reflection: ChildReflection }): Promise<void> {
+  const response = await fetch("/api/child/error-reflections", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw new Error("Reflection request failed");
+}
+
 const subscribeToHydration = () => () => undefined;
 
 export function AnswerForm({
@@ -103,6 +118,7 @@ export function AnswerForm({
   nextHref = "/child",
   submitAnswer = postAttempt,
   requestHint = postHint,
+  saveReflection = postReflection,
 }: AnswerFormProps) {
   const hydrated = useSyncExternalStore(subscribeToHydration, () => true, () => false);
   const [answerText, setAnswerText] = useState("");
@@ -113,6 +129,9 @@ export function AnswerForm({
   const [hint, setHint] = useState<HintResult | null>(null);
   const [hintLoading, setHintLoading] = useState(false);
   const [pendingTelemetry, setPendingTelemetry] = useState<AttemptTelemetry | null>(null);
+  const [hadIncorrectAnswer, setHadIncorrectAnswer] = useState(false);
+  const [reflectionComplete, setReflectionComplete] = useState(false);
+  const [reflectionSaving, setReflectionSaving] = useState(false);
   const activeDurationRef = useRef(0);
   const activeSinceRef = useRef<number | null>(null);
 
@@ -168,6 +187,7 @@ export function AnswerForm({
         ...telemetry,
       });
       setResult(nextResult);
+      if (!nextResult.correct) setHadIncorrectAnswer(true);
       setSubmissionId(null);
       setPendingTelemetry(null);
     } catch (error) {
@@ -206,6 +226,19 @@ export function AnswerForm({
     window.location.assign(nextUrl.href);
   }
 
+  async function handleReflection(reflection: ChildReflection) {
+    setReflectionSaving(true);
+    setError(null);
+    try {
+      await saveReflection({ sessionItemId, reflection });
+      setReflectionComplete(true);
+    } catch {
+      setError("原因暂时没有保存，请重试或选择暂时不选。");
+    } finally {
+      setReflectionSaving(false);
+    }
+  }
+
   return (
     <form className="answerForm" onSubmit={handleSubmit}>
       <label className="answerLabel" htmlFor={`answer-${sessionItemId}`}>你的答案</label>
@@ -235,7 +268,22 @@ export function AnswerForm({
       {result?.correct && (
         <section className="answerFeedback answerFeedbackCorrect" aria-live="polite">
           <p><span aria-hidden="true">✓</span> 做对了，别忘了检查题目问的是什么。</p>
-          <button type="button" onClick={goToNextQuestion}>下一题</button>
+          {hadIncorrectAnswer && !reflectionComplete ? (
+            <div className="errorReflection">
+              <p>刚才主要卡在哪里？</p>
+              {([
+                ["did_not_read", "没看清问题"],
+                ["missed_condition_or_unit", "漏了条件或单位"],
+                ["calculation_slip", "会做但算错"],
+                ["method_unknown", "方法不会"],
+              ] as const).map(([value, label]) => (
+                <button key={value} type="button" disabled={reflectionSaving} onClick={() => handleReflection(value)}>{label}</button>
+              ))}
+              <button type="button" disabled={reflectionSaving} onClick={() => setReflectionComplete(true)}>暂时不选</button>
+            </div>
+          ) : (
+            <button type="button" onClick={goToNextQuestion}>下一题</button>
+          )}
         </section>
       )}
     </form>

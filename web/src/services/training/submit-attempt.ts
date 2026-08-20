@@ -3,11 +3,14 @@ import { and, eq } from "drizzle-orm";
 import type { AppDatabase } from "@/db/client";
 import {
   attempts,
+  errorObservations,
   hintEvents,
   masteryStates,
   sessionItems,
   trainingSessions,
 } from "@/db/schema";
+import { classifyError, type ErrorClassificationInput } from "@/domain/errors/classify-error";
+import type { ErrorCause } from "@/domain/learning/contracts";
 import { answerSpecSchema } from "@/domain/questions/answer-spec";
 import { scoreAnswer } from "@/domain/questions/score-answer";
 import { nextMasteryEvidence } from "@/domain/training/mastery";
@@ -62,6 +65,29 @@ function estimatedSecondsFromSnapshot(raw: string): number {
   return 300;
 }
 
+function classificationMetadata(raw: string): Pick<ErrorClassificationInput, "commonErrors" | "incompleteReadingTargets"> {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null) return {};
+    const commonErrors = "commonErrors" in parsed && Array.isArray(parsed.commonErrors)
+      ? parsed.commonErrors.filter((value): value is ErrorCause => (
+        typeof value === "string" && [
+          "missing_unit", "copied_number", "calculation", "relationship",
+          "range_check", "incomplete_reading", "unknown",
+        ].includes(value)
+      ))
+      : undefined;
+    const incompleteReadingTargets = "incompleteReadingTargets" in parsed
+      && Array.isArray(parsed.incompleteReadingTargets)
+      && parsed.incompleteReadingTargets.every((value) => typeof value === "string")
+      ? parsed.incompleteReadingTargets
+      : undefined;
+    return { commonErrors, incompleteReadingTargets };
+  } catch {
+    return {};
+  }
+}
+
 export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): AttemptResult {
   if (command.answerText.length > 128) throw new InvalidAnswerError();
 
@@ -100,6 +126,8 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
       sessionId: trainingSessions.id,
       sessionKind: trainingSessions.kind,
       skillId: sessionItems.skillIdSnapshot,
+      stem: sessionItems.stemSnapshot,
+      structureTag: sessionItems.structureTagSnapshot,
       answerSpec: sessionItems.answerSpecSnapshot,
       explanation: sessionItems.explanationSnapshot,
       metadataSnapshot: sessionItems.selectionReasonSnapshot,
@@ -132,6 +160,8 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
 
     const score = scoreAnswer(command.answerText, parseAnswerSpec(item.answerSpec));
     const now = Date.now();
+    const priorAttemptCount = tx.select({ id: attempts.id }).from(attempts)
+      .where(eq(attempts.sessionItemId, command.sessionItemId)).all().length;
     const currentMastery = tx.select({
       evidenceCount: masteryStates.evidenceCount,
       correctCount: masteryStates.correctCount,
@@ -167,8 +197,9 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
         .get() !== undefined
     ));
 
+    const attemptId = randomUUID();
     tx.insert(attempts).values({
-      id: randomUUID(),
+      id: attemptId,
       sessionItemId: command.sessionItemId,
       clientSubmissionId: command.clientSubmissionId,
       answerText: command.answerText,
@@ -177,8 +208,23 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
       explanation: item.explanation,
       sessionCompleted,
       ...telemetry,
+      correctionNumber: priorAttemptCount,
       submittedAt: now,
     }).run();
+
+    if (!score.correct && priorAttemptCount === 0) {
+      const candidate = classifyError({
+        answerSpec: parseAnswerSpec(item.answerSpec),
+        stem: item.stem,
+        structureTag: item.structureTag,
+        ...classificationMetadata(item.metadataSnapshot),
+      }, command.answerText);
+      tx.insert(errorObservations).values({
+        id: randomUUID(), childId: command.childId, sessionItemId: command.sessionItemId,
+        attemptId, source: "system", systemCandidate: candidate,
+        observedAt: now, createdAt: now,
+      }).run();
+    }
 
     if (sessionCompleted) {
       tx.update(trainingSessions).set({ status: "completed", completedAt: now })

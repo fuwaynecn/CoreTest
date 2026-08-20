@@ -162,6 +162,28 @@ test("retries an interrupted submission with the same id", async () => {
   });
 });
 
+test("offers four large reflection choices and a skip after a correction", async () => {
+  const submit = vi.fn()
+    .mockResolvedValueOnce({ correct: false, normalizedAnswer: "5", explanation: "再算一次。", sessionCompleted: false })
+    .mockResolvedValueOnce({ correct: true, normalizedAnswer: "6", explanation: "再算一次。", sessionCompleted: false });
+  const saveReflection = vi.fn().mockResolvedValue(undefined);
+  render(<AnswerForm sessionItemId="item-1" submitAnswer={submit} saveReflection={saveReflection} />);
+
+  await userEvent.type(screen.getByLabelText("你的答案"), "5");
+  await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
+  await userEvent.click(await screen.findByRole("button", { name: "修改答案" }));
+  await userEvent.clear(screen.getByLabelText("你的答案"));
+  await userEvent.type(screen.getByLabelText("你的答案"), "6");
+  await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
+
+  for (const label of ["没看清问题", "漏了条件或单位", "会做但算错", "方法不会", "暂时不选"]) {
+    expect(await screen.findByRole("button", { name: label })).toBeInTheDocument();
+  }
+  await userEvent.click(screen.getByRole("button", { name: "会做但算错" }));
+  expect(saveReflection).toHaveBeenCalledWith({ sessionItemId: "item-1", reflection: "calculation_slip" });
+  expect(await screen.findByRole("button", { name: "下一题" })).toBeInTheDocument();
+});
+
 test.each([500, 502, 503, 504])(
   "keeps the submission id and telemetry locked after an uncertain %s response",
   async (status) => {
