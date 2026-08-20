@@ -110,3 +110,83 @@ test("regional templates carry the intended reading and explanation emphasis", (
     readingCard || explanationPattern.includes("关系") || explanationPattern.includes("信息")
   ))).toBe(true);
 });
+
+test("rejects answer and choice mutations of canonical catalog templates", () => {
+  const numberTemplate = phase2Catalog.find(({ id }) => id === "num-int-mental-01")!;
+  const choiceTemplate = phase2Catalog.find(({ id }) => id === "num-estimate-01")!;
+  const wrongNumber = {
+    ...numberTemplate,
+    variantSpec: {
+      variables: {
+        ...numberTemplate.variantSpec.variables,
+        answer: [999, 999, 999],
+      },
+    },
+  };
+  const duplicateChoice = {
+    ...choiceTemplate,
+    variantSpec: {
+      variables: {
+        ...choiceTemplate.variantSpec.variables,
+        a: choiceTemplate.variantSpec.variables.b,
+      },
+    },
+  };
+  const wrongChoiceAnswer = {
+    ...choiceTemplate,
+    answerSpecPattern: { kind: "choice", value: "A" },
+  };
+
+  expect(validateCatalog([wrongNumber])).toEqual(expect.arrayContaining([
+    expect.stringContaining("incorrect_number_answer"),
+  ]));
+  expect(validateCatalog([duplicateChoice])).toEqual(expect.arrayContaining([
+    expect.stringContaining("duplicate_choice_option"),
+  ]));
+  expect(validateCatalog([wrongChoiceAnswer])).toEqual(expect.arrayContaining([
+    expect.stringContaining("incorrect_choice_answer"),
+  ]));
+});
+
+test("rejects a wrong answer label for every canonical choice template", () => {
+  const nextLabel = { A: "B", B: "C", C: "D", D: "A" } as const;
+  const choiceTemplates = phase2Catalog.filter(({ answerMode }) => answerMode === "choice");
+
+  expect(choiceTemplates).toHaveLength(23);
+  for (const template of choiceTemplates) {
+    const answer = template.answerSpecPattern as { kind: "choice"; value: keyof typeof nextLabel };
+    const mutated = {
+      ...template,
+      answerSpecPattern: { kind: "choice", value: nextLabel[answer.value] },
+    };
+
+    expect(validateCatalog([mutated]), template.id).toEqual(expect.arrayContaining([
+      expect.stringContaining("incorrect_choice_answer"),
+    ]));
+  }
+});
+
+test("rejects a wrong generated answer for every supported numeric template", () => {
+  const numberTemplates = phase2Catalog.filter((template) => (
+    template.answerMode !== "equation"
+    && (template.answerSpecPattern as { kind?: string }).kind === "number"
+  ));
+
+  expect(numberTemplates).toHaveLength(38);
+  for (const template of numberTemplates) {
+    const answers = template.variantSpec.variables.answer;
+    const mutated = {
+      ...template,
+      variantSpec: {
+        variables: {
+          ...template.variantSpec.variables,
+          answer: answers.map((answer) => Number(answer) + 999),
+        },
+      },
+    };
+
+    expect(validateCatalog([mutated]), template.id).toEqual(expect.arrayContaining([
+      expect.stringContaining("incorrect_number_answer"),
+    ]));
+  }
+});
