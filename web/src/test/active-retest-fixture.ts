@@ -55,25 +55,63 @@ export function seedActiveRetest(sqlite: DatabaseSync, beforeStep: (step: SeedSt
   }
 }
 
-export function removeActiveRetest(sqlite: DatabaseSync, beforeStep: (step: CleanupStep) => void = () => undefined) {
+function assertActiveRetestRemoved(sqlite: DatabaseSync) {
+  const remaining = sqlite.prepare(`
+    select
+      (select count(*) from attempts where session_item_id = ?) as attempts,
+      (select count(*) from session_items where session_id = ?) as items,
+      (select count(*) from training_sessions where id = ?) as sessions,
+      (select count(*) from diagnostic_parts where run_id = ?) as parts,
+      (select count(*) from diagnostic_runs where id = ?) as runs
+  `).get(RETEST_ITEM_ID, RETEST_SESSION_ID, RETEST_SESSION_ID, RETEST_RUN_ID, RETEST_RUN_ID) as Record<string, number>;
+  if (Object.values(remaining).some((count) => count !== 0)) {
+    throw new Error(`Active retest cleanup left temporary rows: ${JSON.stringify(remaining)}`);
+  }
+}
+
+function cleanupActiveRetest(sqlite: DatabaseSync, beforeStep?: (step: CleanupStep) => void) {
   sqlite.exec("begin immediate");
   try {
     let firstError: unknown;
-    for (const [step, statement, id] of [
-      ["session", "delete from training_sessions where id = ?", RETEST_SESSION_ID],
-      ["run", "delete from diagnostic_runs where id = ?", RETEST_RUN_ID],
+    for (const [step, statements] of [
+      ["session", [
+        ["delete from attempts where session_item_id in (select id from session_items where session_id = ?)", RETEST_SESSION_ID],
+        ["delete from session_items where session_id = ?", RETEST_SESSION_ID],
+        ["delete from training_sessions where id = ?", RETEST_SESSION_ID],
+      ]],
+      ["run", [
+        ["delete from diagnostic_parts where run_id = ?", RETEST_RUN_ID],
+        ["delete from diagnostic_runs where id = ?", RETEST_RUN_ID],
+      ]],
     ] as const) {
       try {
-        beforeStep(step);
-        sqlite.prepare(statement).run(id);
+        beforeStep?.(step);
+        for (const [statement, id] of statements) sqlite.prepare(statement).run(id);
       } catch (error) {
         firstError ??= error;
       }
     }
     if (firstError) throw firstError;
+    assertActiveRetestRemoved(sqlite);
     sqlite.exec("commit");
   } catch (error) {
     rollback(sqlite);
     throw error;
+  }
+}
+
+export function removeActiveRetest(sqlite: DatabaseSync, beforeStep?: (step: CleanupStep) => void) {
+  try {
+    cleanupActiveRetest(sqlite, beforeStep);
+  } catch (originalError) {
+    try {
+      cleanupActiveRetest(sqlite);
+    } catch (fallbackError) {
+      throw new AggregateError(
+        [originalError, fallbackError],
+        "Active retest cleanup and fallback cleanup both failed",
+      );
+    }
+    throw originalError;
   }
 }
