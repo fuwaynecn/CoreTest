@@ -1,23 +1,12 @@
 import Link from "next/link";
 import { getDatabase } from "@/db/client";
+import { shanghaiDateKey } from "@/domain/time/shanghai-calendar";
 import { requireRole } from "@/lib/auth/current-user";
 import { getOrCreateDailySession } from "@/services/training/create-daily-session";
 
-function shanghaiDate(now = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Shanghai",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(now);
-  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value;
-
-  return `${value("year")}-${value("month")}-${value("day")}`;
-}
-
 export default async function ChildHomePage() {
   const child = await requireRole("child");
-  const session = getOrCreateDailySession(getDatabase(), child.id, shanghaiDate());
+  const session = getOrCreateDailySession(getDatabase(), child.id, shanghaiDateKey());
   const label = session.questions.some((question) => question.answered)
     ? "继续今天的训练"
     : "开始今天的训练";
