@@ -3,6 +3,7 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
+  workers: 1,
   webServer: {
     command: "npm run e2e:seed && npm run dev",
     env: { DB_FILE_NAME: ".tmp/e2e.sqlite", SESSION_COOKIE_SECURE: "false" },

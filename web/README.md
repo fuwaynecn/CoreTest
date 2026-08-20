@@ -1,6 +1,6 @@
-# 家庭数学训练（Phase 1）
+# 家庭数学训练（Phase 2A）
 
-这是家庭数学训练的首个可运行闭环：孩子登录后完成每日 3 道确定性判分题，家长登录后查看首次作答指标、订正记录和技能证据。
+孩子首次登录后先完成三部分、每部分 15 题的初始诊断；诊断可以暂停、刷新和继续，完成后家长能查看第 1 版暂定六领域报告。已有的每日 3 题训练和家长作答证据页面继续保留，并在诊断完成后开放。
 
 ## 运行要求
 
@@ -42,6 +42,8 @@ npm run dev
 
 ## 浏览器端到端依赖
 
+Playwright 只安装在开发电脑或 CI 上，用于自动验收网页。孩子实际使用的 iPad 或安卓平板不需要安装 Playwright，只需使用平板自带的 Safari 或 Chrome 打开部署后的网址。
+
 Playwright 配置保留两个平板浏览器项目：`tablet-webkit` 使用 Playwright WebKit，`tablet-chromium` 明确设置 `channel: "chrome"`，因此后者需要稳定版 Google Chrome，而不是 Playwright 自带的 Chromium。
 
 本地安装所需浏览器：
@@ -73,7 +75,7 @@ npm run test:e2e
 git diff --check
 ```
 
-`npm run verify` 依次运行 ESLint、TypeScript、全部 Vitest 测试和生产构建。`npm run test:e2e` 先运行 WebKit 的孩子/家长依赖流程，再运行稳定版 Chrome 平板流程；E2E 会且只会重建 `.tmp/e2e.sqlite`。
+`npm run verify` 依次运行 ESLint、TypeScript、全部 Vitest 测试和生产构建。`npm run test:e2e` 会在 WebKit 和稳定版 Chrome 中完成三段诊断、刷新恢复、暂定报告与原有每日训练流程，并检查平板和 390px 宽度没有水平溢出；E2E 会且只会重建 `.tmp/e2e.sqlite`。
 
 也可以分别运行浏览器项目：
 
@@ -86,4 +88,4 @@ npm run test:e2e:chromium
 
 本地 `npm run dev` 使用 HTTP 时保持 `SESSION_COOKIE_SECURE=false`。在 `NODE_ENV=production` 下，会话 Cookie 无论该变量取值如何都带 `Secure`；浏览器必须通过 HTTPS 访问站点，否则不会回传 Cookie。不要为了绕过此要求关闭 TLS 或降低 Cookie 安全属性。
 
-Phase 1 的 SQLite 文件必须放在单个长期运行的 Node.js 实例所挂载的持久化磁盘上，并在部署与重启之间保留同一路径。临时文件系统、无状态 Serverless、横向扩容和多个应用实例同时使用本地 SQLite 均不受支持；因此本阶段不适合部署到使用临时磁盘的 Vercel/Serverless 运行时。生产部署应使用单实例、持久卷和常规数据库备份。
+SQLite 文件必须放在单个长期运行的 Node.js 实例所挂载的持久化磁盘上，并在部署与重启之间保留同一路径。临时文件系统、无状态 Serverless、横向扩容和多个应用实例同时使用本地 SQLite 均不受支持；因此本阶段不适合部署到使用临时磁盘的 Vercel/Serverless 运行时。生产部署应使用单实例、持久卷和常规数据库备份。三段诊断的运行、每题快照、提交幂等记录和第 1 版报告都保存在该 SQLite 文件中，备份时必须一并保留。

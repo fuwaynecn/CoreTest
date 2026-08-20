@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import type { AppDatabase } from "@/db/client";
 import {
   attempts,
@@ -80,7 +80,10 @@ export function getParentEvidence(
     }).from(attempts)
       .innerJoin(sessionItems, eq(attempts.sessionItemId, sessionItems.id))
       .innerJoin(trainingSessions, eq(sessionItems.sessionId, trainingSessions.id))
-      .where(eq(trainingSessions.childId, childId))
+      .where(and(
+        eq(trainingSessions.childId, childId),
+        eq(trainingSessions.kind, "daily"),
+      ))
       .orderBy(asc(attempts.submittedAt), asc(attempts.id))
       .all();
 

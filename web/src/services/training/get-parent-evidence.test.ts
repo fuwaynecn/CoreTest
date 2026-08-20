@@ -194,3 +194,13 @@ test("returns empty first-attempt metrics when the child has not answered", () =
     skills: [],
   });
 });
+
+test("keeps diagnostic attempts out of the daily evidence summary", () => {
+  const db = seededAcceptedFlow();
+  db.update(trainingSessions).set({ kind: "diagnostic" })
+    .where(eq(trainingSessions.id, "session-1")).run();
+
+  const evidence = getParentEvidence(db, "child-1", NOW);
+  expect(evidence.summary.cumulative).toEqual({ answered: 0, correct: 0, accuracy: null });
+  expect(evidence.recent).toEqual([]);
+});

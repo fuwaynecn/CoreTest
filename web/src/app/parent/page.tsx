@@ -1,6 +1,7 @@
-import { eq } from "drizzle-orm";
+import { asc, count, desc, eq } from "drizzle-orm";
 import { getDatabase } from "@/db/client";
-import { users } from "@/db/schema";
+import { attempts, diagnosticRuns, sessionItems, trainingSessions, users } from "@/db/schema";
+import type { InitialDiagnosisReport } from "@/domain/diagnosis/types";
 import { requireRole } from "@/lib/auth/current-user";
 import { getParentEvidence } from "@/services/training/get-parent-evidence";
 
@@ -9,6 +10,24 @@ const statusLabels = {
   learning: "正在学习",
   basic: "基础掌握",
 } as const;
+
+const domainLabels = {
+  number_operations: "数与运算",
+  equation_algebra: "方程与代数",
+  geometry_space: "图形与空间",
+  data_statistics: "数据与统计",
+  application_modeling: "应用与建模",
+  thinking_habits: "数学思维与习惯",
+} as const;
+
+function parseInitialReport(value: string | null): InitialDiagnosisReport | null {
+  if (!value) return null;
+  const parsed: unknown = JSON.parse(value);
+  if (typeof parsed !== "object" || parsed === null || !("domains" in parsed) || !Array.isArray(parsed.domains)) {
+    throw new Error("Initial diagnosis report is invalid");
+  }
+  return parsed as InitialDiagnosisReport;
+}
 
 function recommendation(answered: number, correct: number) {
   if (answered === 0) return "先让孩子完成今天的训练";
@@ -50,6 +69,27 @@ export default async function ParentPage() {
   }
 
   const evidence = getParentEvidence(db, child.id);
+  const diagnosisRun = db.select().from(diagnosticRuns)
+    .where(eq(diagnosticRuns.childId, child.id))
+    .orderBy(desc(diagnosticRuns.version))
+    .limit(1)
+    .get();
+  const diagnosisCompleted = diagnosisRun ? (db.select({ value: count() }).from(attempts)
+    .innerJoin(sessionItems, eq(attempts.sessionItemId, sessionItems.id))
+    .innerJoin(trainingSessions, eq(sessionItems.sessionId, trainingSessions.id))
+    .where(eq(trainingSessions.diagnosticRunId, diagnosisRun.id))
+    .get()?.value ?? 0) : 0;
+  const difficultyPath = diagnosisRun ? db.select({ difficulty: sessionItems.difficultySnapshot })
+    .from(sessionItems)
+    .innerJoin(trainingSessions, eq(sessionItems.sessionId, trainingSessions.id))
+    .where(eq(trainingSessions.diagnosticRunId, diagnosisRun.id))
+    .orderBy(asc(trainingSessions.diagnosticPartNumber), asc(sessionItems.position))
+    .all()
+    .map(({ difficulty }) => difficulty)
+    .filter((difficulty): difficulty is number => difficulty !== null) : [];
+  const diagnosisReport = diagnosisRun?.status === "completed"
+    ? parseInitialReport(diagnosisRun.reportSnapshot)
+    : null;
   const summaryPeriods = [
     { label: "累计", metric: evidence.summary.cumulative },
     { label: "今日", metric: evidence.summary.today },
@@ -69,6 +109,48 @@ export default async function ParentPage() {
           <strong>{recommendation(evidence.summary.week.answered, evidence.summary.week.correct)}</strong>
         </aside>
       </header>
+
+      {diagnosisRun && (
+        <section className="diagnosisSummary" aria-labelledby="diagnosis-summary-heading">
+          <div className="sectionHeading diagnosisSummaryHeading">
+            <div>
+              <p className="eyebrow">三部分数学体检</p>
+              <h2 id="diagnosis-summary-heading">
+                {diagnosisRun.status === "completed"
+                  ? `初始诊断报告 · 第 ${diagnosisRun.version} 版 · 45/45`
+                  : `诊断进行中 · ${diagnosisCompleted}/45`}
+              </h2>
+            </div>
+            <p>{diagnosisRun.status === "completed" ? "报告已生成" : `当前第 ${diagnosisRun.currentPart} 部分`}</p>
+          </div>
+          <div className="parentDiagnosisRail" aria-label={`已完成 ${diagnosisCompleted} / 45`}>
+            {[0, 1, 2].map((index) => (
+              <span key={index}>
+                <span style={{ width: `${Math.max(0, Math.min(15, diagnosisCompleted - index * 15)) / 15 * 100}%` }} />
+              </span>
+            ))}
+          </div>
+          {difficultyPath.length > 0 && (
+            <p className="difficultyPath"><strong>难度路径：</strong>{difficultyPath.join(" → ")}</p>
+          )}
+          {diagnosisReport && (
+            <>
+              <p className="provisionalNote">这些是暂定状态，会随之后的跨日练习更新。</p>
+              <ul className="diagnosisDomainGrid">
+                {diagnosisReport.domains.map((domain) => (
+                  <li key={domain.domain} data-testid="diagnosis-domain-status">
+                    <div>
+                      <strong>{domainLabels[domain.domain]}</strong>
+                      <span>{domain.evidenceCount} 道独立首答证据</span>
+                    </div>
+                    <span className="skillStatus" data-status={domain.status}>{statusLabels[domain.status]}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </section>
+      )}
 
       <section className="evidenceSummary" aria-labelledby="summary-heading">
         <div className="summaryIntro">
