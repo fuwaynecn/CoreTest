@@ -169,12 +169,15 @@ export const masteryEvidence = sqliteTable("mastery_evidence", {
   structureTag: text("structure_tag").notNull(),
   occurredOn: text("occurred_on").notNull(),
   occurredAt: integer("occurred_at").notNull(),
+  reviewIntervalDays: integer("review_interval_days").notNull().default(0),
 }, (table) => [
   uniqueIndex("mastery_evidence_source_idx").on(table.sessionItemId),
   check("mastery_evidence_purpose", sql`${table.purpose} IN ('diagnostic', 'learning', 'review', 'assessment')`),
   check("mastery_evidence_first_correct_boolean", sql`${table.firstAttemptCorrect} IN (0, 1)`),
   check("mastery_evidence_independent_boolean", sql`${table.independent} IN (0, 1)`),
   check("mastery_evidence_difficulty_range", sql`${table.difficulty} BETWEEN 1 AND 4`),
+  check("mastery_evidence_review_interval", sql`${table.reviewIntervalDays} IN (0, 1, 3, 7, 14, 30)`),
+  check("mastery_evidence_review_purpose", sql`(${table.purpose} = 'review' AND ${table.reviewIntervalDays} IN (1, 3, 7, 14, 30)) OR (${table.purpose} <> 'review' AND ${table.reviewIntervalDays} = 0)`),
 ]);
 
 const errorCauses = [
@@ -228,13 +231,13 @@ export const reviewSchedules = sqliteTable("review_schedules", {
   level: integer("level").notNull(),
   dueOn: text("due_on").notNull(),
   lastResult: text("last_result", {
-    enum: ["independent_correct", "hinted_correct", "incorrect"],
+    enum: ["independent_correct", "hinted_correct", "corrected", "incorrect"],
   }),
   updatedAt: integer("updated_at").notNull(),
 }, (table) => [
   primaryKey({ columns: [table.childId, table.skillId] }),
   check("review_schedules_level_range", sql`${table.level} BETWEEN 0 AND 4`),
-  check("review_schedules_last_result", sql`${table.lastResult} IS NULL OR ${table.lastResult} IN ('independent_correct', 'hinted_correct', 'incorrect')`),
+  check("review_schedules_last_result", sql`${table.lastResult} IS NULL OR ${table.lastResult} IN ('independent_correct', 'hinted_correct', 'corrected', 'incorrect')`),
 ]);
 
 export const dosageStates = sqliteTable("dosage_states", {
@@ -251,7 +254,19 @@ export const dosageStates = sqliteTable("dosage_states", {
   primaryKey({ columns: [table.childId, table.track] }),
   check("dosage_states_track", sql`${table.track} IN ('computation', 'equation')`),
   check("dosage_states_level_range", sql`(${table.track} = 'computation' AND ${table.level} BETWEEN 1 AND 7) OR (${table.track} = 'equation' AND ${table.level} BETWEEN 1 AND 6)`),
-  check("dosage_states_nonnegative_targets", sql`${table.weeklyTarget} >= 0 AND ${table.sessionMinimum} >= 0 AND ${table.sessionTarget} >= 0 AND ${table.sessionMaximum} >= 0`),
+  check("dosage_states_track_targets", sql`(
+    ${table.track} = 'computation'
+    AND ${table.weeklyTarget} BETWEEN 60 AND 95
+    AND ${table.sessionMinimum} BETWEEN 12 AND 19
+    AND ${table.sessionTarget} BETWEEN 12 AND 19
+    AND ${table.sessionMaximum} BETWEEN 12 AND 19
+  ) OR (
+    ${table.track} = 'equation'
+    AND ${table.weeklyTarget} BETWEEN 15 AND 20
+    AND ${table.sessionMinimum} BETWEEN 4 AND 6
+    AND ${table.sessionTarget} BETWEEN 4 AND 6
+    AND ${table.sessionMaximum} BETWEEN 4 AND 6
+  )`),
   check("dosage_states_target_order", sql`${table.sessionMinimum} <= ${table.sessionTarget} AND ${table.sessionTarget} <= ${table.sessionMaximum}`),
 ]);
 

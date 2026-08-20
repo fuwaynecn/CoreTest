@@ -731,6 +731,7 @@ test("adds Phase 2B learning state without inventing legacy telemetry or losing 
       "active_duration_ms", "hint_level", "hint_count", "correction_number",
     ]));
     expect(primaryKeyColumns(sqlite, "mastery_evidence")).toEqual(["id"]);
+    expect(columns(sqlite, "mastery_evidence")).toContain("review_interval_days");
     expect(indexColumns(sqlite, "mastery_evidence", "mastery_evidence_source_idx"))
       .toEqual(["session_item_id"]);
     expect(primaryKeyColumns(sqlite, "review_schedules")).toEqual(["child_id", "skill_id"]);
@@ -807,10 +808,11 @@ test("adds Phase 2B learning state without inventing legacy telemetry or losing 
     expect(() => sqlite.prepare(`
       INSERT INTO mastery_evidence (
         id, child_id, skill_id, session_item_id, purpose, first_attempt_correct,
-        independent, difficulty, structure_tag, occurred_on, occurred_at
+        independent, difficulty, structure_tag, occurred_on, occurred_at,
+        review_interval_days
       ) VALUES (
         'bad-evidence', 'phase2b-child', 'phase2b-skill', 'phase2b-item',
-        'guess', 1, 1, 2, 'decimal-add', '2026-08-19', 55
+        'guess', 1, 1, 2, 'decimal-add', '2026-08-19', 55, 0
       )
     `).run()).toThrow();
     expect(() => sqlite.prepare(`
@@ -822,7 +824,7 @@ test("adds Phase 2B learning state without inventing legacy telemetry or losing 
       INSERT INTO dosage_states (
         child_id, track, level, weekly_target, session_minimum, session_target,
         session_maximum, reason_json, updated_at
-      ) VALUES ('phase2b-child', 'equation', 7, 20, 4, 5, 6, '{}', 60)
+      ) VALUES ('phase2b-child', 'equation', 1, 1000, 4, 5, 6, '{}', 60)
     `).run()).toThrow();
     expect(() => sqlite.prepare(`
       UPDATE mastery_states SET status = 'expert'
@@ -851,6 +853,20 @@ test("adds Phase 2B learning state without inventing legacy telemetry or losing 
         'learning', 0, 1, 2, 'decimal-add', '2026-08-19', 55
       )
     `).run();
+    expect(sqlite.prepare(`
+      SELECT review_interval_days AS reviewIntervalDays
+      FROM mastery_evidence WHERE id = 'evidence-1'
+    `).get()).toEqual({ reviewIntervalDays: 0 });
+    expect(() => sqlite.prepare(`
+      UPDATE mastery_evidence SET review_interval_days = 7 WHERE id = 'evidence-1'
+    `).run()).toThrow();
+    expect(() => sqlite.prepare(`
+      UPDATE mastery_evidence SET purpose = 'review' WHERE id = 'evidence-1'
+    `).run()).toThrow();
+    expect(() => sqlite.prepare(`
+      UPDATE mastery_evidence SET purpose = 'review', review_interval_days = 2
+      WHERE id = 'evidence-1'
+    `).run()).toThrow();
     expect(() => sqlite.prepare(`
       INSERT INTO mastery_evidence (
         id, child_id, skill_id, session_item_id, purpose, first_attempt_correct,
@@ -889,11 +905,33 @@ test("adds Phase 2B learning state without inventing legacy telemetry or losing 
       ) VALUES ('phase2b-child', 'equation', 1, 20, 4, 5, 6, '{}', 60)
     `).run();
     expect(() => sqlite.prepare(`
+      UPDATE dosage_states SET weekly_target = 1000
+      WHERE child_id = 'phase2b-child' AND track = 'equation'
+    `).run()).toThrow();
+    expect(() => sqlite.prepare(`
       INSERT INTO dosage_states (
         child_id, track, level, weekly_target, session_minimum, session_target,
         session_maximum, reason_json, updated_at
       ) VALUES ('phase2b-child', 'equation', 2, 20, 4, 5, 6, '{}', 61)
     `).run()).toThrow();
+    sqlite.prepare(`
+      INSERT INTO dosage_states (
+        child_id, track, level, weekly_target, session_minimum, session_target,
+        session_maximum, reason_json, updated_at
+      ) VALUES ('phase2b-child', 'computation', 1, 60, 12, 15, 19, '{}', 60)
+    `).run();
+    expect(() => sqlite.prepare(`
+      UPDATE dosage_states SET session_target = 1000
+      WHERE child_id = 'phase2b-child' AND track = 'computation'
+    `).run()).toThrow();
+    sqlite.prepare(`
+      UPDATE review_schedules SET last_result = 'corrected'
+      WHERE child_id = 'phase2b-child' AND skill_id = 'phase2b-skill'
+    `).run();
+    expect(sqlite.prepare(`
+      SELECT last_result AS lastResult FROM review_schedules
+      WHERE child_id = 'phase2b-child' AND skill_id = 'phase2b-skill'
+    `).get()).toEqual({ lastResult: "corrected" });
     sqlite.prepare(`
       INSERT INTO error_observations (
         id, child_id, session_item_id, attempt_id, source, child_self_report,
@@ -969,10 +1007,11 @@ test("adds Phase 2B learning state without inventing legacy telemetry or losing 
     sqlite.prepare(`
       INSERT INTO mastery_evidence (
         id, child_id, skill_id, session_item_id, purpose, first_attempt_correct,
-        independent, difficulty, structure_tag, occurred_on, occurred_at
+        independent, difficulty, structure_tag, occurred_on, occurred_at,
+        review_interval_days
       ) VALUES (
         'evidence-restrict', 'phase2b-child', 'phase2b-skill', 'evidence-only-item',
-        'learning', 1, 1, 2, 'decimal-add', '2026-08-19', 63
+        'review', 1, 1, 2, 'decimal-add', '2026-08-19', 63, 7
       )
     `).run();
     expect(() => sqlite.prepare("DELETE FROM session_items WHERE id = 'evidence-only-item'").run())
