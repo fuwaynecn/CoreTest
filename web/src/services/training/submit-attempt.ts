@@ -49,6 +49,7 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
   return db.transaction((tx) => {
     const existing = tx.select({
       childId: trainingSessions.childId,
+      sessionKind: trainingSessions.kind,
       sessionItemId: attempts.sessionItemId,
       correct: attempts.isCorrect,
       normalizedAnswer: attempts.normalizedAnswer,
@@ -64,6 +65,7 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
       if (
         existing.childId !== command.childId
         || existing.sessionItemId !== command.sessionItemId
+        || existing.sessionKind === "diagnostic"
       ) {
         throw new TrainingAccessError();
       }
@@ -77,6 +79,7 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
 
     const item = tx.select({
       sessionId: trainingSessions.id,
+      sessionKind: trainingSessions.kind,
       skillId: sessionItems.skillIdSnapshot,
       answerSpec: sessionItems.answerSpecSnapshot,
       explanation: sessionItems.explanationSnapshot,
@@ -89,6 +92,7 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
       ))
       .get();
     if (!item) throw new TrainingAccessError();
+    if (item.sessionKind === "diagnostic") throw new TrainingAccessError();
 
     const score = scoreAnswer(command.answerText, parseAnswerSpec(item.answerSpec));
     const now = Date.now();

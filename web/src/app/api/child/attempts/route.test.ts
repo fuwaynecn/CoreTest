@@ -1,4 +1,12 @@
-import { questionTemplates, skills, users } from "@/db/schema";
+import {
+  diagnosticParts,
+  diagnosticRuns,
+  questionTemplates,
+  sessionItems,
+  skills,
+  trainingSessions,
+  users,
+} from "@/db/schema";
 import { getOrCreateDailySession } from "@/services/training/create-daily-session";
 import { createTestDatabase } from "@/test/test-db";
 
@@ -115,6 +123,37 @@ test("returns 404 when the item is not available to the signed-in child", async 
   const response = await POST(attemptRequest({
     sessionItemId: "missing-item",
     clientSubmissionId: "66666666-6666-4666-8666-666666666666",
+    answerText: "6",
+  }));
+
+  expect(response.status).toBe(404);
+  expect(await response.json()).toEqual({ error: "Training item not found" });
+});
+
+test("does not let the general attempt endpoint bypass diagnosis transitions", async () => {
+  db.insert(diagnosticRuns).values({
+    id: "run-1", childId: "child-1", version: 1, status: "in_progress",
+    currentPart: 1, seed: "seed", startedAt: 1,
+  }).run();
+  db.insert(diagnosticParts).values({
+    runId: "run-1", partNumber: 1, status: "in_progress", startedAt: 1,
+  }).run();
+  db.insert(trainingSessions).values({
+    id: "diagnosis-session", childId: "child-1", sessionDate: "2026-08-19",
+    kind: "diagnostic", diagnosticRunId: "run-1", diagnosticPartNumber: 1,
+    status: "in_progress", startedAt: 1,
+  }).run();
+  db.insert(sessionItems).values({
+    id: "diagnosis-item", sessionId: "diagnosis-session", questionTemplateId: "q-decimal-1",
+    position: 1, stemSnapshot: "3.6 + 2.4 = ?",
+    answerSpecSnapshot: JSON.stringify({ kind: "number", value: 6, tolerance: 0, unit: null }),
+    explanationSnapshot: "对齐十分位。", skillIdSnapshot: "skill-decimal",
+    skillNameSnapshot: "小数计算",
+  }).run();
+
+  const response = await POST(attemptRequest({
+    sessionItemId: "diagnosis-item",
+    clientSubmissionId: "77777777-7777-4777-8777-777777777777",
     answerText: "6",
   }));
 
