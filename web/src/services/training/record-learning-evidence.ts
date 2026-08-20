@@ -34,7 +34,11 @@ export function recordLearningEvidence(
   db: EvidenceStore,
   command: RecordLearningEvidenceCommand,
 ) {
-  const current = db.select({ status: masteryStates.status }).from(masteryStates).where(and(
+  const current = db.select({
+    status: masteryStates.status,
+    evidenceCursor: masteryStates.evidenceCursor,
+    updatedAt: masteryStates.updatedAt,
+  }).from(masteryStates).where(and(
     eq(masteryStates.childId, command.childId),
     eq(masteryStates.skillId, command.skillId),
   )).get();
@@ -72,7 +76,8 @@ export function recordLearningEvidence(
     diagnosticCompletedAt: row.diagnosticCompletedAt,
     reviewIntervalDays: row.reviewIntervalDays as ReviewIntervalDays,
   })), current?.status);
-  const cursor = rows.at(-1)?.id ?? null;
+  const cursor = state.evidenceCursor ?? current?.evidenceCursor ?? null;
+  const updatedAt = state.lastAppliedAt ?? current?.updatedAt ?? command.occurredAt;
   db.insert(masteryStates).values({
     childId: command.childId,
     skillId: command.skillId,
@@ -82,7 +87,7 @@ export function recordLearningEvidence(
     reasonCode: state.reasonCode,
     evidenceCursor: cursor,
     evidenceVersion: rows.length,
-    updatedAt: command.occurredAt,
+    updatedAt,
   }).onConflictDoUpdate({
     target: [masteryStates.childId, masteryStates.skillId],
     set: {
@@ -92,7 +97,7 @@ export function recordLearningEvidence(
       reasonCode: state.reasonCode,
       evidenceCursor: cursor,
       evidenceVersion: rows.length,
-      updatedAt: command.occurredAt,
+      updatedAt,
     },
   }).run();
   return state;

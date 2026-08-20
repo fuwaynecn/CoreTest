@@ -50,7 +50,10 @@ test("orders diagnosis batches at completion so a successful retest resets earli
     diagnosticRunId: "run-2", diagnosticCompletedOn: "2026-09-01", diagnosticCompletedAt: 400,
   }));
   expect(deriveMasteryState([failed, ...retest.toReversed(), ...first.toReversed()]))
-    .toMatchObject({ status: "basic", reasonCode: "diagnostic_basic" });
+    .toMatchObject({
+      status: "basic", reasonCode: "diagnostic_basic",
+      lastAppliedAt: 400, evidenceCursor: "retest-4",
+    });
 });
 
 test("uses occurred date, timestamp, then id as the deterministic event tie-break", () => {
@@ -62,8 +65,12 @@ test("uses occurred date, timestamp, then id as the deterministic event tie-brea
     id: "z-review", purpose: "review", occurredOn: "2026-08-20", occurredAt: 100,
     reviewIntervalDays: 7, firstAttemptCorrect: false,
   });
-  expect(deriveMasteryState([review, ...diagnosis]).status).toBe("learning");
-  expect(deriveMasteryState([{ ...review, id: "a-review" }, ...diagnosis]).status).toBe("basic");
+  expect(deriveMasteryState([review, ...diagnosis])).toMatchObject({
+    status: "learning", lastAppliedAt: 100, evidenceCursor: "z-review",
+  });
+  expect(deriveMasteryState([{ ...review, id: "a-review" }, ...diagnosis])).toMatchObject({
+    status: "basic", lastAppliedAt: 100, evidenceCursor: "diagnostic-4",
+  });
 });
 
 test("does not turn unknown legacy diagnostic hint telemetry into incorrect evidence", () => {

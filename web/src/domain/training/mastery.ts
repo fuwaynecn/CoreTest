@@ -21,6 +21,8 @@ export type MasteryState = {
   firstAttemptCorrectCount: number;
   independentCorrectCount: number;
   reasonCode: string;
+  lastAppliedAt: number | null;
+  evidenceCursor: string | null;
 };
 
 type TimelineEvent = {
@@ -29,6 +31,7 @@ type TimelineEvent = {
   id: string;
   rows: MasteryEvidenceInput[];
   diagnostic: boolean;
+  cursor: string;
 };
 
 function compareEvents(left: TimelineEvent, right: TimelineEvent) {
@@ -42,7 +45,7 @@ function timeline(evidence: MasteryEvidenceInput[]): TimelineEvent[] {
     .filter((row) => row.purpose !== "diagnostic")
     .map((row) => ({
       occurredOn: row.occurredOn, occurredAt: row.occurredAt,
-      id: row.id, rows: [row], diagnostic: false,
+      id: row.id, rows: [row], diagnostic: false, cursor: row.id,
     }));
   const groups = new Map<string, MasteryEvidenceInput[]>();
   for (const row of evidence) {
@@ -56,13 +59,15 @@ function timeline(evidence: MasteryEvidenceInput[]): TimelineEvent[] {
         || row.diagnosticCompletedAt !== first.diagnosticCompletedAt
         || row.hintLevel === null
         || (row.independent && row.hintLevel !== 0))) continue;
+    const orderedRows = rows.toSorted((left, right) => left.occurredOn.localeCompare(right.occurredOn)
+      || left.occurredAt - right.occurredAt || left.id.localeCompare(right.id));
     events.push({
       occurredOn: first.diagnosticCompletedOn,
       occurredAt: first.diagnosticCompletedAt,
       id: runId,
-      rows: rows.toSorted((left, right) => left.occurredOn.localeCompare(right.occurredOn)
-        || left.occurredAt - right.occurredAt || left.id.localeCompare(right.id)),
+      rows: orderedRows,
       diagnostic: true,
+      cursor: orderedRows.at(-1)!.id,
     });
   }
   return events.sort(compareEvents);
@@ -110,7 +115,7 @@ export function deriveMasteryState(
   const independentCorrectCount = evidence.filter((row) => row.firstAttemptCorrect && row.independent).length;
   if (evidenceCount === 0) return {
     status: "undiagnosed", evidenceCount, firstAttemptCorrectCount,
-    independentCorrectCount, reasonCode: "no_evidence",
+    independentCorrectCount, reasonCode: "no_evidence", lastAppliedAt: null, evidenceCursor: null,
   };
 
   const events = timeline(evidence);
@@ -123,15 +128,21 @@ export function deriveMasteryState(
       ? "no_diagnostic_evidence" : "preserved_status_without_diagnostic_telemetry";
   let processed: MasteryEvidenceInput[] = [];
   let failedDueReviews: MasteryEvidenceInput[] = [];
+  let lastAppliedAt: number | null = null;
+  let evidenceCursor: string | null = null;
 
   for (const event of events) {
     if (event.diagnostic) {
       ({ status, reasonCode } = diagnosticState(event.rows));
+      lastAppliedAt = event.occurredAt;
+      evidenceCursor = event.cursor;
       processed = [];
       failedDueReviews = [];
       continue;
     }
     if (status === "undiagnosed") continue;
+    lastAppliedAt = event.occurredAt;
+    evidenceCursor = event.cursor;
     const row = event.rows[0];
     const dueReview = row.purpose === "review" && row.reviewIntervalDays > 0;
     if (dueReview && !row.firstAttemptCorrect) {
@@ -189,5 +200,8 @@ export function deriveMasteryState(
       }
     }
   }
-  return { status, evidenceCount, firstAttemptCorrectCount, independentCorrectCount, reasonCode };
+  return {
+    status, evidenceCount, firstAttemptCorrectCount, independentCorrectCount,
+    reasonCode, lastAppliedAt, evidenceCursor,
+  };
 }

@@ -9,6 +9,7 @@ import { createTestDatabase } from "@/test/test-db";
 import { shanghaiDateKey } from "@/domain/time/shanghai-calendar";
 import { getOrCreateDailySession } from "./create-daily-session";
 import { submitAttempt } from "./submit-attempt";
+import { recordLearningEvidence } from "./record-learning-evidence";
 
 function seedTrainingDatabaseForEvidence(db: AppDatabase) {
   db.insert(users).values({ id: "child-1", role: "child", displayName: "孩子", credentialHash: "hash", createdAt: 1 }).run();
@@ -100,4 +101,60 @@ test("new evidence does not erase a preserved legacy status when diagnostic tele
     clientSubmissionId: "46464646-4646-4646-8646-464646464646", answerText: "6" });
   expect(db.select().from(masteryStates).where(eq(masteryStates.skillId, "skill-decimal")).get())
     .toMatchObject({ status: "basic", evidenceCount: 1, correctCount: 1 });
+});
+
+test("cache cursor and time follow the reducer timeline across a long retest", () => {
+  const db = seedTrainingDatabaseForEvidence(createTestDatabase());
+  db.update(diagnosticRuns).set({ completedAt: 150 })
+    .where(eq(diagnosticRuns.id, "completed-diagnosis")).run();
+  db.insert(diagnosticRuns).values({
+    id: "retest", childId: "child-1", version: 2, status: "completed", currentPart: 3,
+    seed: "retest", startedAt: 100, completedAt: 400, reportSnapshot: "{}",
+  }).run();
+  db.insert(trainingSessions).values([
+    { id: "diagnostic-1", childId: "child-1", sessionDate: "2026-08-20", kind: "diagnostic",
+      diagnosticRunId: "completed-diagnosis", diagnosticPartNumber: 1, status: "completed", startedAt: 1, completedAt: 150 },
+    { id: "daily-between", childId: "child-1", sessionDate: "2026-08-27", kind: "daily",
+      status: "completed", startedAt: 200, completedAt: 300 },
+    { id: "diagnostic-2", childId: "child-1", sessionDate: "2026-08-21", kind: "diagnostic",
+      diagnosticRunId: "retest", diagnosticPartNumber: 1, status: "completed", startedAt: 100, completedAt: 400 },
+    { id: "daily-after", childId: "child-1", sessionDate: "2026-09-02", kind: "daily",
+      status: "completed", startedAt: 450, completedAt: 500 },
+  ]).run();
+  db.insert(sessionItems).values([
+    { id: "diagnostic-item-1", sessionId: "diagnostic-1", questionTemplateId: "q-decimal-1", position: 0,
+      stemSnapshot: "1", answerSpecSnapshot: "{}", explanationSnapshot: "1", skillIdSnapshot: "skill-decimal", skillNameSnapshot: "小数计算" },
+    { id: "daily-item-between", sessionId: "daily-between", questionTemplateId: "q-decimal-1", position: 0,
+      stemSnapshot: "1", answerSpecSnapshot: "{}", explanationSnapshot: "1", skillIdSnapshot: "skill-decimal", skillNameSnapshot: "小数计算" },
+    { id: "diagnostic-item-2", sessionId: "diagnostic-2", questionTemplateId: "q-decimal-1", position: 0,
+      stemSnapshot: "1", answerSpecSnapshot: "{}", explanationSnapshot: "1", skillIdSnapshot: "skill-decimal", skillNameSnapshot: "小数计算" },
+    { id: "daily-item-after", sessionId: "daily-after", questionTemplateId: "q-decimal-1", position: 0,
+      stemSnapshot: "1", answerSpecSnapshot: "{}", explanationSnapshot: "1", skillIdSnapshot: "skill-decimal", skillNameSnapshot: "小数计算" },
+  ]).run();
+  const base = {
+    childId: "child-1", skillId: "skill-decimal", templateId: "q-decimal-1",
+    firstAttemptCorrect: true, independent: true, hintLevel: 0 as const,
+    difficulty: 1 as const, structureTag: "decimal-add", reviewIntervalDays: 0 as const,
+  };
+  recordLearningEvidence(db, { ...base, sessionItemId: "diagnostic-item-1", purpose: "diagnostic",
+    occurredOn: "2026-08-20", occurredAt: 100, diagnosticRunId: "completed-diagnosis",
+    diagnosticCompletedOn: "2026-08-20", diagnosticCompletedAt: 150 });
+  recordLearningEvidence(db, { ...base, sessionItemId: "daily-item-between", purpose: "learning",
+    occurredOn: "2026-08-27", occurredAt: 300,
+    diagnosticRunId: null, diagnosticCompletedOn: null, diagnosticCompletedAt: null });
+  recordLearningEvidence(db, { ...base, sessionItemId: "diagnostic-item-2", purpose: "diagnostic",
+    occurredOn: "2026-08-21", occurredAt: 200, diagnosticRunId: "retest",
+    diagnosticCompletedOn: "2026-09-01", diagnosticCompletedAt: 400 });
+  const retestEvidence = db.select().from(masteryEvidence)
+    .where(eq(masteryEvidence.sessionItemId, "diagnostic-item-2")).get()!;
+  expect(db.select().from(masteryStates).where(eq(masteryStates.skillId, "skill-decimal")).get())
+    .toMatchObject({ updatedAt: 400, evidenceCursor: retestEvidence.id, evidenceVersion: 3, evidenceCount: 3 });
+
+  recordLearningEvidence(db, { ...base, sessionItemId: "daily-item-after", purpose: "learning",
+    occurredOn: "2026-09-02", occurredAt: 500,
+    diagnosticRunId: null, diagnosticCompletedOn: null, diagnosticCompletedAt: null });
+  const laterEvidence = db.select().from(masteryEvidence)
+    .where(eq(masteryEvidence.sessionItemId, "daily-item-after")).get()!;
+  expect(db.select().from(masteryStates).where(eq(masteryStates.skillId, "skill-decimal")).get())
+    .toMatchObject({ updatedAt: 500, evidenceCursor: laterEvidence.id, evidenceVersion: 4, evidenceCount: 4 });
 });
