@@ -7,9 +7,11 @@ import { requireRole } from "@/lib/auth/current-user";
 import { getParentEvidence } from "@/services/training/get-parent-evidence";
 
 const statusLabels = {
+  undiagnosed: "尚未诊断",
   needs_support: "需要支持",
   learning: "正在学习",
   basic: "基础掌握",
+  stable: "稳定保持",
 } as const;
 
 const domainLabels = {

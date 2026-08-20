@@ -39,6 +39,29 @@ function indexColumns(sqlite: DatabaseSync, table: string, index: string) {
   }>).sort((left, right) => left.seqno - right.seqno).map((column) => column.name);
 }
 
+function primaryKeyColumns(sqlite: DatabaseSync, table: string) {
+  return (sqlite.prepare(`PRAGMA table_info('${table}')`).all() as Array<{
+    name: string;
+    pk: number;
+  }>).filter((column) => column.pk > 0)
+    .sort((left, right) => left.pk - right.pk)
+    .map((column) => column.name);
+}
+
+function foreignKeyTargets(sqlite: DatabaseSync, table: string) {
+  return (sqlite.prepare(`PRAGMA foreign_key_list('${table}')`).all() as Array<{
+    from: string;
+    table: string;
+    to: string;
+    on_delete: string;
+  }>).map((foreignKey) => ({
+    from: foreignKey.from,
+    table: foreignKey.table,
+    to: foreignKey.to,
+    onDelete: foreignKey.on_delete,
+  }));
+}
+
 function insertPhase1Question(sqlite: DatabaseSync, input: {
   id: string;
   skillId: string;
@@ -159,6 +182,10 @@ test("migrates and stably replays an existing attempt", () => {
       normalizedAnswer: "06",
       explanation: "旧题目的当前解析。",
       sessionCompleted: true,
+      activeDurationMs: null,
+      hintLevel: null,
+      hintCount: null,
+      correctionNumber: null,
       submittedAt: 2,
     });
     const foreignKeys = db.$client.prepare("PRAGMA foreign_key_list('attempts')").all() as unknown as Array<{
@@ -599,6 +626,364 @@ test("migrates and production-seeds populated Phase 1 data without losing histor
       null,
       null,
     )).toThrow();
+  } finally {
+    sqlite.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("adds Phase 2B learning state without inventing legacy telemetry or losing completed diagnosis history", () => {
+  const directory = mkdtempSync(join(tmpdir(), "math-trainer-phase2b-schema-"));
+  const filename = join(directory, "phase2a.sqlite");
+  const phase2aMigrations = join(directory, "phase2a-migrations");
+  mkdirSync(phase2aMigrations);
+  for (const migration of [
+    "20260819140335_last_mimic",
+    "20260819151632_concerned_professor_monster",
+    "20260819172252_opposite_rumiko_fujikawa",
+    "20260820035833_phase2a_diagnosis",
+    "20260820083528_phase2a_template_metadata",
+  ]) {
+    cpSync(
+      resolve(process.cwd(), "drizzle", migration),
+      join(phase2aMigrations, migration),
+      { recursive: true },
+    );
+  }
+  const db = createDatabase(filename);
+  const sqlite = db.$client;
+
+  try {
+    migrateDatabase(db, phase2aMigrations);
+    sqlite.prepare(`
+      INSERT INTO users (id, role, display_name, credential_hash, created_at)
+      VALUES ('phase2b-child', 'child', '孩子', 'hash', 1),
+             ('phase2b-parent', 'parent', '家长', 'hash', 1)
+    `).run();
+    sqlite.prepare(`
+      INSERT INTO skills (id, code, name, domain)
+      VALUES ('phase2b-skill', 'phase2b-skill', '小数计算', 'number_operations')
+    `).run();
+    sqlite.prepare(`
+      INSERT INTO question_templates (
+        id, skill_id, stem, answer_spec, explanation, difficulty, active
+      ) VALUES (
+        'phase2b-question', 'phase2b-skill', '0.8 + 0.4 = ?',
+        '{"kind":"number","value":1.2,"tolerance":0,"unit":null}',
+        '小数点对齐。', 2, 1
+      )
+    `).run();
+    sqlite.prepare(`
+      INSERT INTO diagnostic_runs (
+        id, child_id, version, status, current_part, seed, report_snapshot,
+        started_at, completed_at
+      ) VALUES (
+        'phase2b-diagnosis', 'phase2b-child', 1, 'completed', 3, 'seed',
+        '{"version":1,"summary":"completed"}', 10, 40
+      )
+    `).run();
+    for (const partNumber of [1, 2, 3]) {
+      sqlite.prepare(`
+        INSERT INTO diagnostic_parts (
+          run_id, part_number, status, started_at, completed_at
+        ) VALUES ('phase2b-diagnosis', ?, 'completed', ?, ?)
+      `).run(partNumber, partNumber * 10, partNumber * 10 + 5);
+    }
+    sqlite.prepare(`
+      INSERT INTO training_sessions (
+        id, child_id, session_date, kind, rule_version, composition_snapshot,
+        status, started_at, completed_at
+      ) VALUES (
+        'phase2b-session', 'phase2b-child', '2026-08-19', 'daily', 'phase2a', '{}',
+        'completed', 50, 60
+      )
+    `).run();
+    sqlite.prepare(`
+      INSERT INTO session_items (
+        id, session_id, question_template_id, position, stem_snapshot,
+        answer_spec_snapshot, explanation_snapshot, skill_id_snapshot,
+        skill_name_snapshot, difficulty_snapshot, content_tier_snapshot,
+        structure_tag_snapshot, variant_seed, selection_reason_snapshot
+      ) VALUES (
+        'phase2b-item', 'phase2b-session', 'phase2b-question', 0, '0.8 + 0.4 = ?',
+        '{"kind":"number","value":1.2,"tolerance":0,"unit":null}',
+        '小数点对齐。', 'phase2b-skill', '小数计算', 2, 'core',
+        'decimal-add', 'legacy-seed', '{}'
+      )
+    `).run();
+    const insertAttempt = sqlite.prepare(`
+      INSERT INTO attempts (
+        id, session_item_id, client_submission_id, answer_text, is_correct,
+        normalized_answer, explanation, session_completed, submitted_at
+      ) VALUES (?, 'phase2b-item', ?, ?, ?, ?, '小数点对齐。', ?, ?)
+    `);
+    insertAttempt.run("phase2b-attempt-1", "submission-1", "1.1", 0, "1.1", 0, 55);
+    insertAttempt.run("phase2b-attempt-2", "submission-2", "1.2", 1, "1.2", 1, 60);
+    sqlite.prepare(`
+      INSERT INTO mastery_states (
+        child_id, skill_id, status, evidence_count, correct_count, updated_at
+      ) VALUES ('phase2b-child', 'phase2b-skill', 'learning', 2, 1, 60)
+    `).run();
+
+    migrateDatabase(db, resolve(process.cwd(), "drizzle"));
+
+    expect(columns(sqlite, "attempts")).toEqual(expect.arrayContaining([
+      "active_duration_ms", "hint_level", "hint_count", "correction_number",
+    ]));
+    expect(primaryKeyColumns(sqlite, "mastery_evidence")).toEqual(["id"]);
+    expect(indexColumns(sqlite, "mastery_evidence", "mastery_evidence_source_idx"))
+      .toEqual(["session_item_id"]);
+    expect(primaryKeyColumns(sqlite, "review_schedules")).toEqual(["child_id", "skill_id"]);
+    expect(primaryKeyColumns(sqlite, "dosage_states")).toEqual(["child_id", "track"]);
+    expect(primaryKeyColumns(sqlite, "mastery_states")).toEqual(["child_id", "skill_id"]);
+    expect(indexColumns(sqlite, "hint_events", "hint_event_item_level_idx"))
+      .toEqual(["session_item_id", "hint_level"]);
+    expect(foreignKeyTargets(sqlite, "mastery_evidence")).toEqual(expect.arrayContaining([
+      { from: "child_id", table: "users", to: "id", onDelete: "NO ACTION" },
+      { from: "skill_id", table: "skills", to: "id", onDelete: "NO ACTION" },
+      { from: "session_item_id", table: "session_items", to: "id", onDelete: "NO ACTION" },
+    ]));
+    expect(foreignKeyTargets(sqlite, "error_observations")).toEqual(expect.arrayContaining([
+      { from: "session_item_id", table: "session_items", to: "id", onDelete: "NO ACTION" },
+      { from: "attempt_id", table: "attempts", to: "id", onDelete: "NO ACTION" },
+      { from: "previous_observation_id", table: "error_observations", to: "id", onDelete: "NO ACTION" },
+      { from: "actor_id", table: "users", to: "id", onDelete: "NO ACTION" },
+    ]));
+    expect(foreignKeyTargets(sqlite, "hint_events")).toEqual(expect.arrayContaining([
+      { from: "child_id", table: "users", to: "id", onDelete: "NO ACTION" },
+      { from: "session_item_id", table: "session_items", to: "id", onDelete: "CASCADE" },
+    ]));
+    expect(foreignKeyTargets(sqlite, "review_schedules")).toEqual(expect.arrayContaining([
+      { from: "child_id", table: "users", to: "id", onDelete: "NO ACTION" },
+      { from: "skill_id", table: "skills", to: "id", onDelete: "NO ACTION" },
+    ]));
+    expect(foreignKeyTargets(sqlite, "dosage_states")).toEqual(expect.arrayContaining([
+      { from: "child_id", table: "users", to: "id", onDelete: "NO ACTION" },
+    ]));
+    expect(foreignKeyCheck(sqlite)).toEqual([]);
+
+    expect(sqlite.prepare(`
+      SELECT active_duration_ms, hint_level, hint_count, correction_number
+      FROM attempts WHERE id = 'phase2b-attempt-1'
+    `).get()).toEqual({
+      active_duration_ms: null,
+      hint_level: null,
+      hint_count: null,
+      correction_number: null,
+    });
+    expect(sqlite.prepare("SELECT count(*) AS count FROM mastery_evidence").get())
+      .toEqual({ count: 0 });
+    expect(sqlite.prepare(`
+      SELECT status, report_snapshot AS reportSnapshot, completed_at AS completedAt
+      FROM diagnostic_runs WHERE id = 'phase2b-diagnosis'
+    `).get()).toEqual({
+      status: "completed",
+      reportSnapshot: '{"version":1,"summary":"completed"}',
+      completedAt: 40,
+    });
+    expect(sqlite.prepare("SELECT count(*) AS count FROM diagnostic_parts WHERE run_id = 'phase2b-diagnosis'").get())
+      .toEqual({ count: 3 });
+    expect(sqlite.prepare("SELECT count(*) AS count FROM attempts WHERE session_item_id = 'phase2b-item'").get())
+      .toEqual({ count: 2 });
+    expect(sqlite.prepare(`
+      SELECT status, evidence_count AS evidenceCount, correct_count AS correctCount,
+        reason_code AS reasonCode, evidence_cursor AS evidenceCursor,
+        evidence_version AS evidenceVersion
+      FROM mastery_states
+      WHERE child_id = 'phase2b-child' AND skill_id = 'phase2b-skill'
+    `).get()).toEqual({
+      status: "learning",
+      evidenceCount: 2,
+      correctCount: 1,
+      reasonCode: "legacy_snapshot",
+      evidenceCursor: null,
+      evidenceVersion: 0,
+    });
+
+    expect(() => sqlite.prepare(`
+      UPDATE attempts SET hint_level = 4 WHERE id = 'phase2b-attempt-1'
+    `).run()).toThrow();
+
+    expect(() => sqlite.prepare(`
+      INSERT INTO mastery_evidence (
+        id, child_id, skill_id, session_item_id, purpose, first_attempt_correct,
+        independent, difficulty, structure_tag, occurred_on, occurred_at
+      ) VALUES (
+        'bad-evidence', 'phase2b-child', 'phase2b-skill', 'phase2b-item',
+        'guess', 1, 1, 2, 'decimal-add', '2026-08-19', 55
+      )
+    `).run()).toThrow();
+    expect(() => sqlite.prepare(`
+      INSERT INTO review_schedules (
+        child_id, skill_id, level, due_on, last_result, updated_at
+      ) VALUES ('phase2b-child', 'phase2b-skill', 5, '2026-08-20', 'incorrect', 60)
+    `).run()).toThrow();
+    expect(() => sqlite.prepare(`
+      INSERT INTO dosage_states (
+        child_id, track, level, weekly_target, session_minimum, session_target,
+        session_maximum, reason_json, updated_at
+      ) VALUES ('phase2b-child', 'equation', 7, 20, 4, 5, 6, '{}', 60)
+    `).run()).toThrow();
+    expect(() => sqlite.prepare(`
+      UPDATE mastery_states SET status = 'expert'
+      WHERE child_id = 'phase2b-child' AND skill_id = 'phase2b-skill'
+    `).run()).toThrow();
+    expect(() => sqlite.prepare(`
+      INSERT INTO hint_events (id, child_id, session_item_id, hint_level, revealed_at)
+      VALUES ('bad-hint', 'phase2b-child', 'phase2b-item', 4, 60)
+    `).run()).toThrow();
+    expect(() => sqlite.prepare(`
+      INSERT INTO error_observations (
+        id, child_id, session_item_id, source, system_candidate, actor_id,
+        observed_at, created_at
+      ) VALUES (
+        'bad-observation', 'phase2b-child', 'phase2b-item', 'child',
+        'calculation', 'phase2b-child', 60, 60
+      )
+    `).run()).toThrow();
+
+    sqlite.prepare(`
+      INSERT INTO mastery_evidence (
+        id, child_id, skill_id, session_item_id, purpose, first_attempt_correct,
+        independent, difficulty, structure_tag, occurred_on, occurred_at
+      ) VALUES (
+        'evidence-1', 'phase2b-child', 'phase2b-skill', 'phase2b-item',
+        'learning', 0, 1, 2, 'decimal-add', '2026-08-19', 55
+      )
+    `).run();
+    expect(() => sqlite.prepare(`
+      INSERT INTO mastery_evidence (
+        id, child_id, skill_id, session_item_id, purpose, first_attempt_correct,
+        independent, difficulty, structure_tag, occurred_on, occurred_at
+      ) VALUES (
+        'evidence-duplicate', 'phase2b-child', 'phase2b-skill', 'phase2b-item',
+        'learning', 1, 1, 2, 'decimal-add', '2026-08-19', 60
+      )
+    `).run()).toThrow();
+    expect(() => sqlite.prepare("DELETE FROM session_items WHERE id = 'phase2b-item'").run())
+      .toThrow();
+
+    sqlite.prepare(`
+      INSERT INTO error_observations (
+        id, child_id, session_item_id, attempt_id, source, system_candidate,
+        observed_at, created_at
+      ) VALUES (
+        'observation-system', 'phase2b-child', 'phase2b-item', 'phase2b-attempt-1',
+        'system', 'calculation', 55, 55
+      )
+    `).run();
+    sqlite.prepare(`
+      INSERT INTO review_schedules (
+        child_id, skill_id, level, due_on, last_result, updated_at
+      ) VALUES ('phase2b-child', 'phase2b-skill', 0, '2026-08-20', NULL, 60)
+    `).run();
+    expect(() => sqlite.prepare(`
+      INSERT INTO review_schedules (
+        child_id, skill_id, level, due_on, last_result, updated_at
+      ) VALUES ('phase2b-child', 'phase2b-skill', 1, '2026-08-21', NULL, 61)
+    `).run()).toThrow();
+    sqlite.prepare(`
+      INSERT INTO dosage_states (
+        child_id, track, level, weekly_target, session_minimum, session_target,
+        session_maximum, reason_json, updated_at
+      ) VALUES ('phase2b-child', 'equation', 1, 20, 4, 5, 6, '{}', 60)
+    `).run();
+    expect(() => sqlite.prepare(`
+      INSERT INTO dosage_states (
+        child_id, track, level, weekly_target, session_minimum, session_target,
+        session_maximum, reason_json, updated_at
+      ) VALUES ('phase2b-child', 'equation', 2, 20, 4, 5, 6, '{}', 61)
+    `).run()).toThrow();
+    sqlite.prepare(`
+      INSERT INTO error_observations (
+        id, child_id, session_item_id, attempt_id, source, child_self_report,
+        previous_value, previous_observation_id, actor_id, observed_at, created_at
+      ) VALUES (
+        'observation-child', 'phase2b-child', 'phase2b-item', 'phase2b-attempt-1',
+        'child', 'calculation_slip', 'calculation', 'observation-system',
+        'phase2b-child', 56, 56
+      )
+    `).run();
+    sqlite.prepare(`
+      INSERT INTO error_observations (
+        id, child_id, session_item_id, attempt_id, source, parent_correction,
+        previous_value, previous_observation_id, actor_id, observed_at, created_at
+      ) VALUES (
+        'observation-parent', 'phase2b-child', 'phase2b-item', 'phase2b-attempt-1',
+        'parent', 'incomplete_reading', 'calculation_slip', 'observation-child',
+        'phase2b-parent', 57, 57
+      )
+    `).run();
+    expect(sqlite.prepare(`
+      SELECT count(*) AS count FROM error_observations
+      WHERE session_item_id = 'phase2b-item'
+    `).get()).toEqual({ count: 3 });
+
+    sqlite.prepare(`
+      INSERT INTO hint_events (id, child_id, session_item_id, hint_level, revealed_at)
+      VALUES ('hint-1', 'phase2b-child', 'phase2b-item', 1, 61)
+    `).run();
+    expect(() => sqlite.prepare(`
+      INSERT INTO hint_events (id, child_id, session_item_id, hint_level, revealed_at)
+      VALUES ('hint-1-duplicate', 'phase2b-child', 'phase2b-item', 1, 62)
+    `).run()).toThrow();
+    expect(() => sqlite.prepare(`
+      INSERT INTO hint_events (id, child_id, session_item_id, hint_level, revealed_at)
+      VALUES ('foreign-hint', 'phase2b-child', 'missing-item', 2, 62)
+    `).run()).toThrow();
+
+    sqlite.prepare(`
+      INSERT INTO session_items (
+        id, session_id, question_template_id, position, stem_snapshot,
+        answer_spec_snapshot, explanation_snapshot, skill_id_snapshot,
+        skill_name_snapshot, difficulty_snapshot, content_tier_snapshot,
+        structure_tag_snapshot, variant_seed, selection_reason_snapshot
+      ) VALUES (
+        'hint-only-item', 'phase2b-session', 'phase2b-question', 1, '0.8 + 0.4 = ?',
+        '{"kind":"number","value":1.2,"tolerance":0,"unit":null}',
+        '小数点对齐。', 'phase2b-skill', '小数计算', 2, 'core',
+        'decimal-add', 'hint-only-seed', '{}'
+      )
+    `).run();
+    sqlite.prepare(`
+      INSERT INTO hint_events (id, child_id, session_item_id, hint_level, revealed_at)
+      VALUES ('hint-cascade', 'phase2b-child', 'hint-only-item', 1, 63)
+    `).run();
+    sqlite.prepare("DELETE FROM session_items WHERE id = 'hint-only-item'").run();
+    expect(sqlite.prepare("SELECT count(*) AS count FROM hint_events WHERE id = 'hint-cascade'").get())
+      .toEqual({ count: 0 });
+
+    sqlite.prepare(`
+      INSERT INTO session_items (
+        id, session_id, question_template_id, position, stem_snapshot,
+        answer_spec_snapshot, explanation_snapshot, skill_id_snapshot,
+        skill_name_snapshot, difficulty_snapshot, content_tier_snapshot,
+        structure_tag_snapshot, variant_seed, selection_reason_snapshot
+      ) VALUES (
+        'evidence-only-item', 'phase2b-session', 'phase2b-question', 2, '0.8 + 0.4 = ?',
+        '{"kind":"number","value":1.2,"tolerance":0,"unit":null}',
+        '小数点对齐。', 'phase2b-skill', '小数计算', 2, 'core',
+        'decimal-add', 'evidence-only-seed', '{}'
+      )
+    `).run();
+    sqlite.prepare(`
+      INSERT INTO mastery_evidence (
+        id, child_id, skill_id, session_item_id, purpose, first_attempt_correct,
+        independent, difficulty, structure_tag, occurred_on, occurred_at
+      ) VALUES (
+        'evidence-restrict', 'phase2b-child', 'phase2b-skill', 'evidence-only-item',
+        'learning', 1, 1, 2, 'decimal-add', '2026-08-19', 63
+      )
+    `).run();
+    expect(() => sqlite.prepare("DELETE FROM session_items WHERE id = 'evidence-only-item'").run())
+      .toThrow();
+
+    migrateDatabase(db, resolve(process.cwd(), "drizzle"));
+    expect(sqlite.prepare("SELECT count(*) AS count FROM attempts WHERE session_item_id = 'phase2b-item'").get())
+      .toEqual({ count: 2 });
+    expect(sqlite.prepare("SELECT count(*) AS count FROM hint_events WHERE session_item_id = 'phase2b-item'").get())
+      .toEqual({ count: 1 });
+    expect(foreignKeyCheck(sqlite)).toEqual([]);
   } finally {
     sqlite.close();
     rmSync(directory, { recursive: true, force: true });

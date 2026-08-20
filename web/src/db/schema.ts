@@ -1,5 +1,13 @@
 import { sql } from "drizzle-orm";
-import { integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import {
+  type AnySQLiteColumn,
+  check,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
@@ -125,14 +133,143 @@ export const attempts = sqliteTable("attempts", {
   normalizedAnswer: text("normalized_answer").notNull(),
   explanation: text("explanation").notNull(),
   sessionCompleted: integer("session_completed", { mode: "boolean" }).notNull(),
+  activeDurationMs: integer("active_duration_ms"),
+  hintLevel: integer("hint_level"),
+  hintCount: integer("hint_count"),
+  correctionNumber: integer("correction_number"),
   submittedAt: integer("submitted_at").notNull(),
-});
+}, (table) => [
+  check("attempts_active_duration_nonnegative", sql`${table.activeDurationMs} IS NULL OR ${table.activeDurationMs} >= 0`),
+  check("attempts_hint_level_range", sql`${table.hintLevel} IS NULL OR ${table.hintLevel} BETWEEN 0 AND 3`),
+  check("attempts_hint_count_range", sql`${table.hintCount} IS NULL OR ${table.hintCount} BETWEEN 0 AND 3`),
+  check("attempts_correction_number_nonnegative", sql`${table.correctionNumber} IS NULL OR ${table.correctionNumber} >= 0`),
+]);
+
+export const hintEvents = sqliteTable("hint_events", {
+  id: text("id").primaryKey(),
+  childId: text("child_id").notNull().references(() => users.id),
+  sessionItemId: text("session_item_id").notNull()
+    .references(() => sessionItems.id, { onDelete: "cascade" }),
+  hintLevel: integer("hint_level").notNull(),
+  revealedAt: integer("revealed_at").notNull(),
+}, (table) => [
+  uniqueIndex("hint_event_item_level_idx").on(table.sessionItemId, table.hintLevel),
+  check("hint_events_level_range", sql`${table.hintLevel} BETWEEN 1 AND 3`),
+]);
+
+export const masteryEvidence = sqliteTable("mastery_evidence", {
+  id: text("id").primaryKey(),
+  childId: text("child_id").notNull().references(() => users.id),
+  skillId: text("skill_id").notNull().references(() => skills.id),
+  sessionItemId: text("session_item_id").notNull().references(() => sessionItems.id),
+  purpose: text("purpose", { enum: ["diagnostic", "learning", "review", "assessment"] }).notNull(),
+  firstAttemptCorrect: integer("first_attempt_correct", { mode: "boolean" }).notNull(),
+  independent: integer("independent", { mode: "boolean" }).notNull(),
+  difficulty: integer("difficulty").notNull(),
+  structureTag: text("structure_tag").notNull(),
+  occurredOn: text("occurred_on").notNull(),
+  occurredAt: integer("occurred_at").notNull(),
+}, (table) => [
+  uniqueIndex("mastery_evidence_source_idx").on(table.sessionItemId),
+  check("mastery_evidence_purpose", sql`${table.purpose} IN ('diagnostic', 'learning', 'review', 'assessment')`),
+  check("mastery_evidence_first_correct_boolean", sql`${table.firstAttemptCorrect} IN (0, 1)`),
+  check("mastery_evidence_independent_boolean", sql`${table.independent} IN (0, 1)`),
+  check("mastery_evidence_difficulty_range", sql`${table.difficulty} BETWEEN 1 AND 4`),
+]);
+
+const errorCauses = [
+  "missing_unit",
+  "copied_number",
+  "calculation",
+  "relationship",
+  "range_check",
+  "incomplete_reading",
+  "unknown",
+] as const;
+
+const childErrorReports = [
+  "did_not_read",
+  "missed_condition_or_unit",
+  "calculation_slip",
+  "method_unknown",
+] as const;
+
+export const errorObservations = sqliteTable("error_observations", {
+  id: text("id").primaryKey(),
+  childId: text("child_id").notNull().references(() => users.id),
+  sessionItemId: text("session_item_id").notNull().references(() => sessionItems.id),
+  attemptId: text("attempt_id").references(() => attempts.id),
+  source: text("source", { enum: ["system", "child", "parent"] }).notNull(),
+  systemCandidate: text("system_candidate", { enum: errorCauses }),
+  childSelfReport: text("child_self_report", { enum: childErrorReports }),
+  parentCorrection: text("parent_correction", { enum: errorCauses }),
+  previousValue: text("previous_value", { enum: [...errorCauses, ...childErrorReports] }),
+  previousObservationId: text("previous_observation_id")
+    .references((): AnySQLiteColumn => errorObservations.id),
+  actorId: text("actor_id").references(() => users.id),
+  observedAt: integer("observed_at").notNull(),
+  createdAt: integer("created_at").notNull(),
+}, (table) => [
+  check("error_observations_source", sql`${table.source} IN ('system', 'child', 'parent')`),
+  check("error_observations_system_candidate", sql`${table.systemCandidate} IS NULL OR ${table.systemCandidate} IN ('missing_unit', 'copied_number', 'calculation', 'relationship', 'range_check', 'incomplete_reading', 'unknown')`),
+  check("error_observations_child_report", sql`${table.childSelfReport} IS NULL OR ${table.childSelfReport} IN ('did_not_read', 'missed_condition_or_unit', 'calculation_slip', 'method_unknown')`),
+  check("error_observations_parent_correction", sql`${table.parentCorrection} IS NULL OR ${table.parentCorrection} IN ('missing_unit', 'copied_number', 'calculation', 'relationship', 'range_check', 'incomplete_reading', 'unknown')`),
+  check("error_observations_previous_value", sql`${table.previousValue} IS NULL OR ${table.previousValue} IN ('missing_unit', 'copied_number', 'calculation', 'relationship', 'range_check', 'incomplete_reading', 'unknown', 'did_not_read', 'missed_condition_or_unit', 'calculation_slip', 'method_unknown')`),
+  check("error_observations_event_shape", sql`(
+    (${table.source} = 'system' AND ${table.systemCandidate} IS NOT NULL AND ${table.childSelfReport} IS NULL AND ${table.parentCorrection} IS NULL AND ${table.previousValue} IS NULL AND ${table.actorId} IS NULL AND ${table.previousObservationId} IS NULL)
+    OR (${table.source} = 'child' AND ${table.systemCandidate} IS NULL AND ${table.childSelfReport} IS NOT NULL AND ${table.parentCorrection} IS NULL AND ${table.previousValue} IS NOT NULL AND ${table.actorId} IS NOT NULL AND ${table.previousObservationId} IS NOT NULL)
+    OR (${table.source} = 'parent' AND ${table.systemCandidate} IS NULL AND ${table.childSelfReport} IS NULL AND ${table.parentCorrection} IS NOT NULL AND ${table.previousValue} IS NOT NULL AND ${table.actorId} IS NOT NULL AND ${table.previousObservationId} IS NOT NULL)
+  )`),
+]);
+
+export const reviewSchedules = sqliteTable("review_schedules", {
+  childId: text("child_id").notNull().references(() => users.id),
+  skillId: text("skill_id").notNull().references(() => skills.id),
+  level: integer("level").notNull(),
+  dueOn: text("due_on").notNull(),
+  lastResult: text("last_result", {
+    enum: ["independent_correct", "hinted_correct", "incorrect"],
+  }),
+  updatedAt: integer("updated_at").notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.childId, table.skillId] }),
+  check("review_schedules_level_range", sql`${table.level} BETWEEN 0 AND 4`),
+  check("review_schedules_last_result", sql`${table.lastResult} IS NULL OR ${table.lastResult} IN ('independent_correct', 'hinted_correct', 'incorrect')`),
+]);
+
+export const dosageStates = sqliteTable("dosage_states", {
+  childId: text("child_id").notNull().references(() => users.id),
+  track: text("track", { enum: ["computation", "equation"] }).notNull(),
+  level: integer("level").notNull(),
+  weeklyTarget: integer("weekly_target").notNull(),
+  sessionMinimum: integer("session_minimum").notNull(),
+  sessionTarget: integer("session_target").notNull(),
+  sessionMaximum: integer("session_maximum").notNull(),
+  reasonJson: text("reason_json").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.childId, table.track] }),
+  check("dosage_states_track", sql`${table.track} IN ('computation', 'equation')`),
+  check("dosage_states_level_range", sql`(${table.track} = 'computation' AND ${table.level} BETWEEN 1 AND 7) OR (${table.track} = 'equation' AND ${table.level} BETWEEN 1 AND 6)`),
+  check("dosage_states_nonnegative_targets", sql`${table.weeklyTarget} >= 0 AND ${table.sessionMinimum} >= 0 AND ${table.sessionTarget} >= 0 AND ${table.sessionMaximum} >= 0`),
+  check("dosage_states_target_order", sql`${table.sessionMinimum} <= ${table.sessionTarget} AND ${table.sessionTarget} <= ${table.sessionMaximum}`),
+]);
 
 export const masteryStates = sqliteTable("mastery_states", {
   childId: text("child_id").notNull().references(() => users.id),
   skillId: text("skill_id").notNull().references(() => skills.id),
-  status: text("status", { enum: ["needs_support", "learning", "basic"] }).notNull(),
+  status: text("status", {
+    enum: ["undiagnosed", "needs_support", "learning", "basic", "stable"],
+  }).notNull(),
   evidenceCount: integer("evidence_count").notNull().default(0),
   correctCount: integer("correct_count").notNull().default(0),
+  reasonCode: text("reason_code").notNull().default("legacy_snapshot"),
+  evidenceCursor: text("evidence_cursor"),
+  evidenceVersion: integer("evidence_version").notNull().default(0),
   updatedAt: integer("updated_at").notNull(),
-}, (table) => [primaryKey({ columns: [table.childId, table.skillId] })]);
+}, (table) => [
+  primaryKey({ columns: [table.childId, table.skillId] }),
+  check("mastery_states_status", sql`${table.status} IN ('undiagnosed', 'needs_support', 'learning', 'basic', 'stable')`),
+  check("mastery_states_counts", sql`${table.evidenceCount} >= 0 AND ${table.correctCount} >= 0 AND ${table.correctCount} <= ${table.evidenceCount}`),
+  check("mastery_states_evidence_version", sql`${table.evidenceVersion} >= 0`),
+]);

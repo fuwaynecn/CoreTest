@@ -7,6 +7,7 @@ import {
   skills,
   trainingSessions,
 } from "@/db/schema";
+import type { MasteryStatus } from "@/domain/learning/contracts";
 
 export type ParentEvidence = {
   summary: {
@@ -23,7 +24,7 @@ export type ParentEvidence = {
   }>;
   skills: Array<{
     skillName: string;
-    status: "needs_support" | "learning" | "basic";
+    status: MasteryStatus;
     evidenceCount: number;
   }>;
 };
