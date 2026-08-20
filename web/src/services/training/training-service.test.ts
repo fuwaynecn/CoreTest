@@ -10,6 +10,7 @@ import {
   diagnosticRuns,
   masteryStates,
   questionTemplates,
+  sessionItems,
   skills,
   trainingSessions,
   users,
@@ -64,6 +65,15 @@ function seedTrainingDatabase(db: AppDatabase = createTestDatabase()) {
       difficulty: 1,
       active: true,
     },
+    {
+      id: "aa-phase2-distractor",
+      skillId: "skill-decimal",
+      stem: "不应进入 Phase 1 日训",
+      answerSpec: JSON.stringify({ kind: "number", value: 99, tolerance: 0, unit: null }),
+      explanation: "Phase 2 题库由后续排课器接管。",
+      difficulty: -100,
+      active: true,
+    },
   ]).run();
   db.insert(diagnosticRuns).values({
     id: "completed-diagnosis", childId: "child-1", version: 1, status: "completed",
@@ -111,6 +121,52 @@ test("creates one reusable session with three reviewed questions without answer 
   ]);
   expect(db.select().from(trainingSessions).all()).toHaveLength(1);
   expect(first.currentPosition).toBe(0);
+});
+
+test("keeps the Phase 1 daily pool and immutable metadata independent from Phase 2 catalog ordering", () => {
+  const db = seedTrainingDatabase();
+  db.update(questionTemplates).set({
+    domain: "number_operations",
+    contentTier: "regional",
+    structureTag: "decimal-add",
+    estimatedSeconds: 75,
+    readingLoad: "medium",
+    answerMode: "mental",
+    commonErrors: JSON.stringify(["calculation"]),
+    readingCard: false,
+    source: "original",
+    licenseStatus: "owned",
+  }).where(eq(questionTemplates.id, "q-decimal-1")).run();
+
+  const session = getOrCreateDailySession(db, "child-1", "2026-08-20");
+  expect(session.questions.map(({ stem }) => stem)).toEqual([
+    "3.6 + 2.4 = ?",
+    "每盒彩笔 7.5 元，买 1 盒需要付多少钱？",
+    "3x + 5 = 26，x 等于多少？",
+  ]);
+
+  const snapshots = db.select().from(sessionItems)
+    .where(eq(sessionItems.sessionId, session.id))
+    .orderBy(sessionItems.position)
+    .all();
+  expect(snapshots[0]).toMatchObject({
+    questionTemplateId: "q-decimal-1",
+    difficultySnapshot: 1,
+    contentTierSnapshot: "regional",
+    structureTagSnapshot: "decimal-add",
+    variantSeed: "phase1-static:q-decimal-1",
+  });
+  expect(JSON.parse(snapshots[0].selectionReasonSnapshot)).toEqual({
+    snapshotVersion: 1,
+    reason: "phase1_fixed_daily",
+    answerMode: "mental",
+    estimatedSeconds: 75,
+    readingLoad: "medium",
+    commonErrors: ["calculation"],
+    readingCard: false,
+    source: "original",
+    licenseStatus: "owned",
+  });
 });
 
 test("keeps session scoring and parent evidence stable after a template edit", () => {

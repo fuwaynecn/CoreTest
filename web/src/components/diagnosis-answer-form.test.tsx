@@ -41,6 +41,66 @@ test("prevents duplicate clicks and continues on the same run URL after a persis
   expect(navigate).toHaveBeenCalledWith("/child/diagnosis/run-1");
 });
 
+test("uses semantic choice buttons and submits the selected label", async () => {
+  const submit = vi.fn().mockResolvedValue({
+    correct: true,
+    normalizedAnswer: "B",
+    explanation: "选择 B。",
+    diagnosis: { runId: "run-1", status: "in_progress", completedSlots: 1 },
+  });
+  render(<DiagnosisAnswerForm
+    sessionItemId="choice-item"
+    runId="run-1"
+    answerMode="choice"
+    answerKind="choice"
+    requiresUnit={false}
+    choiceOptions={[
+      { label: "A", text: "40" },
+      { label: "B", text: "50" },
+      { label: "C", text: "60" },
+      { label: "D", text: "70" },
+    ]}
+    submitAnswer={submit}
+  />);
+
+  expect(screen.queryByRole("textbox", { name: "你的答案" })).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "B. 50" }));
+  expect(screen.getByRole("button", { name: "B. 50" })).toHaveAttribute("aria-pressed", "true");
+  await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
+
+  expect(submit).toHaveBeenCalledWith(expect.objectContaining({ answerText: "B" }));
+});
+
+test("rejects a blank answer before allocating a permanent submission", async () => {
+  const submit = vi.fn();
+  render(<DiagnosisAnswerForm
+    sessionItemId="blank-item"
+    runId="run-1"
+    answerMode="written"
+    answerKind="number"
+    requiresUnit={false}
+    submitAnswer={submit}
+  />);
+
+  expect(screen.getByLabelText("你的答案")).toHaveAttribute("inputmode", "decimal");
+  await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
+
+  expect(await screen.findByRole("alert")).toHaveTextContent("请输入答案");
+  expect(submit).not.toHaveBeenCalled();
+});
+
+test("keeps the text keyboard available when a number answer requires a unit", () => {
+  render(<DiagnosisAnswerForm
+    sessionItemId="unit-item"
+    runId="run-1"
+    answerMode="written"
+    answerKind="number"
+    requiresUnit
+  />);
+
+  expect(screen.getByLabelText("你的答案")).toHaveAttribute("inputmode", "text");
+});
+
 test("reuses the submission id only while success is uncertain", async () => {
   const uncertain = vi.fn()
     .mockRejectedValueOnce(new Error("offline"))

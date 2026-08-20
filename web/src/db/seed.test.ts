@@ -42,7 +42,7 @@ test.each([
   }
 });
 
-test("seeds the 72 reviewed templates idempotently", () => {
+test("seeds 72 reviewed templates plus the stable three-question Phase 1 daily pool idempotently", () => {
   const directory = mkdtempSync(join(tmpdir(), "math-trainer-valid-seed-"));
   const filename = join(directory, "seed.sqlite");
   const env = {
@@ -70,14 +70,42 @@ test("seeds the 72 reviewed templates idempotently", () => {
     const sqlite = new DatabaseSync(filename);
     try {
       expect(sqlite.prepare("SELECT COUNT(*) AS count FROM question_templates").get())
-        .toEqual({ count: 72 });
+        .toEqual({ count: 75 });
       expect(sqlite.prepare("SELECT COUNT(*) AS count FROM skills").get())
-        .toEqual({ count: 37 });
+        .toEqual({ count: 39 });
+      expect(sqlite.prepare("SELECT name, domain FROM skills WHERE id = 'skill-decimal'").get())
+        .toEqual({ name: "小数计算", domain: "数与运算" });
       expect(sqlite.prepare(`
         SELECT COUNT(*) AS count
         FROM question_templates
         WHERE content_tier = 'transition'
       `).get()).toEqual({ count: 7 });
+      expect(sqlite.prepare(`
+        SELECT id, difficulty, common_errors AS commonErrors,
+          reading_card AS readingCard, source, license_status AS licenseStatus
+        FROM question_templates
+        WHERE id IN ('q-decimal-1', 'q-reading-1', 'q-equation-1')
+        ORDER BY CASE id
+          WHEN 'q-decimal-1' THEN 1
+          WHEN 'q-reading-1' THEN 2
+          ELSE 3
+        END
+      `).all()).toEqual([
+        { id: "q-decimal-1", difficulty: 1, commonErrors: "[\"calculation\"]", readingCard: 0, source: "original", licenseStatus: "owned" },
+        { id: "q-reading-1", difficulty: 1, commonErrors: "[\"missing_unit\",\"incomplete_reading\"]", readingCard: 1, source: "original", licenseStatus: "owned" },
+        { id: "q-equation-1", difficulty: 2, commonErrors: "[\"relationship\",\"calculation\"]", readingCard: 0, source: "original", licenseStatus: "owned" },
+      ]);
+      expect(sqlite.prepare(`
+        SELECT common_errors AS commonErrors, reading_card AS readingCard,
+          source, license_status AS licenseStatus
+        FROM question_templates
+        WHERE id = 'num-int-mental-01'
+      `).get()).toEqual({
+        commonErrors: JSON.stringify(["calculation", "range_check"]),
+        readingCard: 0,
+        source: "original",
+        licenseStatus: "owned",
+      });
     } finally {
       sqlite.close();
     }

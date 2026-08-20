@@ -1,7 +1,9 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { phase1DailySkills, phase1DailyTemplates } from "@/content/phase1-daily";
 import { phase2Catalog, phase2Skills } from "@/content/phase2-catalog";
 import { credentialInputSchema, hashCredential } from "@/domain/auth/credentials";
+import { answerSpecSchema } from "@/domain/questions/answer-spec";
 import { instantiateTemplate } from "@/domain/questions/instantiate-template";
 import { validateCatalog, type ReviewedTemplate } from "@/domain/questions/template-schema";
 import { getDatabase, type AppDatabase } from "./client";
@@ -84,7 +86,7 @@ export async function seedDatabase(options: SeedDatabaseOptions = {}) {
     },
   });
 
-  for (const skill of phase2Skills) {
+  for (const skill of [...phase2Skills, ...phase1DailySkills]) {
     await db.insert(skills).values(skill).onConflictDoUpdate({
       target: skills.id,
       set: {
@@ -92,6 +94,34 @@ export async function seedDatabase(options: SeedDatabaseOptions = {}) {
         name: skill.name,
         domain: skill.domain,
       },
+    });
+  }
+
+  for (const template of phase1DailyTemplates) {
+    const values = {
+      id: template.id,
+      skillId: template.skillId,
+      domain: template.domain,
+      contentTier: template.contentTier,
+      structureTag: template.structureTag,
+      estimatedSeconds: template.estimatedSeconds,
+      readingLoad: template.readingLoad,
+      answerMode: template.answerMode,
+      variantSpec: "{}",
+      hintLadder: "[]",
+      commonErrors: JSON.stringify(template.commonErrors),
+      readingCard: template.readingCard,
+      source: template.source,
+      licenseStatus: template.licenseStatus,
+      stem: template.stem,
+      answerSpec: JSON.stringify(answerSpecSchema.parse(template.answerSpec)),
+      explanation: template.explanation,
+      difficulty: template.difficulty,
+      active: true,
+    };
+    await db.insert(questionTemplates).values(values).onConflictDoUpdate({
+      target: questionTemplates.id,
+      set: values,
     });
   }
 
@@ -108,6 +138,10 @@ export async function seedDatabase(options: SeedDatabaseOptions = {}) {
       answerMode: template.answerMode,
       variantSpec: JSON.stringify(template.variantSpec),
       hintLadder: JSON.stringify(template.hintLadder),
+      commonErrors: JSON.stringify(template.commonErrors),
+      readingCard: template.readingCard,
+      source: template.source,
+      licenseStatus: template.licenseStatus,
       stem: instance.stem,
       answerSpec: JSON.stringify(instance.answerSpec),
       explanation: instance.explanation,

@@ -5,6 +5,7 @@ import type { DatabaseSync } from "node:sqlite";
 import { eq } from "drizzle-orm";
 import { createDatabase } from "@/db/client";
 import { migrateDatabase } from "@/db/migrate";
+import { seedDatabase } from "@/db/seed";
 import {
   attempts,
   questionTemplates,
@@ -345,7 +346,7 @@ test("backfills immutable session snapshots in a populated pre-snapshot database
   }
 });
 
-test("migrates populated Phase 1 data to the diagnosis schema", () => {
+test("migrates and production-seeds populated Phase 1 data without losing history", async () => {
   const directory = mkdtempSync(join(tmpdir(), "math-trainer-phase2a-schema-"));
   const filename = join(directory, "phase1.sqlite");
   const phase1Migrations = join(directory, "phase1-migrations");
@@ -433,6 +434,7 @@ test("migrates populated Phase 1 data to the diagnosis schema", () => {
     expect(columns(sqlite, "question_templates")).toEqual(expect.arrayContaining([
       "domain", "content_tier", "structure_tag", "estimated_seconds",
       "reading_load", "answer_mode", "variant_spec", "hint_ladder",
+      "common_errors", "reading_card", "source", "license_status",
     ]));
     expect(columns(sqlite, "training_sessions")).toEqual(expect.arrayContaining([
       "kind", "rule_version", "target_seconds", "composition_snapshot",
@@ -451,7 +453,11 @@ test("migrates populated Phase 1 data to the diagnosis schema", () => {
         reading_load AS readingLoad,
         answer_mode AS answerMode,
         variant_spec AS variantSpec,
-        hint_ladder AS hintLadder
+        hint_ladder AS hintLadder,
+        common_errors AS commonErrors,
+        reading_card AS readingCard,
+        source,
+        license_status AS licenseStatus
       FROM question_templates
       WHERE id = 'phase1-question'
     `).get()).toEqual({
@@ -463,6 +469,10 @@ test("migrates populated Phase 1 data to the diagnosis schema", () => {
       answerMode: "written",
       variantSpec: "{}",
       hintLadder: "[]",
+      commonErrors: null,
+      readingCard: null,
+      source: "unknown",
+      licenseStatus: "unknown",
     });
     expect(sqlite.prepare(`
       SELECT kind, rule_version AS ruleVersion, composition_snapshot AS compositionSnapshot
@@ -486,6 +496,33 @@ test("migrates populated Phase 1 data to the diagnosis schema", () => {
       selectionReasonSnapshot: "{}",
     });
     expect(sqlite.prepare("SELECT count(*) AS count FROM attempts").get()).toEqual({ count: 1 });
+    expect(foreignKeyCheck(sqlite)).toEqual([]);
+
+    migrateDatabase(db, resolve(process.cwd(), "drizzle"));
+    expect(sqlite.prepare("SELECT count(*) AS count FROM attempts").get()).toEqual({ count: 1 });
+    expect(foreignKeyCheck(sqlite)).toEqual([]);
+
+    await seedDatabase({
+      parentPassword: "parent-password",
+      childPin: "2468",
+      openDatabase: () => db,
+    });
+    expect(sqlite.prepare(`
+      SELECT id, difficulty
+      FROM question_templates
+      WHERE id IN ('q-decimal-1', 'q-reading-1', 'q-equation-1')
+      ORDER BY CASE id
+        WHEN 'q-decimal-1' THEN 1
+        WHEN 'q-reading-1' THEN 2
+        ELSE 3
+      END
+    `).all()).toEqual([
+      { id: "q-decimal-1", difficulty: 1 },
+      { id: "q-reading-1", difficulty: 1 },
+      { id: "q-equation-1", difficulty: 2 },
+    ]);
+    expect(sqlite.prepare("SELECT count(*) AS count FROM attempts WHERE id = 'phase1-attempt'").get())
+      .toEqual({ count: 1 });
     expect(foreignKeyCheck(sqlite)).toEqual([]);
 
     expect(indexColumns(sqlite, "diagnostic_runs", "diagnostic_run_child_version_idx"))

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
+import { phase1DailyTemplateIds } from "@/content/phase1-daily";
 import type { AppDatabase } from "@/db/client";
 import {
   attempts,
@@ -16,6 +17,13 @@ export class DailyTrainingLockedError extends Error {
     super("Diagnosis must be completed before daily training");
     this.name = "DailyTrainingLockedError";
   }
+}
+
+function parseCommonErrors(value: string | null): unknown[] | null {
+  if (value === null) return null;
+  const parsed: unknown = JSON.parse(value);
+  if (!Array.isArray(parsed)) throw new Error("Question template common errors are invalid");
+  return parsed;
 }
 
 function loadSessionView(db: AppDatabase, sessionId: string): SessionView {
@@ -79,30 +87,55 @@ export function getOrCreateDailySession(
     if (!completedDiagnosis) throw new DailyTrainingLockedError();
 
     const id = randomUUID();
-    const questions = tx.select({
+    const availableQuestions = tx.select({
       id: questionTemplates.id,
       stem: questionTemplates.stem,
       answerSpec: questionTemplates.answerSpec,
       explanation: questionTemplates.explanation,
       skillId: questionTemplates.skillId,
       skillName: skills.name,
+      difficulty: questionTemplates.difficulty,
+      contentTier: questionTemplates.contentTier,
+      structureTag: questionTemplates.structureTag,
+      estimatedSeconds: questionTemplates.estimatedSeconds,
+      readingLoad: questionTemplates.readingLoad,
+      answerMode: questionTemplates.answerMode,
+      commonErrors: questionTemplates.commonErrors,
+      readingCard: questionTemplates.readingCard,
+      source: questionTemplates.source,
+      licenseStatus: questionTemplates.licenseStatus,
     })
       .from(questionTemplates)
       .innerJoin(skills, eq(questionTemplates.skillId, skills.id))
-      .where(eq(questionTemplates.active, true))
-      .orderBy(asc(questionTemplates.difficulty), asc(questionTemplates.id))
-      .limit(3)
+      .where(and(
+        eq(questionTemplates.active, true),
+        inArray(questionTemplates.id, phase1DailyTemplateIds),
+      ))
       .all();
+    const byId = new Map(availableQuestions.map((question) => [question.id, question]));
+    const questions = phase1DailyTemplateIds.map((templateId) => byId.get(templateId));
+    if (questions.some((question) => question === undefined)) {
+      throw new Error("The Phase 1 daily question pool is incomplete");
+    }
+    const orderedQuestions = questions as Array<NonNullable<(typeof questions)[number]>>;
 
     tx.insert(trainingSessions).values({
       id,
       childId,
       sessionDate: date,
+      kind: "daily",
+      ruleVersion: "phase1-v1",
+      targetSeconds: orderedQuestions.reduce((total, question) => total + question.estimatedSeconds, 0),
+      compositionSnapshot: JSON.stringify({
+        snapshotVersion: 1,
+        templateIds: phase1DailyTemplateIds,
+        reason: "phase1_fixed_daily",
+      }),
       status: "in_progress",
       startedAt: Date.now(),
     }).run();
-    if (questions.length > 0) {
-      tx.insert(sessionItems).values(questions.map((question, position) => ({
+    if (orderedQuestions.length > 0) {
+      tx.insert(sessionItems).values(orderedQuestions.map((question, position) => ({
         id: randomUUID(),
         sessionId: id,
         questionTemplateId: question.id,
@@ -112,6 +145,21 @@ export function getOrCreateDailySession(
         explanationSnapshot: question.explanation,
         skillIdSnapshot: question.skillId,
         skillNameSnapshot: question.skillName,
+        difficultySnapshot: question.difficulty,
+        contentTierSnapshot: question.contentTier,
+        structureTagSnapshot: question.structureTag,
+        variantSeed: `phase1-static:${question.id}`,
+        selectionReasonSnapshot: JSON.stringify({
+          snapshotVersion: 1,
+          reason: "phase1_fixed_daily",
+          answerMode: question.answerMode,
+          estimatedSeconds: question.estimatedSeconds,
+          readingLoad: question.readingLoad,
+          commonErrors: parseCommonErrors(question.commonErrors),
+          readingCard: question.readingCard,
+          source: question.source,
+          licenseStatus: question.licenseStatus,
+        }),
       }))).run();
     }
 

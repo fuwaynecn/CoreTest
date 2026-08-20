@@ -41,6 +41,11 @@ export const questionTemplates = sqliteTable("question_templates", {
   }).notNull().default("written"),
   variantSpec: text("variant_spec").notNull().default("{}"),
   hintLadder: text("hint_ladder").notNull().default("[]"),
+  commonErrors: text("common_errors"),
+  readingCard: integer("reading_card", { mode: "boolean" }),
+  source: text("source", { enum: ["original", "unknown"] }).notNull().default("unknown"),
+  licenseStatus: text("license_status", { enum: ["owned", "unknown"] })
+    .notNull().default("unknown"),
   stem: text("stem").notNull(),
   answerSpec: text("answer_spec").notNull(),
   explanation: text("explanation").notNull(),

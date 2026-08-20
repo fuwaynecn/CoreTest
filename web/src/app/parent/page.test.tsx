@@ -114,6 +114,11 @@ function seedThreePartDifficultyPath(db: ReturnType<typeof createTestDatabase>, 
       skillIdSnapshot: "path-skill",
       skillNameSnapshot: "路径技能",
       difficultySnapshot: ((part + index) % 4) + 1,
+      selectionReasonSnapshot: JSON.stringify({
+        targetDifficulty: part === 1 && index === 0 ? 4 : ((part + index) % 4) + 1,
+        selectedDifficulty: ((part + index) % 4) + 1,
+        reason: "hold_level",
+      }),
     }))).run();
   }
 }
@@ -186,4 +191,55 @@ test("labels all six completed-domain results as provisional version one", async
   expect(paths[0]).toHaveTextContent("第 1 部分：2 → 3 → 4 → 1");
   expect(paths[1]).toHaveTextContent("第 2 部分：3 → 4 → 1 → 2");
   expect(paths[2]).toHaveTextContent("第 3 部分：4 → 1 → 2 → 3");
+  expect(screen.getAllByTestId("diagnosis-difficulty-fallback")).toHaveLength(1);
+  expect(screen.getByTestId("diagnosis-difficulty-fallback"))
+    .toHaveTextContent("目标 4 → 实际 2");
+  expect(screen.getByRole("button", { name: "发起第 2 版诊断" })).toBeVisible();
+});
+
+test("shows active version two progress while preserving version one report and history", async () => {
+  const db = state.db as ReturnType<typeof createTestDatabase>;
+  const domains = [
+    "number_operations", "equation_algebra", "geometry_space", "data_statistics",
+    "application_modeling", "thinking_habits",
+  ];
+  db.insert(diagnosticRuns).values({
+    id: "run-history-v1",
+    childId: "child-1",
+    version: 1,
+    status: "completed",
+    currentPart: 3,
+    seed: "seed-v1",
+    reportSnapshot: JSON.stringify({
+      skills: [],
+      domains: domains.map((domain) => ({
+        domain,
+        status: "learning",
+        weightedRate: 60,
+        evidenceCount: 7,
+        distinctIndependentCorrectTemplates: 2,
+      })),
+    }),
+    startedAt: 1,
+    completedAt: 2,
+  }).run();
+  seedThreePartDifficultyPath(db, "run-history-v1");
+  db.insert(diagnosticRuns).values({
+    id: "run-history-v2",
+    childId: "child-1",
+    version: 2,
+    status: "in_progress",
+    currentPart: 1,
+    seed: "seed-v2",
+    startedAt: 3,
+  }).run();
+
+  render(await ParentPage());
+
+  expect(screen.getByRole("heading", { name: "诊断进行中 · 第 2 版 · 0/45" })).toBeVisible();
+  expect(screen.getByRole("heading", { name: "最近完成报告 · 第 1 版 · 45/45" })).toBeVisible();
+  expect(screen.getAllByTestId("diagnosis-domain-status")).toHaveLength(6);
+  expect(screen.getByText("第 2 版 · 进行中")).toBeVisible();
+  expect(screen.getByText("第 1 版 · 已完成")).toBeVisible();
+  expect(screen.queryByRole("button", { name: /发起第 3 版诊断/ })).not.toBeInTheDocument();
 });

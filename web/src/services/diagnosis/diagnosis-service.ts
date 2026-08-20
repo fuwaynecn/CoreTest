@@ -20,7 +20,12 @@ import type {
   Difficulty,
 } from "@/domain/diagnosis/types";
 import { answerSpecSchema } from "@/domain/questions/answer-spec";
-import { instantiateTemplate } from "@/domain/questions/instantiate-template";
+import { extractChoiceOptions, type ChoiceOption } from "@/domain/questions/choice-options";
+import {
+  instantiateTemplate,
+  type QuestionInstance,
+} from "@/domain/questions/instantiate-template";
+import type { ReviewedTemplate } from "@/domain/questions/template-schema";
 import { scoreAnswer } from "@/domain/questions/score-answer";
 import { shanghaiDateKey } from "@/domain/time/shanghai-calendar";
 
@@ -28,17 +33,22 @@ type AppTransaction = Parameters<Parameters<AppDatabase["transaction"]>[0]>[0];
 
 const TOTAL_SLOTS = 45 as const;
 const SLOTS_PER_PART = 15;
-const catalogById = new Map(phase2Catalog.map((template) => [template.id, template]));
-const catalogSummaries: DiagnosticTemplateSummary[] = phase2Catalog.map((template) => ({
-  templateId: template.id,
-  skillId: `skill-${template.skillCode}`,
-  domain: template.domain,
-  difficulty: template.difficulty,
-}));
+export type DiagnosisRuntime = {
+  catalog?: readonly ReviewedTemplate[];
+  instantiate?: (template: ReviewedTemplate, seed: string) => QuestionInstance;
+};
+
+function resolveRuntime(runtime: DiagnosisRuntime = {}) {
+  return {
+    catalog: runtime.catalog ?? phase2Catalog,
+    instantiate: runtime.instantiate ?? instantiateTemplate,
+  };
+}
 
 type ItemMetadata = {
   answerMode: string;
   domain: DiagnosticAnswer["domain"];
+  choiceOptions?: ChoiceOption[];
 };
 
 export type DiagnosisView = {
@@ -53,6 +63,9 @@ export type DiagnosisView = {
     position: number;
     stem: string;
     answerMode: string;
+    answerKind: "number" | "choice";
+    requiresUnit: boolean;
+    choiceOptions: ChoiceOption[];
   };
 };
 
@@ -89,9 +102,21 @@ export class DiagnosisStateError extends Error {
   }
 }
 
+export class DiagnosisRetestConflictError extends DiagnosisStateError {
+  constructor(
+    public readonly code: "version_conflict" | "retest_already_active",
+    public readonly currentVersion: number,
+  ) {
+    super(code === "version_conflict"
+      ? "The completed diagnosis version changed"
+      : "A diagnosis retest is already active");
+    this.name = "DiagnosisRetestConflictError";
+  }
+}
+
 export class InvalidDiagnosisAnswerError extends Error {
-  constructor() {
-    super("Answer must be at most 128 characters");
+  constructor(message = "Answer must be at most 128 characters") {
+    super(message);
     this.name = "InvalidDiagnosisAnswerError";
   }
 }
@@ -102,6 +127,23 @@ function parseItemMetadata(raw: string): ItemMetadata {
     throw new Error("Diagnostic item metadata snapshot is invalid");
   }
   return value as ItemMetadata;
+}
+
+function itemDelivery(stem: string, rawAnswerSpec: string, rawMetadata: string) {
+  const metadata = parseItemMetadata(rawMetadata);
+  const answerSpec = answerSpecSchema.parse(JSON.parse(rawAnswerSpec));
+  const choiceOptions = answerSpec.kind === "choice"
+    ? metadata.choiceOptions ?? extractChoiceOptions(stem)
+    : [];
+  if (answerSpec.kind === "choice" && choiceOptions.length !== 4) {
+    throw new Error("Diagnostic choice snapshot is invalid");
+  }
+  return {
+    answerMode: metadata.answerMode,
+    answerKind: answerSpec.kind,
+    requiresUnit: answerSpec.kind === "number" && answerSpec.unit !== null,
+    choiceOptions,
+  };
 }
 
 function latestRun(tx: AppTransaction, childId: string) {
@@ -152,6 +194,7 @@ function viewForRun(tx: AppTransaction, childId: string, runId: string): Diagnos
       id: sessionItems.id,
       position: sessionItems.position,
       stem: sessionItems.stemSnapshot,
+      answerSpec: sessionItems.answerSpecSnapshot,
       metadata: sessionItems.selectionReasonSnapshot,
     }).from(sessionItems)
       .innerJoin(trainingSessions, eq(sessionItems.sessionId, trainingSessions.id))
@@ -175,7 +218,7 @@ function viewForRun(tx: AppTransaction, childId: string, runId: string): Diagnos
       id: current.id,
       position: current.position,
       stem: current.stem,
-      answerMode: parseItemMetadata(current.metadata).answerMode,
+      ...itemDelivery(current.stem, current.answerSpec, current.metadata),
     } : null,
   };
 }
@@ -197,6 +240,7 @@ function replayView(
     id: sessionItems.id,
     position: sessionItems.position,
     stem: sessionItems.stemSnapshot,
+    answerSpec: sessionItems.answerSpecSnapshot,
     metadata: sessionItems.selectionReasonSnapshot,
   }).from(sessionItems)
     .innerJoin(trainingSessions, eq(sessionItems.sessionId, trainingSessions.id))
@@ -218,7 +262,7 @@ function replayView(
       id: next.id,
       position: next.position,
       stem: next.stem,
-      answerMode: parseItemMetadata(next.metadata).answerMode,
+      ...itemDelivery(next.stem, next.answerSpec, next.metadata),
     } : null,
   };
 }
@@ -257,29 +301,74 @@ function createNextItem(
   run: { id: string; childId: string; seed: string },
   partNumber: DiagnosticPartNumber,
   now: number,
+  runtimeInput: DiagnosisRuntime = {},
 ) {
+  const runtime = resolveRuntime(runtimeInput);
   const sessionId = ensurePartSession(tx, run, partNumber, now);
   const completedInPart = tx.select({ value: count() }).from(attempts)
     .innerJoin(sessionItems, eq(attempts.sessionItemId, sessionItems.id))
     .where(eq(sessionItems.sessionId, sessionId)).get()?.value ?? 0;
-  const selection = selectNextDiagnosticQuestion({
-    catalog: catalogSummaries,
-    answers: answerHistory(tx, run.id),
-    runSeed: run.seed,
-    partNumber,
-    completedInPart,
-  });
-  if (!selection) throw new DiagnosisStateError("No reviewed diagnosis item is available");
-
-  const template = catalogById.get(selection.templateId);
-  if (!template) throw new Error("Selected diagnosis template is missing");
-  const persisted = tx.select({ active: questionTemplates.active, skillName: skills.name })
+  const activeRows = tx.select({ id: questionTemplates.id, skillName: skills.name })
     .from(questionTemplates)
     .innerJoin(skills, eq(questionTemplates.skillId, skills.id))
-    .where(eq(questionTemplates.id, template.id)).get();
-  if (!persisted?.active) throw new DiagnosisStateError("Selected diagnosis template is not active");
+    .where(eq(questionTemplates.active, true)).all();
+  const activeById = new Map(activeRows.map((row) => [row.id, row]));
+  const catalogById = new Map(runtime.catalog.map((template) => [template.id, template]));
+  const skipped = new Set<string>();
+  const answers = answerHistory(tx, run.id);
+  let selected: {
+    selection: NonNullable<ReturnType<typeof selectNextDiagnosticQuestion>>;
+    template: ReviewedTemplate;
+    instance: QuestionInstance;
+    skillName: string;
+    choiceOptions: ChoiceOption[];
+  } | null = null;
 
-  const instance = instantiateTemplate(template, selection.variantSeed);
+  while (!selected) {
+    const eligibleCatalog: DiagnosticTemplateSummary[] = runtime.catalog
+      .filter((template) => activeById.has(template.id) && !skipped.has(template.id))
+      .map((template) => ({
+        templateId: template.id,
+        skillId: `skill-${template.skillCode}`,
+        domain: template.domain,
+        difficulty: template.difficulty,
+      }));
+    const selection = selectNextDiagnosticQuestion({
+      catalog: eligibleCatalog,
+      answers,
+      runSeed: run.seed,
+      partNumber,
+      completedInPart,
+    });
+    if (!selection) throw new DiagnosisStateError("No reviewed diagnosis item is available");
+
+    const template = catalogById.get(selection.templateId);
+    const persisted = activeById.get(selection.templateId);
+    if (!template || !persisted) {
+      skipped.add(selection.templateId);
+      continue;
+    }
+    try {
+      const instance = runtime.instantiate(template, selection.variantSeed);
+      const choiceOptions = instance.answerSpec.kind === "choice"
+        ? extractChoiceOptions(instance.stem)
+        : [];
+      if (instance.answerSpec.kind === "choice" && choiceOptions.length !== 4) {
+        throw new Error("Invalid choice delivery data");
+      }
+      selected = {
+        selection,
+        template,
+        instance,
+        skillName: persisted.skillName,
+        choiceOptions,
+      };
+    } catch {
+      skipped.add(selection.templateId);
+    }
+  }
+
+  const { selection, template, instance, skillName, choiceOptions } = selected;
   tx.insert(sessionItems).values({
     id: randomUUID(),
     sessionId,
@@ -289,7 +378,7 @@ function createNextItem(
     answerSpecSnapshot: JSON.stringify(instance.answerSpec),
     explanationSnapshot: instance.explanation,
     skillIdSnapshot: `skill-${template.skillCode}`,
-    skillNameSnapshot: persisted.skillName,
+    skillNameSnapshot: skillName,
     difficultySnapshot: selection.difficulty,
     contentTierSnapshot: template.contentTier,
     structureTagSnapshot: template.structureTag,
@@ -301,6 +390,7 @@ function createNextItem(
       selectedDifficulty: selection.difficulty,
       domain: template.domain,
       answerMode: template.answerMode,
+      choiceOptions,
       hintLadder: instance.hintLadder,
       readingCard: instance.readingCard,
       estimatedSeconds: instance.estimatedSeconds,
@@ -312,7 +402,13 @@ function createNextItem(
   }).run();
 }
 
-function createRun(tx: AppTransaction, childId: string, version: number, now: number): string {
+function createRun(
+  tx: AppTransaction,
+  childId: string,
+  version: number,
+  now: number,
+  runtime: DiagnosisRuntime = {},
+): string {
   const runId = randomUUID();
   const seed = `${runId}:version-${version}`;
   tx.insert(diagnosticRuns).values({
@@ -329,14 +425,19 @@ function createRun(tx: AppTransaction, childId: string, version: number, now: nu
     { runId, partNumber: 2, status: "locked" },
     { runId, partNumber: 3, status: "locked" },
   ]).run();
-  createNextItem(tx, { id: runId, childId, seed }, 1, now);
+  createNextItem(tx, { id: runId, childId, seed }, 1, now, runtime);
   return runId;
 }
 
-export function getOrCreateDiagnosis(db: AppDatabase, childId: string, now = Date.now()): DiagnosisView {
+export function getOrCreateDiagnosis(
+  db: AppDatabase,
+  childId: string,
+  now = Date.now(),
+  runtime: DiagnosisRuntime = {},
+): DiagnosisView {
   return db.transaction((tx) => {
     const existing = latestRun(tx, childId);
-    const runId = existing?.id ?? createRun(tx, childId, 1, now);
+    const runId = existing?.id ?? createRun(tx, childId, 1, now, runtime);
     return viewForRun(tx, childId, runId);
   }, { behavior: "immediate" });
 }
@@ -369,7 +470,9 @@ export function submitDiagnosticAttempt(
   db: AppDatabase,
   command: SubmitDiagnosticAttemptCommand,
   now = Date.now(),
+  runtime: DiagnosisRuntime = {},
 ): DiagnosticAttemptResult {
+  if (command.answerText.trim().length === 0) throw new InvalidDiagnosisAnswerError("Answer is required");
   if (command.answerText.length > 128) throw new InvalidDiagnosisAnswerError();
 
   return db.transaction((tx) => {
@@ -459,7 +562,7 @@ export function submitDiagnosticAttempt(
         id: item.runId,
         childId: item.childId,
         seed: item.runSeed,
-      }, partNumber, now);
+      }, partNumber, now, runtime);
     } else {
       tx.update(trainingSessions).set({ status: "completed", completedAt: now })
         .where(eq(trainingSessions.id, item.sessionId)).run();
@@ -480,7 +583,7 @@ export function submitDiagnosticAttempt(
           id: item.runId,
           childId: item.childId,
           seed: item.runSeed,
-        }, nextPart, now);
+        }, nextPart, now, runtime);
       } else {
         const report = deriveInitialReport(answerHistory(tx, item.runId));
         tx.update(diagnosticRuns).set({
@@ -500,11 +603,29 @@ export function submitDiagnosticAttempt(
   }, { behavior: "immediate" });
 }
 
-export function startDiagnosisRetest(db: AppDatabase, childId: string, now = Date.now()): DiagnosisView {
+export function startDiagnosisRetest(
+  db: AppDatabase,
+  command: { childId: string; expectedCompletedVersion: number },
+  now = Date.now(),
+  runtime: DiagnosisRuntime = {},
+): DiagnosisView {
   return db.transaction((tx) => {
-    const previous = latestRun(tx, childId);
-    if (!previous || previous.status !== "completed") throw new DiagnosisStateError();
-    const runId = createRun(tx, childId, previous.version + 1, now);
-    return viewForRun(tx, childId, runId);
+    const previous = latestRun(tx, command.childId);
+    if (!previous) throw new DiagnosisStateError("No completed diagnosis is available");
+    if (previous.status !== "completed") {
+      const hasCompleted = tx.select({ id: diagnosticRuns.id }).from(diagnosticRuns).where(and(
+        eq(diagnosticRuns.childId, command.childId),
+        eq(diagnosticRuns.status, "completed"),
+      )).limit(1).get();
+      if (hasCompleted) {
+        throw new DiagnosisRetestConflictError("retest_already_active", previous.version);
+      }
+      throw new DiagnosisStateError("Complete the current diagnosis before starting a retest");
+    }
+    if (previous.version !== command.expectedCompletedVersion) {
+      throw new DiagnosisRetestConflictError("version_conflict", previous.version);
+    }
+    const runId = createRun(tx, command.childId, previous.version + 1, now, runtime);
+    return viewForRun(tx, command.childId, runId);
   }, { behavior: "immediate" });
 }

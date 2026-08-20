@@ -1,4 +1,5 @@
 import { asc, count, desc, eq } from "drizzle-orm";
+import { ParentRetestButton } from "@/components/parent-retest-button";
 import { getDatabase } from "@/db/client";
 import { attempts, diagnosticRuns, sessionItems, trainingSessions, users } from "@/db/schema";
 import type { InitialDiagnosisReport } from "@/domain/diagnosis/types";
@@ -27,6 +28,24 @@ function parseInitialReport(value: string | null): InitialDiagnosisReport | null
     throw new Error("Initial diagnosis report is invalid");
   }
   return parsed as InitialDiagnosisReport;
+}
+
+type DifficultySnapshot = {
+  part: number | null;
+  position: number;
+  difficulty: number;
+  targetDifficulty: number;
+};
+
+function parseTargetDifficulty(value: string, actual: number): number {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (typeof parsed === "object" && parsed !== null && "targetDifficulty" in parsed
+      && typeof parsed.targetDifficulty === "number") return parsed.targetDifficulty;
+  } catch {
+    // Legacy snapshots have no structured selection explanation.
+  }
+  return actual;
 }
 
 function recommendation(answered: number, correct: number) {
@@ -69,33 +88,42 @@ export default async function ParentPage() {
   }
 
   const evidence = getParentEvidence(db, child.id);
-  const diagnosisRun = db.select().from(diagnosticRuns)
+  const diagnosisHistory = db.select().from(diagnosticRuns)
     .where(eq(diagnosticRuns.childId, child.id))
     .orderBy(desc(diagnosticRuns.version))
-    .limit(1)
-    .get();
-  const diagnosisCompleted = diagnosisRun ? (db.select({ value: count() }).from(attempts)
+    .all();
+  const currentDiagnosis = diagnosisHistory[0] ?? null;
+  const completedDiagnosis = diagnosisHistory.find(({ status }) => status === "completed") ?? null;
+  const currentCompleted = currentDiagnosis ? (db.select({ value: count() }).from(attempts)
     .innerJoin(sessionItems, eq(attempts.sessionItemId, sessionItems.id))
     .innerJoin(trainingSessions, eq(sessionItems.sessionId, trainingSessions.id))
-    .where(eq(trainingSessions.diagnosticRunId, diagnosisRun.id))
+    .where(eq(trainingSessions.diagnosticRunId, currentDiagnosis.id))
     .get()?.value ?? 0) : 0;
-  const difficultyRows = diagnosisRun ? db.select({
+  const difficultyRows: DifficultySnapshot[] = completedDiagnosis ? db.select({
     part: trainingSessions.diagnosticPartNumber,
+    position: sessionItems.position,
     difficulty: sessionItems.difficultySnapshot,
+    metadata: sessionItems.selectionReasonSnapshot,
   })
     .from(sessionItems)
     .innerJoin(trainingSessions, eq(sessionItems.sessionId, trainingSessions.id))
-    .where(eq(trainingSessions.diagnosticRunId, diagnosisRun.id))
+    .where(eq(trainingSessions.diagnosticRunId, completedDiagnosis.id))
     .orderBy(asc(trainingSessions.diagnosticPartNumber), asc(sessionItems.position))
-    .all() : [];
+    .all()
+    .map((row) => ({
+      part: row.part,
+      position: row.position,
+      difficulty: row.difficulty,
+      targetDifficulty: parseTargetDifficulty(row.metadata, row.difficulty),
+    })) : [];
   const difficultyPaths = [1, 2, 3].map((part) => ({
     part,
     values: difficultyRows
       .filter((row) => row.part === part && row.difficulty !== null)
       .map((row) => row.difficulty as number),
   }));
-  const diagnosisReport = diagnosisRun?.status === "completed"
-    ? parseInitialReport(diagnosisRun.reportSnapshot)
+  const diagnosisReport = completedDiagnosis
+    ? parseInitialReport(completedDiagnosis.reportSnapshot)
     : null;
   const summaryPeriods = [
     { label: "累计", metric: evidence.summary.cumulative },
@@ -117,24 +145,45 @@ export default async function ParentPage() {
         </aside>
       </header>
 
-      {diagnosisRun && (
-        <section className="diagnosisSummary" aria-labelledby="diagnosis-summary-heading">
+      {currentDiagnosis?.status === "in_progress" && (
+        <section className="diagnosisSummary" aria-labelledby="diagnosis-current-heading">
+          <div className="sectionHeading diagnosisSummaryHeading">
+            <div>
+              <p className="eyebrow">当前三部分数学体检</p>
+              <h2 id="diagnosis-current-heading">
+                {currentDiagnosis.version === 1
+                  ? `诊断进行中 · ${currentCompleted}/45`
+                  : `诊断进行中 · 第 ${currentDiagnosis.version} 版 · ${currentCompleted}/45`}
+              </h2>
+            </div>
+            <p>当前第 {currentDiagnosis.currentPart} 部分</p>
+          </div>
+          <div className="parentDiagnosisRail" aria-label={`已完成 ${currentCompleted} / 45`}>
+            {[0, 1, 2].map((index) => (
+              <span key={index}>
+                <span style={{ width: `${Math.max(0, Math.min(15, currentCompleted - index * 15)) / 15 * 100}%` }} />
+              </span>
+            ))}
+          </div>
+          <p className="provisionalNote">孩子可从首页继续第 {currentDiagnosis.version} 版诊断；旧报告仍保留在下方。</p>
+        </section>
+      )}
+
+      {completedDiagnosis && (
+        <section className="diagnosisSummary" aria-labelledby="diagnosis-report-heading">
           <div className="sectionHeading diagnosisSummaryHeading">
             <div>
               <p className="eyebrow">三部分数学体检</p>
-              <h2 id="diagnosis-summary-heading">
-                {diagnosisRun.status === "completed"
-                  ? `初始诊断报告 · 第 ${diagnosisRun.version} 版 · 45/45`
-                  : `诊断进行中 · ${diagnosisCompleted}/45`}
+              <h2 id="diagnosis-report-heading">
+                {currentDiagnosis?.status === "in_progress" ? "最近完成报告" : "初始诊断报告"}
+                {` · 第 ${completedDiagnosis.version} 版 · 45/45`}
               </h2>
             </div>
-            <p>{diagnosisRun.status === "completed" ? "报告已生成" : `当前第 ${diagnosisRun.currentPart} 部分`}</p>
+            <p>报告已生成</p>
           </div>
-          <div className="parentDiagnosisRail" aria-label={`已完成 ${diagnosisCompleted} / 45`}>
+          <div className="parentDiagnosisRail" aria-label="已完成 45 / 45">
             {[0, 1, 2].map((index) => (
-              <span key={index}>
-                <span style={{ width: `${Math.max(0, Math.min(15, diagnosisCompleted - index * 15)) / 15 * 100}%` }} />
-              </span>
+              <span key={index}><span style={{ width: "100%" }} /></span>
             ))}
           </div>
           {difficultyPaths.some(({ values }) => values.length > 0) && (
@@ -143,6 +192,12 @@ export default async function ParentPage() {
               {difficultyPaths.map(({ part, values }) => values.length > 0 && (
                 <p key={part} data-testid="diagnosis-difficulty-part">
                   <span>第 {part} 部分：</span>{values.join(" → ")}
+                </p>
+              ))}
+              {difficultyRows.filter((row) => row.targetDifficulty !== row.difficulty).map((row) => (
+                <p key={`${row.part}-${row.position}`} className="difficultyFallback" data-testid="diagnosis-difficulty-fallback">
+                  第 {row.part} 部分第 {row.position} 题：目标 {row.targetDifficulty} → 实际 {row.difficulty}
+                  <span>同领域目标难度题不可用，按规则使用最近难度。</span>
                 </p>
               ))}
             </div>
@@ -163,6 +218,26 @@ export default async function ParentPage() {
               </ul>
             </>
           )}
+          {currentDiagnosis?.status === "completed" && (
+            <ParentRetestButton expectedCompletedVersion={completedDiagnosis.version} />
+          )}
+        </section>
+      )}
+
+      {diagnosisHistory.length > 0 && (
+        <section className="diagnosisHistory" aria-labelledby="diagnosis-history-heading">
+          <div className="sectionHeading">
+            <h2 id="diagnosis-history-heading">诊断版本记录</h2>
+            <p>新版本不会覆盖旧报告。</p>
+          </div>
+          <ul>
+            {diagnosisHistory.map((run) => (
+              <li key={run.id}>
+                <strong>第 {run.version} 版 · {run.status === "completed" ? "已完成" : "进行中"}</strong>
+                <span>{run.status === "completed" ? "报告已保留" : `当前第 ${run.currentPart} 部分`}</span>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 

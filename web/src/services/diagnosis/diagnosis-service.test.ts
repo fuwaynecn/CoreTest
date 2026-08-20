@@ -17,9 +17,11 @@ import {
 } from "@/db/schema";
 import { answerSpecSchema } from "@/domain/questions/answer-spec";
 import { instantiateTemplate } from "@/domain/questions/instantiate-template";
+import { selectNextDiagnosticQuestion } from "@/domain/diagnosis/select-next-question";
 import { createTestDatabase } from "@/test/test-db";
 import {
   DiagnosisAccessError,
+  DiagnosisRetestConflictError,
   DiagnosisStateError,
   getDiagnosisLearningGate,
   getDiagnosisView,
@@ -78,6 +80,78 @@ function submitCurrent(db: TestDatabase, childId: string, submissionNumber: numb
 }
 
 describe("diagnosis service", () => {
+  it("filters inactive templates before selection and preserves the target-to-actual explanation", () => {
+    const db = seedDiagnosisDatabase();
+    const summaries = phase2Catalog.map((template) => ({
+      templateId: template.id,
+      skillId: `skill-${template.skillCode}`,
+      domain: template.domain,
+      difficulty: template.difficulty,
+    }));
+    const preferred = selectNextDiagnosticQuestion({
+      catalog: summaries,
+      answers: [],
+      runSeed: "ignored-for-template-order",
+      partNumber: 1,
+      completedInPart: 0,
+    })!;
+    db.update(questionTemplates).set({ active: false })
+      .where(eq(questionTemplates.id, preferred.templateId)).run();
+    const expected = selectNextDiagnosticQuestion({
+      catalog: summaries.filter(({ templateId }) => templateId !== preferred.templateId),
+      answers: [],
+      runSeed: "ignored-for-template-order",
+      partNumber: 1,
+      completedInPart: 0,
+    })!;
+
+    const diagnosis = getOrCreateDiagnosis(db, "child-1", 1);
+    const persisted = db.select({
+      templateId: sessionItems.questionTemplateId,
+      difficulty: sessionItems.difficultySnapshot,
+      metadata: sessionItems.selectionReasonSnapshot,
+    }).from(sessionItems).where(eq(sessionItems.id, diagnosis.currentItem!.id)).get()!;
+    expect(persisted.templateId).toBe(expected.templateId);
+    expect(persisted.difficulty).toBe(expected.difficulty);
+    expect(JSON.parse(persisted.metadata)).toMatchObject({
+      targetDifficulty: expected.targetDifficulty,
+      selectedDifficulty: expected.difficulty,
+      reason: expected.reason,
+    });
+  });
+
+  it("deterministically skips a candidate whose variant cannot be instantiated", () => {
+    const db = seedDiagnosisDatabase();
+    let rejectedTemplateId: string | null = null;
+    const diagnosis = getOrCreateDiagnosis(db, "child-1", 1, {
+      instantiate: (template, seed) => {
+        if (rejectedTemplateId === null) {
+          rejectedTemplateId = template.id;
+          throw new Error("invalid generated variant");
+        }
+        return instantiateTemplate(template, seed);
+      },
+    });
+    const selectedTemplateId = db.select({ id: sessionItems.questionTemplateId })
+      .from(sessionItems).where(eq(sessionItems.id, diagnosis.currentItem!.id)).get()!.id;
+
+    expect(rejectedTemplateId).not.toBeNull();
+    expect(selectedTemplateId).not.toBe(rejectedTemplateId);
+    expect(db.select().from(sessionItems).all()).toHaveLength(1);
+  });
+
+  it("rolls back a new run with a controlled error when no active domain candidate remains", () => {
+    const db = seedDiagnosisDatabase();
+    db.update(questionTemplates).set({ active: false })
+      .where(eq(questionTemplates.domain, "number_operations")).run();
+
+    expect(() => getOrCreateDiagnosis(db, "child-1", 1)).toThrow(DiagnosisStateError);
+    expect(db.select().from(diagnosticRuns).all()).toHaveLength(0);
+    expect(db.select().from(diagnosticParts).all()).toHaveLength(0);
+    expect(db.select().from(trainingSessions).all()).toHaveLength(0);
+    expect(db.select().from(sessionItems).all()).toHaveLength(0);
+  });
+
   it("creates version one with an immutable current item and resumes that item", () => {
     const db = seedDiagnosisDatabase();
 
@@ -116,6 +190,33 @@ describe("diagnosis service", () => {
       .from(sessionItems).where(eq(sessionItems.id, first.currentItem!.id)).get()!.metadata))
       .toEqual(snapshotBeforeEdit);
     expect(db.select().from(sessionItems).all()).toHaveLength(1);
+  });
+
+  it("returns immutable answer delivery data for choice and unitless number items", () => {
+    const choiceDb = seedDiagnosisDatabase();
+    const choiceTemplate = phase2Catalog.find(({ id }) => id === "num-estimate-01")!;
+    const choice = getOrCreateDiagnosis(choiceDb, "child-1", 1, { catalog: [choiceTemplate] });
+    expect(choice.currentItem).toMatchObject({
+      answerMode: "choice",
+      answerKind: "choice",
+      requiresUnit: false,
+      choiceOptions: [
+        { label: "A", text: expect.any(String) },
+        { label: "B", text: expect.any(String) },
+        { label: "C", text: expect.any(String) },
+        { label: "D", text: expect.any(String) },
+      ],
+    });
+
+    const numberDb = seedDiagnosisDatabase();
+    const numberTemplate = phase2Catalog.find(({ id }) => id === "num-decimal-03")!;
+    const number = getOrCreateDiagnosis(numberDb, "child-1", 1, { catalog: [numberTemplate] });
+    expect(number.currentItem).toMatchObject({
+      answerMode: "written",
+      answerKind: "number",
+      requiresUnit: false,
+      choiceOptions: [],
+    });
   });
 
   it("persists one attempt for duplicate and concurrent-style retries", () => {
@@ -189,6 +290,19 @@ describe("diagnosis service", () => {
     expect(db.select().from(attempts).all()).toHaveLength(1);
   });
 
+  it("rejects blank answers without consuming the item or submission id", () => {
+    const db = seedDiagnosisDatabase();
+    const diagnosis = getOrCreateDiagnosis(db, "child-1", 1);
+    expect(() => submitDiagnosticAttempt(db, {
+      childId: "child-1",
+      sessionItemId: diagnosis.currentItem!.id,
+      clientSubmissionId: "24242424-2424-4424-8424-242424242424",
+      answerText: " \t ",
+    }, 2)).toThrow("Answer is required");
+    expect(db.select().from(attempts).all()).toHaveLength(0);
+    expect(getDiagnosisView(db, "child-1").currentItem?.id).toBe(diagnosis.currentItem!.id);
+  });
+
   it("rejects a submission ID previously bound to a daily item with a controlled access error", () => {
     const db = seedDiagnosisDatabase();
     const diagnosis = getOrCreateDiagnosis(db, "child-1", 1);
@@ -260,16 +374,25 @@ describe("diagnosis service", () => {
   it("rejects premature retests and preserves completed version one when starting version two", () => {
     const db = seedDiagnosisDatabase();
     getOrCreateDiagnosis(db, "child-1", 1);
-    expect(() => startDiagnosisRetest(db, "child-1", 2)).toThrow(DiagnosisStateError);
+    expect(() => startDiagnosisRetest(db, {
+      childId: "child-1", expectedCompletedVersion: 1,
+    }, 2)).toThrow(DiagnosisStateError);
     for (let index = 1; index <= 45; index += 1) submitCurrent(db, "child-1", index);
 
-    const second = startDiagnosisRetest(db, "child-1", 100);
+    expect(() => startDiagnosisRetest(db, {
+      childId: "child-1", expectedCompletedVersion: 0,
+    }, 99)).toThrow(DiagnosisRetestConflictError);
+    const second = startDiagnosisRetest(db, {
+      childId: "child-1", expectedCompletedVersion: 1,
+    }, 100);
     expect(second).toMatchObject({ version: 2, status: "in_progress", completedSlots: 0 });
     expect(getDiagnosisLearningGate(db, "child-1")).toMatchObject({
       formalDailyUnlocked: true,
       activeDiagnosis: { runId: second.runId, version: 2, status: "in_progress" },
     });
-    expect(() => startDiagnosisRetest(db, "child-1", 101)).toThrow(DiagnosisStateError);
+    expect(() => startDiagnosisRetest(db, {
+      childId: "child-1", expectedCompletedVersion: 1,
+    }, 101)).toThrow(DiagnosisRetestConflictError);
     expect(db.select({ version: diagnosticRuns.version, status: diagnosticRuns.status })
       .from(diagnosticRuns).where(eq(diagnosticRuns.childId, "child-1"))
       .orderBy(diagnosticRuns.version).all()).toEqual([

@@ -8,6 +8,7 @@ import {
   trainingSessions,
   users,
 } from "@/db/schema";
+import { phase1DailySkills, phase1DailyTemplates } from "@/content/phase1-daily";
 import { getOrCreateDailySession } from "@/services/training/create-daily-session";
 import { createTestDatabase } from "@/test/test-db";
 
@@ -44,21 +45,15 @@ beforeEach(() => {
     id: "completed-diagnosis", childId: "child-1", version: 1, status: "completed",
     currentPart: 3, seed: "completed", startedAt: 1, completedAt: 2, reportSnapshot: "{}",
   }).run();
-  db.insert(skills).values({
-    id: "skill-decimal",
-    code: "decimal",
-    name: "小数计算",
-    domain: "数与运算",
-  }).run();
-  db.insert(questionTemplates).values({
-    id: "q-decimal-1",
-    skillId: "skill-decimal",
-    stem: "3.6 + 2.4 = ?",
-    answerSpec: JSON.stringify({ kind: "number", value: 6, tolerance: 0, unit: null }),
-    explanation: "对齐十分位。",
-    difficulty: 1,
-    active: true,
-  }).run();
+  for (const skill of phase1DailySkills) db.insert(skills).values(skill).run();
+  for (const template of phase1DailyTemplates) {
+    db.insert(questionTemplates).values({
+      ...template,
+      answerSpec: JSON.stringify(template.answerSpec),
+      commonErrors: JSON.stringify(template.commonErrors),
+      active: true,
+    }).run();
+  }
 });
 
 function attemptRequest(body: unknown) {
@@ -83,8 +78,8 @@ test("requires the child role and returns the scored attempt", async () => {
   expect(await response.json()).toEqual({
     correct: true,
     normalizedAnswer: "6",
-    explanation: "对齐十分位。",
-    sessionCompleted: true,
+    explanation: "把十分位对齐相加，结果是 6。",
+    sessionCompleted: false,
   });
 });
 

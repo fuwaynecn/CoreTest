@@ -13,7 +13,7 @@ import {
 const diagnosisAttemptInput = z.strictObject({
   sessionItemId: z.string().uuid(),
   clientSubmissionId: z.string().uuid(),
-  answerText: z.string().max(128),
+  answerText: z.string().trim().min(1).max(128),
 });
 
 type ChildAuthResult =

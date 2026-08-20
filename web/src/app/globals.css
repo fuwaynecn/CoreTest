@@ -47,6 +47,11 @@ button, input { min-height: 48px; }
 .answerForm input { width: min(100%, 28rem); padding: .75rem 1rem; border: 2px solid #9ca7a3; border-radius: .75rem; background: white; }
 .answerForm button { width: fit-content; min-width: 10rem; padding: .75rem 1.25rem; border: 0; border-radius: .75rem; background: var(--brand); color: white; cursor: pointer; font-weight: 700; }
 .answerForm button:disabled { cursor: wait; opacity: .65; }
+.diagnosisChoices { min-width: 0; margin: 0; padding: 0; border: 0; }
+.diagnosisChoices legend { margin-bottom: .65rem; }
+.diagnosisChoices > div { display: grid; gap: .7rem; }
+.answerForm .diagnosisChoices button { width: 100%; min-height: 48px; text-align: left; }
+.answerForm .diagnosisChoices button[aria-pressed="true"] { background: #164e48; box-shadow: 0 0 0 3px #b8d8d1; }
 .answerFeedback { padding: 1rem 1.25rem; border: 2px solid currentColor; border-radius: .75rem; font-weight: 700; }
 .answerFeedback h2, .answerFeedback p { margin-top: 0; }
 .answerFeedbackIncorrect { color: #8a3918; background: #fff3e9; }
@@ -70,6 +75,15 @@ button, input { min-height: 48px; }
 .difficultyPaths p { margin: 0; }
 .difficultyPaths p span { color: var(--ink); font-weight: 700; }
 .provisionalNote { margin: 1.25rem 0 0; padding: .85rem 1rem; border-left: .35rem solid #a98414; background: #fff7d8; }
+.difficultyFallback { display: grid; gap: .15rem; margin-top: .55rem !important; padding: .7rem .8rem; border-left: .3rem solid #a98414; background: #fff7d8; }
+.difficultyFallback span { font-weight: 400 !important; }
+.parentRetestAction { display: grid; gap: .65rem; justify-items: start; margin-top: 1.25rem; }
+.parentRetestAction button { min-height: 48px; padding: .75rem 1rem; border: 0; border-radius: .75rem; background: var(--brand); color: white; cursor: pointer; font-weight: 700; }
+.parentRetestAction button:disabled { cursor: wait; opacity: .65; }
+.diagnosisHistory { margin: 2rem 0; }
+.diagnosisHistory ul { display: grid; gap: .7rem; padding: 0; list-style: none; }
+.diagnosisHistory li { display: flex; justify-content: space-between; gap: 1rem; padding: 1rem; border: 1px solid var(--sand); border-radius: .75rem; background: white; }
+.diagnosisHistory li span { color: #57635f; }
 .diagnosisDomainGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem; padding: 0; margin: 1rem 0 0; list-style: none; }
 .diagnosisDomainGrid li { display: flex; min-width: 0; justify-content: space-between; gap: .75rem; align-items: center; padding: 1rem; border: 1px solid var(--sand); border-radius: .75rem; }
 .diagnosisDomainGrid li > div { display: grid; min-width: 0; gap: .25rem; }
@@ -128,6 +142,7 @@ button, input { min-height: 48px; }
   .summaryMetrics div { border-left: 0; border-top: 1px solid var(--sand); padding: 1rem 0 0; }
   .diagnosisProgressCopy { display: grid; gap: .25rem; }
   .diagnosisDomainGrid { grid-template-columns: 1fr; }
+  .diagnosisHistory li { display: grid; gap: .35rem; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }

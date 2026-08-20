@@ -22,6 +22,10 @@ type Submission = {
 type DiagnosisAnswerFormProps = {
   sessionItemId: string;
   runId: string;
+  answerMode?: "mental" | "written" | "choice" | "fill" | "expression" | "equation";
+  answerKind?: "number" | "choice";
+  requiresUnit?: boolean;
+  choiceOptions?: readonly { label: "A" | "B" | "C" | "D"; text: string }[];
   submitAnswer?: (submission: Submission) => Promise<DiagnosisAttemptResult>;
   navigate?: (href: string) => void;
 };
@@ -66,6 +70,10 @@ const subscribeToHydration = () => () => undefined;
 export function DiagnosisAnswerForm({
   sessionItemId,
   runId,
+  answerMode = "written",
+  answerKind = "number",
+  requiresUnit = false,
+  choiceOptions = [],
   submitAnswer = postDiagnosisAnswer,
   navigate = (href) => window.location.assign(href),
 }: DiagnosisAnswerFormProps) {
@@ -79,6 +87,10 @@ export function DiagnosisAnswerForm({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitting || result) return;
+    if (answerText.trim().length === 0) {
+      setError("请输入答案");
+      return;
+    }
     const clientSubmissionId = submissionId ?? crypto.randomUUID();
     setSubmissionId(clientSubmissionId);
     setSubmitting(true);
@@ -105,14 +117,39 @@ export function DiagnosisAnswerForm({
 
   return (
     <form className="answerForm diagnosisAnswerForm" onSubmit={handleSubmit}>
-      <label className="answerLabel" htmlFor={`answer-${sessionItemId}`}>你的答案</label>
-      <input
-        id={`answer-${sessionItemId}`}
-        value={answerText}
-        onChange={(event) => setAnswerText(event.target.value)}
-        disabled={locked}
-        autoComplete="off"
-      />
+      {answerMode === "choice" || answerKind === "choice" ? (
+        <fieldset className="diagnosisChoices" disabled={locked}>
+          <legend className="answerLabel">你的答案</legend>
+          <div>
+            {choiceOptions.map((option) => (
+              <button
+                key={option.label}
+                type="button"
+                aria-pressed={answerText === option.label}
+                onClick={() => {
+                  setAnswerText(option.label);
+                  setError(null);
+                }}
+              >
+                <strong>{option.label}.</strong> {option.text}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+      ) : (
+        <>
+          <label className="answerLabel" htmlFor={`answer-${sessionItemId}`}>你的答案</label>
+          <input
+            id={`answer-${sessionItemId}`}
+            value={answerText}
+            onChange={(event) => setAnswerText(event.target.value)}
+            disabled={locked}
+            autoComplete="off"
+            inputMode={answerKind === "number" && !requiresUnit ? "decimal" : "text"}
+            maxLength={128}
+          />
+        </>
+      )}
       <button type="submit" disabled={!hydrated || submitting || result !== null}>
         {submitting ? "正在提交" : uncertain ? "重试提交" : "提交答案"}
       </button>

@@ -32,7 +32,14 @@ export default async function DiagnosisRunPage({ params }: { params: Promise<{ r
       <DiagnosisProgress part={diagnosis.currentPart} completedInPart={completedInPart} totalInPart={15} />
       <p className="diagnosisNote">不用赶时间。读清题目，按自己的理解作答。</p>
       <QuestionCard stem={diagnosis.currentItem.stem} />
-      <DiagnosisAnswerForm sessionItemId={diagnosis.currentItem.id} runId={diagnosis.runId} />
+      <DiagnosisAnswerForm
+        sessionItemId={diagnosis.currentItem.id}
+        runId={diagnosis.runId}
+        answerMode={diagnosis.currentItem.answerMode as "mental" | "written" | "choice" | "fill" | "expression" | "equation"}
+        answerKind={diagnosis.currentItem.answerKind}
+        requiresUnit={diagnosis.currentItem.requiresUnit}
+        choiceOptions={diagnosis.currentItem.choiceOptions}
+      />
     </main>
   );
 }

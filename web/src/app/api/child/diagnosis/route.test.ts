@@ -70,6 +70,13 @@ test("POST validates the command and returns the next diagnosis item", async () 
   }));
   expect(invalid.status).toBe(400);
 
+  const blank = await POST(request({
+    sessionItemId: diagnosis.currentItem!.id,
+    clientSubmissionId: "77777777-7777-4777-8777-777777777778",
+    answerText: "   ",
+  }));
+  expect(blank.status).toBe(400);
+
   const response = await POST(request({
     sessionItemId: diagnosis.currentItem!.id,
     clientSubmissionId: "44444444-4444-4444-8444-444444444444",
