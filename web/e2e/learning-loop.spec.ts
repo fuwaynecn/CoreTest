@@ -41,7 +41,10 @@ test("@parent parent sees the supporting evidence", async ({ page }) => {
   await page.goto("/login");
   await page.getByRole("button", { name: /我是家长/ }).click();
   await page.getByLabel("家长密码").fill("parent-test-1234");
-  await page.getByRole("button", { name: "登录", exact: true }).click();
+  await Promise.all([
+    page.waitForURL("**/parent"),
+    page.getByRole("button", { name: "登录", exact: true }).click(),
+  ]);
 
   await expect(page.getByRole("heading", { name: "孩子的学习证据" })).toBeVisible();
   await expect(page.getByText("首次作答证据")).toBeVisible();
