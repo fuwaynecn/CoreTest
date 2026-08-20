@@ -66,6 +66,7 @@ export function classifyError(input: ErrorClassificationInput, writtenAnswer: st
   if (input.answerSpec.kind === "choice") {
     if (normalized === input.answerSpec.value) return "unknown";
     if (commonErrors.has("incomplete_reading")
+      && ["A", "B", "C", "D"].includes(normalized)
       && input.incompleteReadingTargets?.includes(normalized)) return "incomplete_reading";
     return "unknown";
   }

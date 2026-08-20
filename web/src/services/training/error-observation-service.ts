@@ -3,7 +3,12 @@ import { and, asc, eq } from "drizzle-orm";
 import type { AppDatabase } from "@/db/client";
 import { attempts, errorObservations, trainingSessions, sessionItems, users } from "@/db/schema";
 import type { ErrorCause } from "@/domain/learning/contracts";
-import { errorCategory } from "@/domain/errors/classify-error";
+import {
+  classifyError,
+  errorCategory,
+  type ErrorClassificationInput,
+} from "@/domain/errors/classify-error";
+import { answerSpecSchema } from "@/domain/questions/answer-spec";
 
 export const childReflections = [
   "did_not_read", "missed_condition_or_unit", "calculation_slip", "method_unknown",
@@ -23,9 +28,81 @@ export class ErrorObservationAccessError extends Error {
 export class ErrorObservationConflictError extends Error {
   constructor() { super("Error observation has already been recorded"); this.name = "ErrorObservationConflictError"; }
 }
+export class ErrorObservationCorrectionRequiredError extends Error {
+  constructor() { super("A correct correction is required before reflection"); this.name = "ErrorObservationCorrectionRequiredError"; }
+}
 
 type Observation = typeof errorObservations.$inferSelect;
 type ObservationReader = Pick<AppDatabase, "select">;
+type ObservationStore = Pick<AppDatabase, "select" | "insert">;
+
+function classificationMetadata(raw: string): Pick<ErrorClassificationInput, "commonErrors" | "incompleteReadingTargets"> {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null) return {};
+    const commonErrors = "commonErrors" in parsed && Array.isArray(parsed.commonErrors)
+      ? parsed.commonErrors.filter((value): value is ErrorCause => (
+        typeof value === "string" && [
+          "missing_unit", "copied_number", "calculation", "relationship",
+          "range_check", "incomplete_reading", "unknown",
+        ].includes(value)
+      ))
+      : undefined;
+    const targets = "errorTargets" in parsed ? parsed.errorTargets : undefined;
+    const incompleteReadingTargets = typeof targets === "object" && targets !== null
+      && Object.keys(targets).every((key) => key === "incompleteReading")
+      && "incompleteReading" in targets
+      && Array.isArray(targets.incompleteReading)
+      && targets.incompleteReading.length > 0
+      && targets.incompleteReading.every((value) => (
+        typeof value === "string" && ["A", "B", "C", "D"].includes(value)
+      ))
+      && new Set(targets.incompleteReading).size === targets.incompleteReading.length
+      ? targets.incompleteReading
+      : undefined;
+    return { commonErrors, incompleteReadingTargets };
+  } catch {
+    return {};
+  }
+}
+
+export function recordSystemErrorObservation(db: ObservationStore, command: {
+  childId: string;
+  sessionItemId: string;
+  attemptId: string;
+  answerText: string;
+  answerSpecSnapshot: string;
+  stemSnapshot: string;
+  structureTagSnapshot: string;
+  selectionReasonSnapshot: string;
+  now: number;
+}): Observation | null {
+  const firstAttempt = db.select({ id: attempts.id, correct: attempts.isCorrect }).from(attempts)
+    .where(eq(attempts.sessionItemId, command.sessionItemId))
+    .orderBy(asc(attempts.submittedAt), asc(attempts.id)).limit(1).get();
+  if (!firstAttempt || firstAttempt.id !== command.attemptId || firstAttempt.correct) return null;
+  const existing = db.select().from(errorObservations).where(and(
+    eq(errorObservations.sessionItemId, command.sessionItemId),
+    eq(errorObservations.source, "system"),
+  )).limit(1).get();
+  if (existing) return existing;
+
+  const candidate = classifyError({
+    answerSpec: answerSpecSchema.parse(JSON.parse(command.answerSpecSnapshot)),
+    stem: command.stemSnapshot,
+    structureTag: command.structureTagSnapshot,
+    ...classificationMetadata(command.selectionReasonSnapshot),
+  }, command.answerText);
+  const inserted = {
+    id: randomUUID(), childId: command.childId, sessionItemId: command.sessionItemId,
+    attemptId: command.attemptId, source: "system" as const, systemCandidate: candidate,
+    childSelfReport: null, parentCorrection: null, previousValue: null,
+    previousObservationId: null, actorId: null,
+    observedAt: command.now, createdAt: command.now,
+  };
+  db.insert(errorObservations).values(inserted).run();
+  return inserted;
+}
 
 function chainForItem(db: ObservationReader, childId: string, sessionItemId: string): Observation[] {
   const observations = db.select().from(errorObservations).where(and(
@@ -72,10 +149,18 @@ export function saveChildReflection(db: AppDatabase, command: {
       .where(and(eq(sessionItems.id, command.sessionItemId), eq(trainingSessions.childId, command.childId))).get();
     if (!owned) throw new ErrorObservationAccessError();
 
-    const wrongFirst = tx.select({ correct: attempts.isCorrect }).from(attempts)
+    const itemAttempts = tx.select({
+      correct: attempts.isCorrect,
+      correctionNumber: attempts.correctionNumber,
+    }).from(attempts)
       .where(eq(attempts.sessionItemId, command.sessionItemId))
-      .orderBy(asc(attempts.submittedAt), asc(attempts.id)).limit(1).get();
-    if (!wrongFirst || wrongFirst.correct) throw new ErrorObservationAccessError();
+      .orderBy(asc(attempts.submittedAt), asc(attempts.id)).all();
+    const firstAttempt = itemAttempts.find((attempt) => attempt.correctionNumber === 0)
+      ?? itemAttempts.find((attempt) => attempt.correctionNumber === null);
+    if (!firstAttempt || firstAttempt.correct) throw new ErrorObservationAccessError();
+    if (!itemAttempts.some((attempt) => (
+      attempt.correct && attempt.correctionNumber !== null && attempt.correctionNumber > 0
+    ))) throw new ErrorObservationCorrectionRequiredError();
 
     const chain = chainForItem(tx, command.childId, command.sessionItemId);
     const root = chain.find((entry) => entry.source === "system");

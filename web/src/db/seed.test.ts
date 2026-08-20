@@ -106,6 +106,12 @@ test("seeds 72 reviewed templates plus the stable three-question Phase 1 daily p
         source: "original",
         licenseStatus: "owned",
       });
+      const readingMetadata = sqlite.prepare(`
+        SELECT variant_spec AS variantSpec FROM question_templates WHERE id = 'habit-question-01'
+      `).get() as { variantSpec: string };
+      expect(JSON.parse(readingMetadata.variantSpec)).toMatchObject({
+        errorTargets: { incompleteReading: ["A", "B", "D"] },
+      });
     } finally {
       sqlite.close();
     }

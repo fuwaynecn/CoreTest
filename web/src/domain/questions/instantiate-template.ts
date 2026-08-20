@@ -18,6 +18,7 @@ export type QuestionInstance = {
   answerSpec: AnswerSpec;
   explanation: string;
   commonErrors: ReviewedTemplate["commonErrors"];
+  errorTargets?: ReviewedTemplate["errorTargets"];
   hintLadder: [string, string, string];
   readingCard: boolean;
   source: "original";
@@ -102,6 +103,7 @@ export function instantiateTemplateAtIndex(
     answerSpec,
     explanation,
     commonErrors: template.commonErrors,
+    errorTargets: template.errorTargets,
     hintLadder: hintLadder as [string, string, string],
     readingCard: template.readingCard,
     source: template.source,

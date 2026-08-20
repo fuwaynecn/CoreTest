@@ -9,6 +9,7 @@ import {
   attempts,
   diagnosticParts,
   diagnosticRuns,
+  errorObservations,
   questionTemplates,
   sessionItems,
   skills,
@@ -219,6 +220,27 @@ describe("diagnosis service", () => {
     });
   });
 
+  it("copies reviewed incomplete-reading targets into the immutable diagnosis item snapshot", () => {
+    const db = seedDiagnosisDatabase();
+    const template = phase2Catalog.find(({ id }) => id === "num-estimate-01")!;
+    const followup = phase2Catalog.find(({ id }) => id === "num-int-mental-01")!;
+    const catalog = [template, followup];
+    const diagnosis = getOrCreateDiagnosis(db, "child-1", 1, { catalog });
+    const metadata = JSON.parse(db.select({ value: sessionItems.selectionReasonSnapshot })
+      .from(sessionItems).where(eq(sessionItems.id, diagnosis.currentItem!.id)).get()!.value);
+    expect(metadata.errorTargets).toEqual({ incompleteReading: ["A", "C", "D"] });
+    db.update(questionTemplates).set({
+      commonErrors: JSON.stringify(["relationship"]),
+      variantSpec: JSON.stringify({ variables: {} }),
+    }).where(eq(questionTemplates.id, template.id)).run();
+    submitDiagnosticAttempt(db, {
+      childId: "child-1", sessionItemId: diagnosis.currentItem!.id,
+      clientSubmissionId: "40404040-4040-4040-8040-404040404040", answerText: "A",
+    }, 2, { catalog });
+    expect(db.select().from(errorObservations).where(eq(errorObservations.sessionItemId, diagnosis.currentItem!.id)).get())
+      .toMatchObject({ systemCandidate: "incomplete_reading" });
+  });
+
   it("persists one attempt for duplicate and concurrent-style retries", () => {
     const db = seedDiagnosisDatabase();
     const first = getOrCreateDiagnosis(db, "child-1", 1);
@@ -241,6 +263,63 @@ describe("diagnosis service", () => {
     expect(db.select().from(attempts)
       .where(eq(attempts.clientSubmissionId, command.clientSubmissionId)).all()).toHaveLength(1);
     expect(db.select().from(sessionItems).all()).toHaveLength(3);
+  });
+
+  it("records one snapshot-based system cause for a wrong diagnostic first attempt and not for replay or success", () => {
+    const catalog = phase2Catalog.filter(({ domain }) => domain === "number_operations");
+    const db = seedDiagnosisDatabase();
+    const diagnosis = getOrCreateDiagnosis(db, "child-1", 1, { catalog });
+    const snapshot = db.select({
+      answerSpec: sessionItems.answerSpecSnapshot,
+      metadata: sessionItems.selectionReasonSnapshot,
+      templateId: sessionItems.questionTemplateId,
+    }).from(sessionItems).where(eq(sessionItems.id, diagnosis.currentItem!.id)).get()!;
+    const spec = answerSpecSchema.parse(JSON.parse(snapshot.answerSpec));
+    expect(spec.kind).toBe("number");
+    db.update(questionTemplates).set({ commonErrors: JSON.stringify(["relationship"]), stem: "后来修改" })
+      .where(eq(questionTemplates.id, snapshot.templateId)).run();
+    const command = {
+      childId: "child-1",
+      sessionItemId: diagnosis.currentItem!.id,
+      clientSubmissionId: "41414141-4141-4141-8141-414141414141",
+      answerText: String((spec.kind === "number" ? spec.value : 0) + 0.123),
+    };
+    const first = submitDiagnosticAttempt(db, command, 2, { catalog });
+    expect(submitDiagnosticAttempt(db, command, 3, { catalog })).toEqual(first);
+    expect(db.select().from(errorObservations).all()).toEqual([
+      expect.objectContaining({
+        childId: "child-1", sessionItemId: diagnosis.currentItem!.id,
+        source: "system", systemCandidate: "calculation",
+      }),
+    ]);
+
+    const correctDb = seedDiagnosisDatabase();
+    const correctDiagnosis = getOrCreateDiagnosis(correctDb, "child-1", 1, { catalog });
+    submitDiagnosticAttempt(correctDb, {
+      childId: "child-1", sessionItemId: correctDiagnosis.currentItem!.id,
+      clientSubmissionId: "42424242-4242-4242-8242-424242424242",
+      answerText: correctAnswerFor(correctDb, correctDiagnosis.currentItem!.id),
+    }, 2, { catalog });
+    expect(correctDb.select().from(errorObservations).all()).toHaveLength(0);
+  });
+
+  it("rolls back a diagnostic attempt when its system observation cannot be stored", () => {
+    const catalog = phase2Catalog.filter(({ domain }) => domain === "number_operations");
+    const db = seedDiagnosisDatabase();
+    const diagnosis = getOrCreateDiagnosis(db, "child-1", 1, { catalog });
+    const spec = answerSpecSchema.parse(JSON.parse(db.select({ value: sessionItems.answerSpecSnapshot })
+      .from(sessionItems).where(eq(sessionItems.id, diagnosis.currentItem!.id)).get()!.value));
+    db.$client.exec(`CREATE TRIGGER reject_system_observation BEFORE INSERT ON error_observations
+      BEGIN SELECT RAISE(ABORT, 'observation write failed'); END`);
+
+    expect(() => submitDiagnosticAttempt(db, {
+      childId: "child-1", sessionItemId: diagnosis.currentItem!.id,
+      clientSubmissionId: "43434343-4343-4343-8343-434343434343",
+      answerText: String((spec.kind === "number" ? spec.value : 0) + 0.123),
+    }, 2, { catalog })).toThrow();
+    expect(db.select().from(attempts).all()).toHaveLength(0);
+    expect(db.select().from(errorObservations).all()).toHaveLength(0);
+    expect(getDiagnosisView(db, "child-1").completedSlots).toBe(0);
   });
 
   it("returns the same persisted result when two database connections retry one submission", () => {

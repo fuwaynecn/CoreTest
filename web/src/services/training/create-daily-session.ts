@@ -35,6 +35,23 @@ function parseHintLadder(value: string): string[] {
   return parsed;
 }
 
+function parseErrorTargets(value: string): { incompleteReading: Array<"A" | "B" | "C" | "D"> } | undefined {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (typeof parsed !== "object" || parsed === null || !("errorTargets" in parsed)) return undefined;
+    const targets = parsed.errorTargets;
+    if (typeof targets !== "object" || targets === null
+      || Object.keys(targets).some((key) => key !== "incompleteReading")
+      || !("incompleteReading" in targets) || !Array.isArray(targets.incompleteReading)
+      || targets.incompleteReading.length === 0
+      || !targets.incompleteReading.every((target) => ["A", "B", "C", "D"].includes(target))
+      || new Set(targets.incompleteReading).size !== targets.incompleteReading.length) return undefined;
+    return { incompleteReading: targets.incompleteReading as Array<"A" | "B" | "C" | "D"> };
+  } catch {
+    return undefined;
+  }
+}
+
 function loadSessionView(db: AppDatabase, sessionId: string): SessionView {
   return db.transaction((tx) => {
     const session = tx.select({
@@ -109,6 +126,7 @@ export function getOrCreateDailySession(
       estimatedSeconds: questionTemplates.estimatedSeconds,
       readingLoad: questionTemplates.readingLoad,
       answerMode: questionTemplates.answerMode,
+      variantSpec: questionTemplates.variantSpec,
       commonErrors: questionTemplates.commonErrors,
       hintLadder: questionTemplates.hintLadder,
       readingCard: questionTemplates.readingCard,
@@ -166,6 +184,7 @@ export function getOrCreateDailySession(
           estimatedSeconds: question.estimatedSeconds,
           readingLoad: question.readingLoad,
           commonErrors: parseCommonErrors(question.commonErrors),
+          errorTargets: parseErrorTargets(question.variantSpec),
           hintLadder: parseHintLadder(question.hintLadder),
           readingCard: question.readingCard,
           source: question.source,

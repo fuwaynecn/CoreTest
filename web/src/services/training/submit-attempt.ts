@@ -3,18 +3,16 @@ import { and, eq } from "drizzle-orm";
 import type { AppDatabase } from "@/db/client";
 import {
   attempts,
-  errorObservations,
   hintEvents,
   masteryStates,
   sessionItems,
   trainingSessions,
 } from "@/db/schema";
-import { classifyError, type ErrorClassificationInput } from "@/domain/errors/classify-error";
-import type { ErrorCause } from "@/domain/learning/contracts";
 import { answerSpecSchema } from "@/domain/questions/answer-spec";
 import { scoreAnswer } from "@/domain/questions/score-answer";
 import { nextMasteryEvidence } from "@/domain/training/mastery";
 import { normalizeTelemetry } from "@/domain/training/attempt-telemetry";
+import { recordSystemErrorObservation } from "./error-observation-service";
 
 export type SubmitAttemptCommand = {
   childId: string;
@@ -63,29 +61,6 @@ function estimatedSecondsFromSnapshot(raw: string): number {
     // Legacy snapshots can predate estimated-time metadata.
   }
   return 300;
-}
-
-function classificationMetadata(raw: string): Pick<ErrorClassificationInput, "commonErrors" | "incompleteReadingTargets"> {
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed !== "object" || parsed === null) return {};
-    const commonErrors = "commonErrors" in parsed && Array.isArray(parsed.commonErrors)
-      ? parsed.commonErrors.filter((value): value is ErrorCause => (
-        typeof value === "string" && [
-          "missing_unit", "copied_number", "calculation", "relationship",
-          "range_check", "incomplete_reading", "unknown",
-        ].includes(value)
-      ))
-      : undefined;
-    const incompleteReadingTargets = "incompleteReadingTargets" in parsed
-      && Array.isArray(parsed.incompleteReadingTargets)
-      && parsed.incompleteReadingTargets.every((value) => typeof value === "string")
-      ? parsed.incompleteReadingTargets
-      : undefined;
-    return { commonErrors, incompleteReadingTargets };
-  } catch {
-    return {};
-  }
 }
 
 export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): AttemptResult {
@@ -213,17 +188,12 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
     }).run();
 
     if (!score.correct && priorAttemptCount === 0) {
-      const candidate = classifyError({
-        answerSpec: parseAnswerSpec(item.answerSpec),
-        stem: item.stem,
-        structureTag: item.structureTag,
-        ...classificationMetadata(item.metadataSnapshot),
-      }, command.answerText);
-      tx.insert(errorObservations).values({
-        id: randomUUID(), childId: command.childId, sessionItemId: command.sessionItemId,
-        attemptId, source: "system", systemCandidate: candidate,
-        observedAt: now, createdAt: now,
-      }).run();
+      recordSystemErrorObservation(tx, {
+        childId: command.childId, sessionItemId: command.sessionItemId, attemptId,
+        answerText: command.answerText, answerSpecSnapshot: item.answerSpec,
+        stemSnapshot: item.stem, structureTagSnapshot: item.structureTag,
+        selectionReasonSnapshot: item.metadataSnapshot, now,
+      });
     }
 
     if (sessionCompleted) {

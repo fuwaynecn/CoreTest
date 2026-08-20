@@ -50,6 +50,10 @@ test("uses only declared snapshot patterns and otherwise fails closed to unknown
   expect(classifyError(question(
     { kind: "number", value: 18, tolerance: 0, unit: null },
   ), "无法判断")).toBe("unknown");
+  expect(classifyError(question(
+    { kind: "choice", value: "C" },
+    { commonErrors: ["incomplete_reading"], incompleteReadingTargets: ["E"] },
+  ), "E")).toBe("unknown");
 });
 
 test("maps causes to report categories explicitly", () => {

@@ -136,7 +136,10 @@ export async function seedDatabase(options: SeedDatabaseOptions = {}) {
       estimatedSeconds: template.estimatedSeconds,
       readingLoad: template.readingLoad,
       answerMode: template.answerMode,
-      variantSpec: JSON.stringify(template.variantSpec),
+      variantSpec: JSON.stringify({
+        ...template.variantSpec,
+        ...(template.errorTargets ? { errorTargets: template.errorTargets } : {}),
+      }),
       hintLadder: JSON.stringify(template.hintLadder),
       commonErrors: JSON.stringify(template.commonErrors),
       readingCard: template.readingCard,

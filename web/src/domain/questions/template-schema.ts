@@ -24,6 +24,7 @@ export type ReviewedTemplate = {
   answerSpecPattern: unknown;
   explanationPattern: string;
   commonErrors: ErrorCause[];
+  errorTargets?: { incompleteReading: Array<"A" | "B" | "C" | "D"> };
   hintLadder: [string, string, string];
   readingCard: boolean;
   source: "original";
@@ -50,6 +51,10 @@ export const reviewedTemplateSchema: z.ZodType<ReviewedTemplate> = z.strictObjec
   answerSpecPattern: z.unknown(),
   explanationPattern: z.string().trim().min(1),
   commonErrors: z.array(z.enum(errorCauses)).min(1),
+  errorTargets: z.strictObject({
+    incompleteReading: z.array(z.enum(["A", "B", "C", "D"])).min(1)
+      .refine((targets) => new Set(targets).size === targets.length),
+  }).optional(),
   hintLadder: z.tuple([
     z.string().trim().min(1),
     z.string().trim().min(1),
@@ -128,6 +133,16 @@ function variantErrors(template: ReviewedTemplate): string[] {
     ]).some((text) => text.includes("{{") || text.includes("}}"))) {
       errors.push(`${template.id}:unsupported_placeholder:rendered-variant-${index}`);
       continue;
+    }
+
+    if (template.errorTargets) {
+      if (!template.commonErrors.includes("incomplete_reading")) {
+        errors.push(`${template.id}:error_targets_without_cause:variant-${index}`);
+      } else if (instance.answerSpec.kind !== "choice") {
+        errors.push(`${template.id}:error_targets_require_choice:variant-${index}`);
+      } else if (template.errorTargets.incompleteReading.includes(instance.answerSpec.value)) {
+        errors.push(`${template.id}:error_target_matches_answer:variant-${index}`);
+      }
     }
 
     errors.push(...renderedQuestionErrors({

@@ -8,6 +8,7 @@ import {
   childReflections,
   ErrorObservationAccessError,
   ErrorObservationConflictError,
+  ErrorObservationCorrectionRequiredError,
   saveChildReflection,
 } from "@/services/training/error-observation-service";
 
@@ -37,6 +38,9 @@ export async function POST(request: Request) {
     const observation = saveChildReflection(db, { childId: child.id, ...input.data });
     return NextResponse.json({ observation: { id: observation.id } }, { status: alreadyRecorded ? 200 : 201 });
   } catch (error) {
+    if (error instanceof ErrorObservationCorrectionRequiredError) {
+      return errorResponse(409, "correction_required", "完成订正后再选择错因");
+    }
     if (error instanceof ErrorObservationConflictError) {
       return errorResponse(409, "reflection_already_recorded", "这道题已经完成过错因自评");
     }

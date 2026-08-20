@@ -68,6 +68,13 @@ test("contains the approved exact 72-template blueprint", () => {
   expect(validateCatalog(phase2Catalog)).toEqual([]);
 });
 
+test("declares reviewed incomplete-reading targets on actual reading templates", () => {
+  expect(phase2Catalog.find(({ id }) => id === "habit-question-01")?.errorTargets)
+    .toEqual({ incompleteReading: ["A", "B", "D"] });
+  expect(phase2Catalog.find(({ id }) => id === "habit-question-02")?.errorTargets)
+    .toEqual({ incompleteReading: ["A", "B", "D"] });
+});
+
 test("instantiates the same valid question for the same seed", () => {
   const template = phase2Catalog.find((item) => item.id === "eq-l4-two-step-01")!;
   const first = instantiateTemplate(template, "run-2:slot-7");

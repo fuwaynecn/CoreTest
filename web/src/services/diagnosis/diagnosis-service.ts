@@ -28,6 +28,7 @@ import {
 import type { ReviewedTemplate } from "@/domain/questions/template-schema";
 import { scoreAnswer } from "@/domain/questions/score-answer";
 import { shanghaiDateKey } from "@/domain/time/shanghai-calendar";
+import { recordSystemErrorObservation } from "@/services/training/error-observation-service";
 
 type AppTransaction = Parameters<Parameters<AppDatabase["transaction"]>[0]>[0];
 
@@ -396,6 +397,7 @@ function createNextItem(
       estimatedSeconds: instance.estimatedSeconds,
       readingLoad: instance.readingLoad,
       commonErrors: instance.commonErrors,
+      errorTargets: instance.errorTargets,
       source: instance.source,
       licenseStatus: instance.licenseStatus,
     }),
@@ -518,8 +520,11 @@ export function submitDiagnosticAttempt(
       runSeed: diagnosticRuns.seed,
       partNumber: trainingSessions.diagnosticPartNumber,
       childId: trainingSessions.childId,
+      stem: sessionItems.stemSnapshot,
+      structureTag: sessionItems.structureTagSnapshot,
       answerSpec: sessionItems.answerSpecSnapshot,
       explanation: sessionItems.explanationSnapshot,
+      metadata: sessionItems.selectionReasonSnapshot,
     }).from(sessionItems)
       .innerJoin(trainingSessions, eq(sessionItems.sessionId, trainingSessions.id))
       .innerJoin(diagnosticRuns, eq(trainingSessions.diagnosticRunId, diagnosticRuns.id))
@@ -544,8 +549,9 @@ export function submitDiagnosticAttempt(
       .where(eq(sessionItems.sessionId, item.sessionId)).get()?.value ?? 0;
     const partCompleted = completedInPart + 1 === SLOTS_PER_PART;
 
+    const attemptId = randomUUID();
     tx.insert(attempts).values({
-      id: randomUUID(),
+      id: attemptId,
       sessionItemId: command.sessionItemId,
       clientSubmissionId: command.clientSubmissionId,
       answerText: command.answerText,
@@ -555,6 +561,15 @@ export function submitDiagnosticAttempt(
       sessionCompleted: partCompleted,
       submittedAt: now,
     }).run();
+
+    if (!score.correct) {
+      recordSystemErrorObservation(tx, {
+        childId: command.childId, sessionItemId: command.sessionItemId, attemptId,
+        answerText: command.answerText, answerSpecSnapshot: item.answerSpec,
+        stemSnapshot: item.stem, structureTagSnapshot: item.structureTag,
+        selectionReasonSnapshot: item.metadata, now,
+      });
+    }
 
     const partNumber = item.partNumber as DiagnosticPartNumber;
     if (!partCompleted) {

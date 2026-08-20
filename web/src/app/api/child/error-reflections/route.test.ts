@@ -37,6 +37,13 @@ function request(body: unknown) {
 
 test("records one child reflection and replays the same choice", async () => {
   const body = { sessionItemId: "item-1", reflection: "calculation_slip" };
+  const beforeCorrection = await request(body);
+  expect(beforeCorrection.status).toBe(409);
+  expect(await beforeCorrection.json()).toMatchObject({ error: { code: "correction_required" } });
+  submitAttempt(state.db as ReturnType<typeof createTestDatabase>, {
+    childId: "child-1", sessionItemId: "item-1",
+    clientSubmissionId: "12121212-1212-4212-8212-121212121212", answerText: "2",
+  });
   expect((await request(body)).status).toBe(201);
   expect((await request(body)).status).toBe(200);
   expect((state.db as ReturnType<typeof createTestDatabase>).select().from(errorObservations).all()).toHaveLength(2);
@@ -55,6 +62,10 @@ test.each([
 test("returns structured validation, not-found, and conflict errors", async () => {
   expect((await request({ sessionItemId: "item-1", reflection: "guess" })).status).toBe(400);
   expect((await request({ sessionItemId: "missing", reflection: "calculation_slip" })).status).toBe(404);
+  submitAttempt(state.db as ReturnType<typeof createTestDatabase>, {
+    childId: "child-1", sessionItemId: "item-1",
+    clientSubmissionId: "12121212-1212-4212-8212-121212121212", answerText: "2",
+  });
   expect((await request({ sessionItemId: "item-1", reflection: "calculation_slip" })).status).toBe(201);
   const conflict = await request({ sessionItemId: "item-1", reflection: "method_unknown" });
   expect(conflict.status).toBe(409);

@@ -8,6 +8,7 @@ import { migrateDatabase } from "@/db/migrate";
 import {
   attempts,
   diagnosticRuns,
+  errorObservations,
   masteryStates,
   questionTemplates,
   sessionItems,
@@ -173,6 +174,36 @@ test("keeps the Phase 1 daily pool and immutable metadata independent from Phase
     source: "original",
     licenseStatus: "owned",
   });
+});
+
+test("copies reviewed error targets into a daily snapshot and classifies from that snapshot", () => {
+  const db = seedTrainingDatabase();
+  db.update(questionTemplates).set({
+    answerMode: "choice",
+    stem: "真正要求的是：A. 每盒数量  B. 盒数  C. 总支数  D. 赠送数量",
+    answerSpec: JSON.stringify({ kind: "choice", value: "C" }),
+    explanation: "问题要求总支数。",
+    commonErrors: JSON.stringify(["incomplete_reading"]),
+    variantSpec: JSON.stringify({
+      variables: {},
+      errorTargets: { incompleteReading: ["A", "B", "D"] },
+    }),
+  }).where(eq(questionTemplates.id, "q-decimal-1")).run();
+
+  const session = getOrCreateDailySession(db, "child-1", "2026-08-20");
+  const item = db.select().from(sessionItems).where(eq(sessionItems.id, session.questions[0].id)).get()!;
+  expect(JSON.parse(item.selectionReasonSnapshot).errorTargets)
+    .toEqual({ incompleteReading: ["A", "B", "D"] });
+  db.update(questionTemplates).set({
+    commonErrors: JSON.stringify(["relationship"]),
+    variantSpec: JSON.stringify({ variables: {} }),
+  }).where(eq(questionTemplates.id, "q-decimal-1")).run();
+  submitAttempt(db, {
+    childId: "child-1", sessionItemId: item.id,
+    clientSubmissionId: "61616161-6161-4161-8161-616161616161", answerText: "A",
+  });
+  expect(db.select().from(errorObservations).where(eq(errorObservations.sessionItemId, item.id)).get())
+    .toMatchObject({ systemCandidate: "incomplete_reading" });
 });
 
 test("keeps session scoring and parent evidence stable after a template edit", () => {

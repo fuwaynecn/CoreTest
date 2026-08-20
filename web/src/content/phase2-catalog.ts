@@ -12,6 +12,7 @@ type TemplateInput = Pick<ReviewedTemplate,
   readingLoad?: ReviewedTemplate["readingLoad"];
   answerMode?: ReviewedTemplate["answerMode"];
   commonErrors?: ErrorCause[];
+  errorTargets?: ReviewedTemplate["errorTargets"];
   hintLadder?: [string, string, string];
   readingCard?: boolean;
 };
@@ -73,6 +74,7 @@ function reviewed(input: TemplateInput): ReviewedTemplate {
     answerSpecPattern: input.answerSpecPattern,
     explanationPattern: input.explanationPattern,
     commonErrors: input.commonErrors ?? defaultErrors[input.domain],
+    errorTargets: input.errorTargets,
     hintLadder: input.hintLadder ?? defaultHints[input.domain],
     readingCard: input.readingCard ?? contentTier !== "core",
     source: "original",
@@ -184,6 +186,8 @@ const catalogInputs: TemplateInput[] = [
     stemPattern: "不做精确计算，{{expression}} 的结果最接近哪一个？A. {{a}}  B. {{b}}  C. {{c}}  D. {{d}}",
     answerSpecPattern: choiceAnswer("B"),
     explanationPattern: "把两个数分别看作接近的整十或整数，估算结果接近选项 B。",
+    commonErrors: ["incomplete_reading", "range_check"],
+    errorTargets: { incompleteReading: ["A", "C", "D"] },
     variables: { expression: ["198 + 304", "49.8 × 6.1", "803 - 397"], a: [400, 250, 300], b: [500, 300, 400], c: [600, 350, 500], d: [700, 400, 600] },
   },
   {
@@ -589,6 +593,7 @@ const catalogInputs: TemplateInput[] = [
     stemPattern: "题目说“每盒彩笔 {{perBox}} 支，买了 {{boxes}} 盒，还送了 {{gift}} 支”。问题是“一共有多少支”。真正要求的是：A. 每盒数量  B. 盒数  C. 总支数  D. 赠送数量",
     answerSpecPattern: choiceAnswer("C"),
     explanationPattern: "抓住问句“一共有多少支”，目标量是总支数。",
+    errorTargets: { incompleteReading: ["A", "B", "D"] },
     variables: { perBox: [6, 8, 12], boxes: [3, 4, 5], gift: [2, 3, 4] },
   },
   {
@@ -597,6 +602,7 @@ const catalogInputs: TemplateInput[] = [
     stemPattern: "材料给出甲车 {{first}} 千米、乙车 {{second}} 千米和行驶时间 {{hours}} 小时，问题问“两车路程相差多少”。哪一句重述最准确？A. 求两车总路程  B. 求甲车速度  C. 用两车路程相减  D. 求乙车时间",
     answerSpecPattern: choiceAnswer("C"),
     explanationPattern: "问句中的“相差”决定数量关系是两个路程相减，时间信息在本问中不参与计算。",
+    errorTargets: { incompleteReading: ["A", "B", "D"] },
     variables: { first: [120, 165, 210], second: [95, 130, 178], hours: [2, 3, 4] },
   },
   {

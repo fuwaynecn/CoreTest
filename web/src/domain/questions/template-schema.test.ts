@@ -40,7 +40,49 @@ test("accepts a complete original reviewed template", () => {
   expect(validateCatalog([validTemplate()])).toEqual([]);
 });
 
+test("accepts reviewed incomplete-reading targets only for wrong choice labels", () => {
+  expect(validateCatalog([validTemplate({
+    structureTag: "direct-choice",
+    answerMode: "choice",
+    stemPattern: "计算 18 + 7。A. 24  B. 25  C. 26  D. 27",
+    answerSpecPattern: { kind: "choice", value: "B" },
+    explanationPattern: "计算得到 25，应选择 B。",
+    commonErrors: ["incomplete_reading"],
+    variantSpec: { variables: {} },
+    errorTargets: { incompleteReading: ["A", "D"] },
+  })])).toEqual([]);
+});
+
 test.each([
+  {
+    name: "empty incomplete-reading targets",
+    catalog: [validTemplate({ errorTargets: { incompleteReading: [] } })],
+    expected: "invalid_template",
+  },
+  {
+    name: "illegal incomplete-reading target labels",
+    catalog: [validTemplate({ errorTargets: { incompleteReading: ["E" as "A"] } })],
+    expected: "invalid_template",
+  },
+  {
+    name: "incomplete-reading targets on a numeric answer",
+    catalog: [validTemplate({ commonErrors: ["incomplete_reading"], errorTargets: { incompleteReading: ["A"] } })],
+    expected: "error_targets_require_choice",
+  },
+  {
+    name: "an incomplete-reading target equal to the correct choice",
+    catalog: [validTemplate({
+      structureTag: "direct-choice",
+      answerMode: "choice",
+      stemPattern: "计算 18 + 7。A. 24  B. 25  C. 26  D. 27",
+      answerSpecPattern: { kind: "choice", value: "B" },
+      explanationPattern: "计算得到 25，应选择 B。",
+      commonErrors: ["incomplete_reading"],
+      variantSpec: { variables: {} },
+      errorTargets: { incompleteReading: ["B"] },
+    })],
+    expected: "error_target_matches_answer",
+  },
   {
     name: "duplicate template ids",
     catalog: [validTemplate(), validTemplate()],

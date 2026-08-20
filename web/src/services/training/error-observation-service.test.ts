@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import {
-  errorObservations, masteryStates, questionTemplates,
+  attempts, errorObservations, masteryStates, questionTemplates,
   sessionItems, skills, trainingSessions, users,
 } from "@/db/schema";
 import { createTestDatabase } from "@/test/test-db";
@@ -8,6 +8,7 @@ import {
   correctErrorObservation,
   ErrorObservationAccessError,
   ErrorObservationConflictError,
+  ErrorObservationCorrectionRequiredError,
   getEffectiveErrorCause,
   saveChildReflection,
 } from "./error-observation-service";
@@ -66,8 +67,12 @@ test("appends child and parent revisions while preserving audit history and mast
     childId: "child-1", sessionItemId: "item-1",
     clientSubmissionId: "11111111-1111-4111-8111-111111111111", answerText: "5",
   });
-  const masteryBefore = db.select().from(masteryStates).all();
   const system = db.select().from(errorObservations).get()!;
+  submitAttempt(db, {
+    childId: "child-1", sessionItemId: "item-1",
+    clientSubmissionId: "12121212-1212-4212-8212-121212121212", answerText: "6",
+  });
+  const masteryBefore = db.select().from(masteryStates).all();
 
   const child = saveChildReflection(db, {
     childId: "child-1", sessionItemId: "item-1", reflection: "calculation_slip", now: 20,
@@ -91,6 +96,10 @@ test("makes repeated reflection idempotent, rejects a conflicting second choice,
   submitAttempt(db, {
     childId: "child-1", sessionItemId: "item-1",
     clientSubmissionId: "11111111-1111-4111-8111-111111111111", answerText: "5",
+  });
+  submitAttempt(db, {
+    childId: "child-1", sessionItemId: "item-1",
+    clientSubmissionId: "12121212-1212-4212-8212-121212121212", answerText: "6",
   });
   const first = saveChildReflection(db, { childId: "child-1", sessionItemId: "item-1", reflection: "did_not_read" });
   expect(saveChildReflection(db, { childId: "child-1", sessionItemId: "item-1", reflection: "did_not_read" }).id).toBe(first.id);
@@ -121,9 +130,38 @@ test("requires a child-role actor for self-reflection", () => {
     childId: "parent-1", sessionItemId: "item-1",
     clientSubmissionId: "11111111-1111-4111-8111-111111111111", answerText: "5",
   });
+  submitAttempt(db, {
+    childId: "parent-1", sessionItemId: "item-1",
+    clientSubmissionId: "12121212-1212-4212-8212-121212121212", answerText: "6",
+  });
   expect(() => saveChildReflection(db, {
     childId: "parent-1", sessionItemId: "item-1", reflection: "calculation_slip",
   })).toThrow(ErrorObservationAccessError);
+});
+
+test("requires a later correct correction before accepting child reflection", () => {
+  const db = seed();
+  submitAttempt(db, {
+    childId: "child-1", sessionItemId: "item-1",
+    clientSubmissionId: "11111111-1111-4111-8111-111111111111", answerText: "5",
+  });
+  expect(() => saveChildReflection(db, {
+    childId: "child-1", sessionItemId: "item-1", reflection: "calculation_slip",
+  })).toThrow(ErrorObservationCorrectionRequiredError);
+
+  submitAttempt(db, {
+    childId: "child-1", sessionItemId: "item-1",
+    clientSubmissionId: "12121212-1212-4212-8212-121212121212", answerText: "6",
+  });
+  db.update(attempts).set({ submittedAt: 200 }).where(and(
+    eq(attempts.sessionItemId, "item-1"), eq(attempts.correctionNumber, 0),
+  )).run();
+  db.update(attempts).set({ submittedAt: 100 }).where(and(
+    eq(attempts.sessionItemId, "item-1"), eq(attempts.correctionNumber, 1),
+  )).run();
+  expect(saveChildReflection(db, {
+    childId: "child-1", sessionItemId: "item-1", reflection: "calculation_slip",
+  })).toMatchObject({ source: "child", childSelfReport: "calculation_slip" });
 });
 
 test("links each parent revision to the current tail even when called with a stale root id", () => {
