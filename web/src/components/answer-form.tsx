@@ -69,7 +69,10 @@ async function postAttempt(payload: {
     const message = typeof data === "object" && data !== null && "error" in data && typeof data.error === "string"
       ? data.error
       : "提交没有成功，请修改答案后重试。";
-    throw new AttemptResponseError(message);
+    if ([400, 401, 403, 404].includes(response.status)) {
+      throw new AttemptResponseError(message);
+    }
+    throw new Error("Uncertain attempt server response");
   }
   if (!isAttemptResult(data)) throw new Error("Unexpected attempt response");
   return data;

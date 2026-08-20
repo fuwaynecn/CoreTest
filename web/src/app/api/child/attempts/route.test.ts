@@ -121,6 +121,28 @@ test("keeps persisted telemetry immutable when a submission id is replayed", asy
     .toMatchObject({ activeDurationMs: 1_500, hintLevel: 0, hintCount: 0, answerText: "6" });
 });
 
+test("does not duplicate a persisted attempt when the first HTTP response is lost", async () => {
+  const session = getOrCreateDailySession(db, "child-1", "2026-08-19");
+  const requestBody = {
+    sessionItemId: session.questions[0].id,
+    clientSubmissionId: "54545454-5454-4454-8454-545454545454",
+    answerText: "6",
+    activeDurationMs: 1_234,
+    hintLevel: 0,
+    hintCount: 0,
+  };
+
+  const persistedButLost = await POST(attemptRequest(requestBody));
+  expect(persistedButLost.status).toBe(200);
+  const retry = await POST(attemptRequest(requestBody));
+  expect(retry.status).toBe(200);
+
+  const rows = db.select().from(attempts)
+    .where(eq(attempts.clientSubmissionId, requestBody.clientSubmissionId)).all();
+  expect(rows).toHaveLength(1);
+  expect(rows[0]).toMatchObject({ activeDurationMs: 1_234, hintLevel: 0, hintCount: 0 });
+});
+
 test("rejects nonnumeric telemetry without writing an attempt", async () => {
   const session = getOrCreateDailySession(db, "child-1", "2026-08-19");
   const response = await POST(attemptRequest({

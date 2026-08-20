@@ -11,3 +11,17 @@ test("truncates fractional telemetry before applying bounds", () => {
   expect(normalizeTelemetry({ activeDurationMs: 12.9, hintLevel: 1.9, hintCount: 2.9 }, 60))
     .toEqual({ activeDurationMs: 12, hintLevel: 1, hintCount: 2 });
 });
+
+test.each([
+  { estimate: Number.NaN, expected: 1_200_000 },
+  { estimate: Number.POSITIVE_INFINITY, expected: 1_200_000 },
+  { estimate: "not-a-number", expected: 1_200_000 },
+  { estimate: -60, expected: 0 },
+])("always returns finite telemetry for an invalid estimate: $estimate", ({ estimate, expected }) => {
+  const result = normalizeTelemetry(
+    { activeDurationMs: 9_999_999, hintLevel: 0, hintCount: 0 },
+    estimate,
+  );
+  expect(result.activeDurationMs).toBe(expected);
+  expect(Number.isFinite(result.activeDurationMs)).toBe(true);
+});

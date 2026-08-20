@@ -162,6 +162,66 @@ test("retries an interrupted submission with the same id", async () => {
   });
 });
 
+test.each([500, 502, 503, 504])(
+  "keeps the submission id and telemetry locked after an uncertain %s response",
+  async (status) => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: "temporary" }), { status }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        correct: true,
+        normalizedAnswer: "6",
+        explanation: "解析",
+        sessionCompleted: false,
+      })));
+    render(<AnswerForm sessionItemId="item-1" />);
+
+    const answer = screen.getByLabelText("你的答案");
+    await userEvent.type(answer, "6");
+    await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("提交没有成功，请重试。");
+    expect(answer).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: "重试提交" }));
+    expect(await screen.findByText("做对了，别忘了检查题目问的是什么。")).toBeInTheDocument();
+
+    const first = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
+    const retry = JSON.parse(fetchSpy.mock.calls[1][1]?.body as string);
+    expect(retry).toMatchObject({
+      clientSubmissionId: first.clientSubmissionId,
+      activeDurationMs: first.activeDurationMs,
+      hintLevel: first.hintLevel,
+      hintCount: first.hintCount,
+    });
+  },
+);
+
+test.each([400, 401, 403, 404])(
+  "unlocks editing and uses a new submission id after a certain %s response",
+  async (status) => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: "确定失败" }), { status }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        correct: true,
+        normalizedAnswer: "6",
+        explanation: "解析",
+        sessionCompleted: false,
+      })));
+    render(<AnswerForm sessionItemId="item-1" />);
+
+    const answer = screen.getByLabelText("你的答案");
+    await userEvent.type(answer, "6");
+    await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("确定失败");
+    expect(answer).toBeEnabled();
+
+    await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
+    expect(await screen.findByText("做对了，别忘了检查题目问的是什么。")).toBeInTheDocument();
+    const first = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
+    const second = JSON.parse(fetchSpy.mock.calls[1][1]?.body as string);
+    expect(second.clientSubmissionId).not.toBe(first.clientSubmissionId);
+  },
+);
+
 test("posts an answer to the attempt endpoint by default", async () => {
   const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
     correct: true,
@@ -280,6 +340,11 @@ test("retries an unparseable 2xx response with the same id", async () => {
   const firstPayload = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
   const secondPayload = JSON.parse(fetchSpy.mock.calls[1][1]?.body as string);
   expect(secondPayload.clientSubmissionId).toBe(firstPayload.clientSubmissionId);
+  expect(secondPayload).toMatchObject({
+    activeDurationMs: firstPayload.activeDurationMs,
+    hintLevel: firstPayload.hintLevel,
+    hintCount: firstPayload.hintCount,
+  });
 });
 
 test("retries an incomplete 2xx result with the same id", async () => {

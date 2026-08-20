@@ -17,9 +17,12 @@ function boundedInteger(value: number, minimum: number, maximum: number): number
 
 export function normalizeTelemetry(
   input: AttemptTelemetryInput,
-  estimatedSeconds = 300,
+  estimatedSeconds: unknown = 300,
 ): AttemptTelemetry {
-  const durationMaximum = Math.max(0, Math.trunc(estimatedSeconds)) * 4_000;
+  const safeEstimatedSeconds = typeof estimatedSeconds === "number" && Number.isFinite(estimatedSeconds)
+    ? Math.max(0, Math.trunc(estimatedSeconds))
+    : 300;
+  const durationMaximum = safeEstimatedSeconds * 4_000;
   return {
     activeDurationMs: boundedInteger(input.activeDurationMs, 0, durationMaximum),
     hintLevel: boundedInteger(input.hintLevel, 0, 3) as AttemptTelemetry["hintLevel"],
