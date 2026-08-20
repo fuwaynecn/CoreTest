@@ -12,7 +12,7 @@ function session(
     totalCount: 100,
     highestHintLevel: 0,
     dueReviewOutcome: null,
-    sameStructureMaxCount: 1,
+    structureStats: {},
     ...overrides,
   };
 }
@@ -78,19 +78,31 @@ test("70 to 89 percent holds level and volume", () => {
   });
 });
 
-test("below 70 lowers only complexity and flags the six-item intervention cap", () => {
+test("only a capped structure below 70 percent suggests parent intervention", () => {
   expect(deriveDosageState({
     track: "computation",
     current: { level: 4, weeklyTarget: 72, sessionMin: 12, sessionTarget: 16, sessionMax: 19 },
     sessions: [
       session("2026-08-20", 92),
-      session("2026-08-21", 69, { sameStructureMaxCount: 6 }),
+      session("2026-08-21", 69, {
+        structureStats: { decimal: { count: 6, independentCorrectCount: 4 } },
+      }),
     ],
   })).toEqual({
     track: "computation", level: 3, weeklyTarget: 72,
     sessionMin: 12, sessionTarget: 16, sessionMax: 19,
     reasonCode: "support", sameStructureCap: 6, parentInterventionSuggested: true,
   });
+  expect(deriveDosageState({
+    track: "computation",
+    current: { level: 4, weeklyTarget: 72, sessionMin: 12, sessionTarget: 16, sessionMax: 19 },
+    sessions: [
+      session("2026-08-20", 100),
+      session("2026-08-21", 100, {
+        structureStats: { decimal: { count: 6, independentCorrectCount: 6 } },
+      }),
+    ],
+  })).toMatchObject({ parentInterventionSuggested: false });
 });
 
 test("track levels and approved target ranges stay bounded", () => {
@@ -119,4 +131,34 @@ test("high cross-day training holds until a due review is passed", () => {
     track: "computation",
     sessions: [session("2026-08-20", 100), session("2026-08-21", 100)],
   })).toMatchObject({ level: 1, reasonCode: "hold" });
+});
+
+test("same-day sessions aggregate numerator and denominator before one transition", () => {
+  expect(deriveDosageState({
+    track: "computation",
+    current: { level: 3, weeklyTarget: 72, sessionMin: 12, sessionTarget: 16, sessionMax: 19 },
+    sessions: [
+      session("2026-08-20", 100),
+      session("2026-08-21", 0, { sessionId: "day-2-low" }),
+      session("2026-08-21", 100, {
+        sessionId: "day-2-high", dueReviewOutcome: "passed",
+      }),
+    ],
+  })).toMatchObject({ level: 2, reasonCode: "support" });
+});
+
+test("same-day failed review and high hint dominate a later passing session", () => {
+  expect(deriveDosageState({
+    track: "equation",
+    current: { level: 3, weeklyTarget: 18, sessionMin: 4, sessionTarget: 5, sessionMax: 6 },
+    sessions: [
+      session("2026-08-20", 100),
+      session("2026-08-21", 100, {
+        sessionId: "day-2-failed", highestHintLevel: 2, dueReviewOutcome: "failed",
+      }),
+      session("2026-08-21", 100, {
+        sessionId: "day-2-passed", dueReviewOutcome: "passed",
+      }),
+    ],
+  })).toMatchObject({ level: 2, reasonCode: "support" });
 });

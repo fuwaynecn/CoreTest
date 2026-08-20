@@ -4,6 +4,7 @@ import type { AppDatabase } from "@/db/client";
 import {
   attempts,
   hintEvents,
+  masteryEvidence,
   sessionItems,
   trainingSessions,
 } from "@/db/schema";
@@ -13,6 +14,7 @@ import { normalizeTelemetry } from "@/domain/training/attempt-telemetry";
 import { shanghaiDateKey } from "@/domain/time/shanghai-calendar";
 import { recordSystemErrorObservation } from "./error-observation-service";
 import { recordLearningEvidence } from "./record-learning-evidence";
+import { updateLearningState } from "./update-learning-state";
 
 export type SubmitAttemptCommand = {
   childId: string;
@@ -170,6 +172,12 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
       submittedAt: now,
     }).run();
 
+    if (sessionCompleted) {
+      tx.update(trainingSessions).set({ status: "completed", completedAt: now })
+        .where(eq(trainingSessions.id, item.sessionId))
+        .run();
+    }
+
     if (priorAttemptCount === 0 && item.sessionKind !== "practice") {
       const purpose = item.sessionKind === "review" ? "review"
         : item.sessionKind === "assessment" ? "assessment" : "learning";
@@ -199,6 +207,11 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
         diagnosticCompletedAt: null,
         reviewIntervalDays,
       });
+    } else if (priorAttemptCount > 0 && item.sessionKind !== "practice") {
+      const evidence = tx.select({ id: masteryEvidence.id }).from(masteryEvidence)
+        .where(eq(masteryEvidence.sessionItemId, command.sessionItemId)).get();
+      if (!evidence) throw new Error("Formal correction is missing first-attempt evidence");
+      updateLearningState(tx, evidence.id);
     }
 
     if (!score.correct && priorAttemptCount === 0) {
@@ -208,12 +221,6 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
         stemSnapshot: item.stem, structureTagSnapshot: item.structureTag,
         selectionReasonSnapshot: item.metadataSnapshot, now,
       });
-    }
-
-    if (sessionCompleted) {
-      tx.update(trainingSessions).set({ status: "completed", completedAt: now })
-        .where(eq(trainingSessions.id, item.sessionId))
-        .run();
     }
 
     return {

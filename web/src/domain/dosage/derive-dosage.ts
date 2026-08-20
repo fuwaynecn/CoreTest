@@ -8,7 +8,10 @@ export type TrackSessionSummary = {
   totalCount: number;
   highestHintLevel: 0 | 1 | 2 | 3 | null;
   dueReviewOutcome: "passed" | "failed" | null;
-  sameStructureMaxCount: number;
+  structureStats: Record<string, {
+    count: number;
+    independentCorrectCount: number;
+  }>;
 };
 
 export type DosageState = {
@@ -33,12 +36,48 @@ const DEFAULTS: Record<DosageTrack, CurrentDosage> = {
   equation: { level: 1, weeklyTarget: 15, sessionMin: 4, sessionTarget: 5, sessionMax: 6 },
 };
 
+function mergeDueReview(
+  current: TrackSessionSummary["dueReviewOutcome"],
+  incoming: TrackSessionSummary["dueReviewOutcome"],
+) {
+  if (current === "failed" || incoming === "failed") return "failed";
+  if (current === "passed" || incoming === "passed") return "passed";
+  return null;
+}
+
+export function aggregateTrackDays(sessions: readonly TrackSessionSummary[]) {
+  const days = new Map<string, TrackSessionSummary>();
+  for (const summary of sessions) {
+    const current = days.get(summary.on) ?? {
+      sessionId: `day:${summary.on}`,
+      on: summary.on,
+      independentCorrectCount: 0,
+      totalCount: 0,
+      highestHintLevel: 0,
+      dueReviewOutcome: null,
+      structureStats: {},
+    } satisfies TrackSessionSummary;
+    current.independentCorrectCount += summary.independentCorrectCount;
+    current.totalCount += summary.totalCount;
+    current.highestHintLevel = current.highestHintLevel === null || summary.highestHintLevel === null
+      ? null
+      : Math.max(current.highestHintLevel, summary.highestHintLevel) as 0 | 1 | 2 | 3;
+    current.dueReviewOutcome = mergeDueReview(current.dueReviewOutcome, summary.dueReviewOutcome);
+    for (const [structureTag, stats] of Object.entries(summary.structureStats)) {
+      const aggregate = current.structureStats[structureTag] ?? {
+        count: 0, independentCorrectCount: 0,
+      };
+      aggregate.count += stats.count;
+      aggregate.independentCorrectCount += stats.independentCorrectCount;
+      current.structureStats[structureTag] = aggregate;
+    }
+    days.set(summary.on, current);
+  }
+  return [...days.values()].sort((left, right) => left.on.localeCompare(right.on));
+}
+
 function latestDistinctDays(sessions: readonly TrackSessionSummary[]) {
-  const latestByDay = new Map<string, TrackSessionSummary>();
-  for (const summary of sessions) latestByDay.set(summary.on, summary);
-  return [...latestByDay.values()]
-    .sort((left, right) => left.on.localeCompare(right.on))
-    .slice(-2);
+  return aggregateTrackDays(sessions).slice(-2);
 }
 
 function rate(summary: TrackSessionSummary) {
@@ -87,6 +126,8 @@ export function deriveDosageState(input: {
     reasonCode,
     sameStructureCap: 6,
     parentInterventionSuggested: reasonCode === "support"
-      && recent.some((summary) => summary.sameStructureMaxCount >= 6),
+      && recent.some((summary) => Object.values(summary.structureStats).some((stats) => (
+        stats.count >= 6 && stats.independentCorrectCount / stats.count < 0.7
+      ))),
   };
 }
