@@ -30,7 +30,7 @@ button, input { min-height: 48px; }
 .diagnosisHomeCount { width: fit-content; margin: 1.5rem 0 .25rem; padding: .65rem .9rem; border-left: .35rem solid var(--brand); background: #edf5f2; font-weight: 700; }
 .activeRetest { width: fit-content; margin-top: 1.5rem; padding: 1rem 1.15rem; border: 1px solid var(--sand); border-radius: .75rem; background: white; }
 .activeRetest p { margin-top: 0; }
-.activeRetest a { color: var(--brand); font-weight: 700; }
+.activeRetest a { display: inline-flex; min-height: 48px; align-items: center; padding: .55rem .8rem; border: 1px solid var(--brand); border-radius: .65rem; color: var(--brand); font-weight: 700; text-decoration: none; }
 .sessionProgress { margin: 0 0 1rem; color: #57635f; font-weight: 700; }
 .diagnosisPage { overflow-x: clip; }
 .diagnosisProgress { margin-bottom: 1.25rem; }
