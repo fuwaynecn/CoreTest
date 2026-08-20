@@ -235,6 +235,45 @@ test("six weak same-structure items suggest intervention but six correct items d
     .toMatchObject({ reasonCode: "support", parentInterventionSuggested: false });
 });
 
+test("intervention cap stays per-session and survives stronger structures", () => {
+  const split = seed();
+  appendEvidence(split, { purpose: "diagnostic", on: "2026-08-18" });
+  appendEvidence(split, { on: "2026-08-20" });
+  for (const sessionId of ["weak-three-a", "weak-three-b"]) {
+    for (let index = 0; index < 3; index += 1) {
+      appendEvidence(split, {
+        purpose: "review", reviewIntervalDays: 1,
+        on: "2026-08-21", sessionId, structureTag: "same-structure", correct: false,
+      });
+    }
+  }
+  expect(JSON.parse(split.select().from(dosageStates)
+    .where(eq(dosageStates.track, "computation")).get()!.reasonJson))
+    .toMatchObject({ reasonCode: "support", parentInterventionSuggested: false });
+
+  const mixed = seed();
+  appendEvidence(mixed, { purpose: "diagnostic", on: "2026-08-18" });
+  appendEvidence(mixed, { on: "2026-08-20" });
+  for (let index = 0; index < 6; index += 1) {
+    appendEvidence(mixed, {
+      on: "2026-08-21", sessionId: "mixed-session", structureTag: "weak-structure",
+      correct: index < 4,
+    });
+  }
+  for (let index = 0; index < 20; index += 1) {
+    appendEvidence(mixed, {
+      purpose: index === 0 ? "review" : "learning",
+      reviewIntervalDays: index === 0 ? 1 : 0,
+      on: "2026-08-21", sessionId: "mixed-session", structureTag: "strong-structure",
+    });
+  }
+  expect(mixed.select().from(dosageStates)
+    .where(eq(dosageStates.track, "computation")).get()).toMatchObject({ level: 2 });
+  expect(JSON.parse(mixed.select().from(dosageStates)
+    .where(eq(dosageStates.track, "computation")).get()!.reasonJson))
+    .toMatchObject({ reasonCode: "advance", parentInterventionSuggested: true });
+});
+
 test("a correct correction replaces the wrong review outcome without rewriting mastery evidence", () => {
   vi.useFakeTimers();
   try {

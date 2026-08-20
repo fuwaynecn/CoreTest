@@ -12,7 +12,7 @@ function session(
     totalCount: 100,
     highestHintLevel: 0,
     dueReviewOutcome: null,
-    structureStats: {},
+    cappedStructureNeedsSupport: false,
     ...overrides,
   };
 }
@@ -85,7 +85,7 @@ test("only a capped structure below 70 percent suggests parent intervention", ()
     sessions: [
       session("2026-08-20", 92),
       session("2026-08-21", 69, {
-        structureStats: { decimal: { count: 6, independentCorrectCount: 4 } },
+        cappedStructureNeedsSupport: true,
       }),
     ],
   })).toEqual({
@@ -99,7 +99,7 @@ test("only a capped structure below 70 percent suggests parent intervention", ()
     sessions: [
       session("2026-08-20", 100),
       session("2026-08-21", 100, {
-        structureStats: { decimal: { count: 6, independentCorrectCount: 6 } },
+        cappedStructureNeedsSupport: false,
       }),
     ],
   })).toMatchObject({ parentInterventionSuggested: false });
@@ -161,4 +161,41 @@ test("same-day failed review and high hint dominate a later passing session", ()
       }),
     ],
   })).toMatchObject({ level: 2, reasonCode: "support" });
+});
+
+test("does not combine two same-day three-item structures into the six-item cap", () => {
+  expect(deriveDosageState({
+    track: "computation",
+    current: { level: 3, weeklyTarget: 72, sessionMin: 12, sessionTarget: 16, sessionMax: 19 },
+    sessions: [
+      session("2026-08-20", 100),
+      session("2026-08-21", 0, {
+        sessionId: "weak-three-a", cappedStructureNeedsSupport: false,
+      }),
+      session("2026-08-21", 0, {
+        sessionId: "weak-three-b", cappedStructureNeedsSupport: false,
+      }),
+    ],
+  })).toMatchObject({ reasonCode: "support", parentInterventionSuggested: false });
+});
+
+test("keeps a capped weak-structure signal even when other items lift aggregate accuracy", () => {
+  expect(deriveDosageState({
+    track: "computation",
+    current: { level: 3, weeklyTarget: 72, sessionMin: 12, sessionTarget: 16, sessionMax: 19 },
+    sessions: [
+      session("2026-08-20", 100),
+      {
+        sessionId: "mixed-session",
+        on: "2026-08-21",
+        independentCorrectCount: 24,
+        totalCount: 26,
+        highestHintLevel: 0,
+        dueReviewOutcome: "passed",
+        cappedStructureNeedsSupport: true,
+      },
+    ],
+  })).toMatchObject({
+    level: 4, reasonCode: "advance", parentInterventionSuggested: true,
+  });
 });

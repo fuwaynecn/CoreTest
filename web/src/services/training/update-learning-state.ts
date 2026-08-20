@@ -162,6 +162,10 @@ function trackForDomain(domain: string): DosageTrack | null {
   return null;
 }
 
+type SessionAccumulator = Omit<TrackSessionSummary, "cappedStructureNeedsSupport"> & {
+  structureStats: Record<string, { count: number; independentCorrectCount: number }>;
+};
+
 function summarizeTrackSessions(
   db: LearningStateStore,
   childId: string,
@@ -181,7 +185,7 @@ function summarizeTrackSessions(
     .where(eq(masteryEvidence.childId, childId))
     .orderBy(asc(masteryEvidence.occurredOn), asc(masteryEvidence.occurredAt), asc(masteryEvidence.id))
     .all();
-  const grouped: Record<DosageTrack, Map<string, TrackSessionSummary>> = {
+  const grouped: Record<DosageTrack, Map<string, SessionAccumulator>> = {
     computation: new Map(), equation: new Map(),
   };
   for (const row of rows) {
@@ -225,9 +229,20 @@ function summarizeTrackSessions(
     current.structureStats[row.evidence.structureTag] = structure;
     grouped[track].set(key, current);
   }
+  const finalize = (summary: SessionAccumulator): TrackSessionSummary => ({
+    sessionId: summary.sessionId,
+    on: summary.on,
+    independentCorrectCount: summary.independentCorrectCount,
+    totalCount: summary.totalCount,
+    highestHintLevel: summary.highestHintLevel,
+    dueReviewOutcome: summary.dueReviewOutcome,
+    cappedStructureNeedsSupport: Object.values(summary.structureStats).some((stats) => (
+      stats.count >= 6 && stats.independentCorrectCount / stats.count < 0.7
+    )),
+  });
   return {
-    computation: [...grouped.computation.values()],
-    equation: [...grouped.equation.values()],
+    computation: [...grouped.computation.values()].map(finalize),
+    equation: [...grouped.equation.values()].map(finalize),
   };
 }
 

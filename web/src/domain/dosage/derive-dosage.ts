@@ -8,10 +8,7 @@ export type TrackSessionSummary = {
   totalCount: number;
   highestHintLevel: 0 | 1 | 2 | 3 | null;
   dueReviewOutcome: "passed" | "failed" | null;
-  structureStats: Record<string, {
-    count: number;
-    independentCorrectCount: number;
-  }>;
+  cappedStructureNeedsSupport: boolean;
 };
 
 export type DosageState = {
@@ -55,7 +52,7 @@ export function aggregateTrackDays(sessions: readonly TrackSessionSummary[]) {
       totalCount: 0,
       highestHintLevel: 0,
       dueReviewOutcome: null,
-      structureStats: {},
+      cappedStructureNeedsSupport: false,
     } satisfies TrackSessionSummary;
     current.independentCorrectCount += summary.independentCorrectCount;
     current.totalCount += summary.totalCount;
@@ -63,14 +60,7 @@ export function aggregateTrackDays(sessions: readonly TrackSessionSummary[]) {
       ? null
       : Math.max(current.highestHintLevel, summary.highestHintLevel) as 0 | 1 | 2 | 3;
     current.dueReviewOutcome = mergeDueReview(current.dueReviewOutcome, summary.dueReviewOutcome);
-    for (const [structureTag, stats] of Object.entries(summary.structureStats)) {
-      const aggregate = current.structureStats[structureTag] ?? {
-        count: 0, independentCorrectCount: 0,
-      };
-      aggregate.count += stats.count;
-      aggregate.independentCorrectCount += stats.independentCorrectCount;
-      current.structureStats[structureTag] = aggregate;
-    }
+    current.cappedStructureNeedsSupport ||= summary.cappedStructureNeedsSupport;
     days.set(summary.on, current);
   }
   return [...days.values()].sort((left, right) => left.on.localeCompare(right.on));
@@ -125,9 +115,6 @@ export function deriveDosageState(input: {
     sessionMax: current.sessionMax,
     reasonCode,
     sameStructureCap: 6,
-    parentInterventionSuggested: reasonCode === "support"
-      && recent.some((summary) => Object.values(summary.structureStats).some((stats) => (
-        stats.count >= 6 && stats.independentCorrectCount / stats.count < 0.7
-      ))),
+    parentInterventionSuggested: recent.some((summary) => summary.cappedStructureNeedsSupport),
   };
 }
