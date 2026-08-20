@@ -26,6 +26,15 @@ function parseCommonErrors(value: string | null): unknown[] | null {
   return parsed;
 }
 
+function parseHintLadder(value: string): string[] {
+  const parsed: unknown = JSON.parse(value);
+  if (!Array.isArray(parsed) || parsed.length !== 3
+    || !parsed.every((hint) => typeof hint === "string" && hint.trim().length > 0)) {
+    throw new Error("Question template hint ladder is invalid");
+  }
+  return parsed;
+}
+
 function loadSessionView(db: AppDatabase, sessionId: string): SessionView {
   return db.transaction((tx) => {
     const session = tx.select({
@@ -101,6 +110,7 @@ export function getOrCreateDailySession(
       readingLoad: questionTemplates.readingLoad,
       answerMode: questionTemplates.answerMode,
       commonErrors: questionTemplates.commonErrors,
+      hintLadder: questionTemplates.hintLadder,
       readingCard: questionTemplates.readingCard,
       source: questionTemplates.source,
       licenseStatus: questionTemplates.licenseStatus,
@@ -156,6 +166,7 @@ export function getOrCreateDailySession(
           estimatedSeconds: question.estimatedSeconds,
           readingLoad: question.readingLoad,
           commonErrors: parseCommonErrors(question.commonErrors),
+          hintLadder: parseHintLadder(question.hintLadder),
           readingCard: question.readingCard,
           source: question.source,
           licenseStatus: question.licenseStatus,

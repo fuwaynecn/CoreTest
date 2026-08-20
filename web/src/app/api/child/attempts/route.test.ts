@@ -1,7 +1,9 @@
+import { eq } from "drizzle-orm";
 import {
   attempts,
   diagnosticParts,
   diagnosticRuns,
+  hintEvents,
   questionTemplates,
   sessionItems,
   skills,
@@ -50,6 +52,7 @@ beforeEach(() => {
     db.insert(questionTemplates).values({
       ...template,
       answerSpec: JSON.stringify(template.answerSpec),
+      hintLadder: JSON.stringify(template.hintLadder),
       commonErrors: JSON.stringify(template.commonErrors),
       active: true,
     }).run();
@@ -57,12 +60,79 @@ beforeEach(() => {
 });
 
 function attemptRequest(body: unknown) {
+  const payload = typeof body === "object" && body !== null
+    ? { activeDurationMs: 0, hintLevel: 0, hintCount: 0, ...body }
+    : body;
   return new Request("http://localhost/api/child/attempts", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
+    body: JSON.stringify(payload),
+});
 }
+
+test("normalizes active duration by the item estimate and trusts persisted hint events", async () => {
+  const session = getOrCreateDailySession(db, "child-1", "2026-08-19");
+  db.insert(hintEvents).values([
+    { id: "hint-1", childId: "child-1", sessionItemId: session.questions[0].id, hintLevel: 1, revealedAt: 1 },
+    { id: "hint-2", childId: "child-1", sessionItemId: session.questions[0].id, hintLevel: 2, revealedAt: 2 },
+  ]).run();
+
+  const response = await POST(attemptRequest({
+    sessionItemId: session.questions[0].id,
+    clientSubmissionId: "51515151-5151-4151-8151-515151515151",
+    answerText: "6",
+    activeDurationMs: 999_999,
+    hintLevel: -8,
+    hintCount: 99,
+  }));
+
+  expect(response.status).toBe(200);
+  expect(db.select().from(attempts).where(eq(attempts.clientSubmissionId, "51515151-5151-4151-8151-515151515151")).get())
+    .toMatchObject({ activeDurationMs: 240_000, hintLevel: 2, hintCount: 2 });
+});
+
+test("keeps persisted telemetry immutable when a submission id is replayed", async () => {
+  const session = getOrCreateDailySession(db, "child-1", "2026-08-19");
+  const first = await POST(attemptRequest({
+    sessionItemId: session.questions[0].id,
+    clientSubmissionId: "52525252-5252-4252-8252-525252525252",
+    answerText: "6",
+    activeDurationMs: 1_500,
+    hintLevel: 0,
+    hintCount: 0,
+  }));
+  expect(first.status).toBe(200);
+
+  db.insert(hintEvents).values({
+    id: "hint-after-submit", childId: "child-1", sessionItemId: session.questions[0].id,
+    hintLevel: 1, revealedAt: 3,
+  }).run();
+  const replay = await POST(attemptRequest({
+    sessionItemId: session.questions[0].id,
+    clientSubmissionId: "52525252-5252-4252-8252-525252525252",
+    answerText: "changed",
+    activeDurationMs: 200_000,
+    hintLevel: 3,
+    hintCount: 3,
+  }));
+
+  expect(await replay.json()).toEqual(await first.json());
+  expect(db.select().from(attempts).where(eq(attempts.clientSubmissionId, "52525252-5252-4252-8252-525252525252")).get())
+    .toMatchObject({ activeDurationMs: 1_500, hintLevel: 0, hintCount: 0, answerText: "6" });
+});
+
+test("rejects nonnumeric telemetry without writing an attempt", async () => {
+  const session = getOrCreateDailySession(db, "child-1", "2026-08-19");
+  const response = await POST(attemptRequest({
+    sessionItemId: session.questions[0].id,
+    clientSubmissionId: "53535353-5353-4353-8353-535353535353",
+    answerText: "6",
+    activeDurationMs: "fast",
+  }));
+
+  expect(response.status).toBe(400);
+  expect(db.select().from(attempts).all()).toHaveLength(0);
+});
 
 test("requires the child role and returns the scored attempt", async () => {
   const session = getOrCreateDailySession(db, "child-1", "2026-08-19");

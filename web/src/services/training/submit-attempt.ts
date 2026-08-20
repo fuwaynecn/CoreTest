@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import type { AppDatabase } from "@/db/client";
 import {
   attempts,
+  hintEvents,
   masteryStates,
   sessionItems,
   trainingSessions,
@@ -10,12 +11,16 @@ import {
 import { answerSpecSchema } from "@/domain/questions/answer-spec";
 import { scoreAnswer } from "@/domain/questions/score-answer";
 import { nextMasteryEvidence } from "@/domain/training/mastery";
+import { normalizeTelemetry } from "@/domain/training/attempt-telemetry";
 
 export type SubmitAttemptCommand = {
   childId: string;
   sessionItemId: string;
   clientSubmissionId: string;
   answerText: string;
+  activeDurationMs?: number;
+  hintLevel?: number;
+  hintCount?: number;
 };
 
 export type AttemptResult = {
@@ -41,6 +46,20 @@ export class InvalidAnswerError extends Error {
 
 function parseAnswerSpec(raw: string) {
   return answerSpecSchema.parse(JSON.parse(raw));
+}
+
+function estimatedSecondsFromSnapshot(raw: string): number {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed === "object" && parsed !== null && "estimatedSeconds" in parsed
+      && typeof parsed.estimatedSeconds === "number" && Number.isFinite(parsed.estimatedSeconds)
+      && parsed.estimatedSeconds > 0) {
+      return parsed.estimatedSeconds;
+    }
+  } catch {
+    // Legacy snapshots can predate estimated-time metadata.
+  }
+  return 300;
 }
 
 export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): AttemptResult {
@@ -83,6 +102,7 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
       skillId: sessionItems.skillIdSnapshot,
       answerSpec: sessionItems.answerSpecSnapshot,
       explanation: sessionItems.explanationSnapshot,
+      metadataSnapshot: sessionItems.selectionReasonSnapshot,
     }).from(sessionItems)
       .innerJoin(trainingSessions, eq(sessionItems.sessionId, trainingSessions.id))
       .where(and(
@@ -93,6 +113,22 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
       .get();
     if (!item) throw new TrainingAccessError();
     if (item.sessionKind === "diagnostic") throw new TrainingAccessError();
+
+    const persistedHints = tx.select({ level: hintEvents.hintLevel }).from(hintEvents)
+      .where(and(
+        eq(hintEvents.sessionItemId, command.sessionItemId),
+        eq(hintEvents.childId, command.childId),
+      ))
+      .all();
+    const hintCount = Math.min(persistedHints.length, 3);
+    const hintLevel = persistedHints.reduce((highest, event) => (
+      Math.max(highest, event.level)
+    ), 0);
+    const telemetry = normalizeTelemetry({
+      activeDurationMs: command.activeDurationMs ?? 0,
+      hintLevel,
+      hintCount,
+    }, estimatedSecondsFromSnapshot(item.metadataSnapshot));
 
     const score = scoreAnswer(command.answerText, parseAnswerSpec(item.answerSpec));
     const now = Date.now();
@@ -140,6 +176,7 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
       normalizedAnswer: score.normalizedAnswer,
       explanation: item.explanation,
       sessionCompleted,
+      ...telemetry,
       submittedAt: now,
     }).run();
 

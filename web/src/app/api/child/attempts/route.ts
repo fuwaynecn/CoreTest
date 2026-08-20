@@ -8,10 +8,13 @@ import {
   TrainingAccessError,
 } from "@/services/training/submit-attempt";
 
-const attemptInput = z.object({
+const attemptInput = z.strictObject({
   sessionItemId: z.string().min(1),
   clientSubmissionId: z.string().uuid(),
   answerText: z.string().max(128),
+  activeDurationMs: z.number().finite(),
+  hintLevel: z.number().finite(),
+  hintCount: z.number().finite(),
 });
 
 export async function POST(request: Request) {

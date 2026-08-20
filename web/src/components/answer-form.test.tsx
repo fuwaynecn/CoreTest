@@ -1,8 +1,96 @@
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AnswerForm } from "./answer-form";
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
+
+test("counts active time only while the page is visible and focused", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(0);
+  let visible = true;
+  let focused = true;
+  vi.spyOn(document, "visibilityState", "get").mockImplementation(() => (
+    visible ? "visible" : "hidden"
+  ));
+  vi.spyOn(document, "hasFocus").mockImplementation(() => focused);
+  const submit = vi.fn().mockResolvedValue({
+    correct: true,
+    normalizedAnswer: "6",
+    explanation: "解析",
+    sessionCompleted: false,
+  });
+
+  render(<AnswerForm sessionItemId="item-1" submitAnswer={submit} />);
+  fireEvent.change(screen.getByLabelText("你的答案"), { target: { value: "6" } });
+
+  act(() => { vi.advanceTimersByTime(1_000); });
+  visible = false;
+  fireEvent(document, new Event("visibilitychange"));
+  act(() => { vi.advanceTimersByTime(5_000); });
+  visible = true;
+  fireEvent(document, new Event("visibilitychange"));
+  act(() => { vi.advanceTimersByTime(500); });
+  focused = false;
+  fireEvent.blur(window);
+  act(() => { vi.advanceTimersByTime(4_000); });
+  focused = true;
+  fireEvent.focus(window);
+  act(() => { vi.advanceTimersByTime(250); });
+
+  fireEvent.submit(screen.getByRole("button", { name: "提交答案" }).closest("form")!);
+  await act(async () => { await Promise.resolve(); });
+
+  expect(submit).toHaveBeenCalledWith(expect.objectContaining({
+    activeDurationMs: 1_750,
+    hintLevel: 0,
+    hintCount: 0,
+  }));
+});
+
+test("shows sequential hints and submits the server-confirmed hint facts", async () => {
+  const requestHint = vi.fn()
+    .mockResolvedValueOnce({ level: 1, hint: "方向提示", hintCount: 1 })
+    .mockResolvedValueOnce({ level: 2, hint: "关系提示", hintCount: 2 })
+    .mockResolvedValueOnce({ level: 3, hint: "步骤提示", hintCount: 3 })
+    .mockResolvedValueOnce({ level: 3, hint: "步骤提示", hintCount: 3 });
+  const submit = vi.fn().mockResolvedValue({
+    correct: true,
+    normalizedAnswer: "6",
+    explanation: "解析",
+    sessionCompleted: false,
+  });
+  render(<AnswerForm sessionItemId="item-1" submitAnswer={submit} requestHint={requestHint} />);
+
+  const hintButton = screen.getByRole("button", { name: "查看提示" });
+  for (const text of ["方向提示", "关系提示", "步骤提示", "步骤提示"]) {
+    await userEvent.click(hintButton);
+    expect(await screen.findByText(text)).toBeInTheDocument();
+  }
+  expect(requestHint).toHaveBeenCalledTimes(4);
+
+  await userEvent.type(screen.getByLabelText("你的答案"), "6");
+  await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
+  expect(submit).toHaveBeenCalledWith(expect.objectContaining({ hintLevel: 3, hintCount: 3 }));
+});
+
+test("stops active timing after unmount", () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(0);
+  vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+  vi.spyOn(document, "hasFocus").mockReturnValue(true);
+  const removeSpy = vi.spyOn(window, "removeEventListener");
+  const { unmount } = render(<AnswerForm sessionItemId="item-1" />);
+
+  act(() => { vi.advanceTimersByTime(100); });
+  unmount();
+  act(() => { vi.advanceTimersByTime(100); });
+
+  expect(removeSpy).toHaveBeenCalledWith("focus", expect.any(Function));
+  expect(removeSpy).toHaveBeenCalledWith("blur", expect.any(Function));
+});
 
 test("shows correction feedback returned by the server", async () => {
   const submit = vi.fn().mockResolvedValue({
@@ -67,6 +155,11 @@ test("retries an interrupted submission with the same id", async () => {
 
   expect(await screen.findByText("做对了，别忘了检查题目问的是什么。")).toBeInTheDocument();
   expect(submit.mock.calls[1][0].clientSubmissionId).toBe(submit.mock.calls[0][0].clientSubmissionId);
+  expect(submit.mock.calls[1][0]).toMatchObject({
+    activeDurationMs: submit.mock.calls[0][0].activeDurationMs,
+    hintLevel: submit.mock.calls[0][0].hintLevel,
+    hintCount: submit.mock.calls[0][0].hintCount,
+  });
 });
 
 test("posts an answer to the attempt endpoint by default", async () => {

@@ -17,6 +17,7 @@ type Phase1DailyTemplate = {
   readingLoad: "short" | "medium";
   answerMode: "written";
   commonErrors: readonly ErrorCause[];
+  hintLadder: readonly [string, string, string];
   readingCard: boolean;
   source: "original";
   licenseStatus: "owned";
@@ -37,6 +38,7 @@ export const phase1DailyTemplates = [
     readingLoad: "short",
     answerMode: "written",
     commonErrors: ["calculation"],
+    hintLadder: ["先看小数位。", "把相同数位对齐。", "逐位相加并检查小数点。"],
     readingCard: false,
     source: "original",
     licenseStatus: "owned",
@@ -55,6 +57,7 @@ export const phase1DailyTemplates = [
     readingLoad: "medium",
     answerMode: "written",
     commonErrors: ["missing_unit", "incomplete_reading"],
+    hintLadder: ["先圈出问题问什么。", "找出价格和数量，并留意单位。", "用单价乘数量，答案写‘元’。"],
     readingCard: true,
     source: "original",
     licenseStatus: "owned",
@@ -73,6 +76,7 @@ export const phase1DailyTemplates = [
     readingLoad: "short",
     answerMode: "written",
     commonErrors: ["relationship", "calculation"],
+    hintLadder: ["想想怎样让 x 单独留下。", "等式两边先同时减去 5。", "得到 3x=21 后，两边再同时除以 3。"],
     readingCard: false,
     source: "original",
     licenseStatus: "owned",

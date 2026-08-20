@@ -108,7 +108,7 @@ export async function seedDatabase(options: SeedDatabaseOptions = {}) {
       readingLoad: template.readingLoad,
       answerMode: template.answerMode,
       variantSpec: "{}",
-      hintLadder: "[]",
+      hintLadder: JSON.stringify(template.hintLadder),
       commonErrors: JSON.stringify(template.commonErrors),
       readingCard: template.readingCard,
       source: template.source,
