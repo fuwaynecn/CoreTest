@@ -14,6 +14,12 @@ import {
 } from "@/db/schema";
 import { errorCategory, type ErrorCategory } from "@/domain/errors/classify-error";
 import type { ErrorCause, MasteryStatus } from "@/domain/learning/contracts";
+import {
+  deriveMasteryState,
+  masteryReasonDescriptions,
+  type MasteryEvidenceInput,
+  type MasteryReasonCode,
+} from "@/domain/training/mastery";
 import { shanghaiDateKey } from "@/domain/time/shanghai-calendar";
 import type { ChildReflection } from "@/services/training/error-observation-service";
 
@@ -39,6 +45,8 @@ export type AbilityView = {
   reason: string;
   evidenceCount: number;
   updatedOn: string | null;
+  evidenceCursor: string | null;
+  supportingEvidenceIds: string[];
   evidence: MasteryEvidenceView[];
 };
 
@@ -105,29 +113,16 @@ const reflectionCause: Record<ChildReflection, ErrorCause> = {
   method_unknown: "relationship",
 };
 
+function isMasteryReasonCode(reasonCode: string): reasonCode is MasteryReasonCode {
+  return reasonCode in masteryReasonDescriptions;
+}
+
 function abilityReason(status: MasteryStatus, reasonCode: string, evidenceCount: number, dates: string[]) {
   const period = dates.length === 0
     ? "还没有正式证据"
     : dates.length === 1
       ? `证据日期 ${dates[0]}`
       : `证据覆盖 ${dates[0]} 至 ${dates.at(-1)}`;
-  const known: Record<string, string> = {
-    no_evidence: "尚未收集到正式首答证据，完成诊断后才会确定起点。",
-    diagnostic_needs_support: "诊断加权独立首答率低于 50%，当前需要示例、订正和更近的复习。",
-    diagnostic_learning: "诊断加权独立首答率在 50%–79%，正在形成稳定方法。",
-    diagnostic_basic: "诊断加权独立首答率至少 80%，且已有不同模板的独立正确证据。",
-    recent_five_below_basic: "最近 5 次首答尚未达到至少 4 次独立正确，因此继续学习。",
-    recent_five_insufficient_count: "诊断后还不足 5 次正式首答，暂时保持当前状态。",
-    recent_five_high_or_unknown_hint: "最近 5 次中出现二级以上或未知提示，暂不升级。",
-    recent_five_single_day: "达到准确率要求，但证据还没有跨两个上海自然日。",
-    recent_five_single_template: "达到准确率要求，但证据还没有覆盖两个不同模板。",
-    support_two_day_independent_correct: "已在两个不同上海自然日独立答对，进入正在学习。",
-    learning_recent_five_basic: "最近 5 次至少 4 次独立答对，并跨日、跨模板，进入基础掌握。",
-    basic_due_review_stable: "已通过至少 7 天间隔的到期复习，并有不同结构的独立正确证据。",
-    failed_due_review_stable_to_basic: "最近一次到期复习首答错误，从稳定保持回到基础掌握。",
-    failed_due_review_basic_to_learning: "最近一次到期复习首答错误，从基础掌握回到正在学习。",
-    two_day_failed_due_reviews: "两个不同上海自然日的到期复习首答错误，当前需要支持。",
-  };
   const fallback: Record<MasteryStatus, string> = {
     undiagnosed: "尚未形成可解释的能力状态。",
     needs_support: "现有独立首答证据显示需要更多支持。",
@@ -135,7 +130,26 @@ function abilityReason(status: MasteryStatus, reasonCode: string, evidenceCount:
     basic: "已达到基础掌握门槛，仍需通过跨结构的到期复习。",
     stable: "已通过跨日、跨结构的到期复习检验。",
   };
-  return `${known[reasonCode] ?? fallback[status]} ${period}，共 ${evidenceCount} 条。`;
+  return `${isMasteryReasonCode(reasonCode) ? masteryReasonDescriptions[reasonCode] : fallback[status]} ${period}，共 ${evidenceCount} 条。`;
+}
+
+function masteryInput(row: typeof masteryEvidence.$inferSelect): MasteryEvidenceInput {
+  return {
+    id: row.id,
+    purpose: row.purpose,
+    templateId: row.templateId,
+    structureTag: row.structureTag,
+    difficulty: row.difficulty as MasteryEvidenceInput["difficulty"],
+    firstAttemptCorrect: row.firstAttemptCorrect,
+    independent: row.independent,
+    hintLevel: row.hintLevel as MasteryEvidenceInput["hintLevel"],
+    occurredOn: row.occurredOn,
+    occurredAt: row.occurredAt,
+    diagnosticRunId: row.diagnosticRunId,
+    diagnosticCompletedOn: row.diagnosticCompletedOn,
+    diagnosticCompletedAt: row.diagnosticCompletedAt,
+    reviewIntervalDays: row.reviewIntervalDays as MasteryEvidenceInput["reviewIntervalDays"],
+  };
 }
 
 function dayDifference(later: string, earlier: string) {
@@ -193,6 +207,7 @@ export function getLearningState(
     }
 
     const evidenceBySkill = new Map<string, MasteryEvidenceView[]>();
+    const rawEvidenceBySkill = new Map<string, Array<typeof masteryEvidence.$inferSelect>>();
     for (const row of evidenceRows) {
       const first = attemptsByItem.get(row.evidence.sessionItemId)?.[0] ?? null;
       const view: MasteryEvidenceView = {
@@ -209,6 +224,9 @@ export function getLearningState(
       const values = evidenceBySkill.get(row.evidence.skillId) ?? [];
       values.push(view);
       evidenceBySkill.set(row.evidence.skillId, values);
+      const rawValues = rawEvidenceBySkill.get(row.evidence.skillId) ?? [];
+      rawValues.push(row.evidence);
+      rawEvidenceBySkill.set(row.evidence.skillId, rawValues);
     }
 
     const abilityMap = skillRows.map((skill): AbilityView => {
@@ -216,7 +234,17 @@ export function getLearningState(
       const evidence = evidenceBySkill.get(skill.id) ?? [];
       const status = state?.status ?? "undiagnosed";
       const reasonCode = state?.reasonCode ?? "no_evidence";
-      const dates = [...new Set(evidence.map((item) => item.occurredOn))];
+      const derived = deriveMasteryState(
+        (rawEvidenceBySkill.get(skill.id) ?? []).map(masteryInput),
+        state?.status ?? "undiagnosed",
+      );
+      const supportingEvidenceIds = derived.reasonCode === reasonCode
+        ? derived.supportingEvidenceIds
+        : state?.evidenceCursor ? [state.evidenceCursor] : [];
+      const supportingDates = supportingEvidenceIds
+        .map((id) => evidence.find((item) => item.id === id)?.occurredOn)
+        .filter((date): date is string => date !== undefined);
+      const dates = [...new Set(supportingDates.length > 0 ? supportingDates : evidence.map((item) => item.occurredOn))];
       return {
         skillId: skill.id,
         skillCode: skill.code,
@@ -227,6 +255,8 @@ export function getLearningState(
         reason: abilityReason(status, reasonCode, state?.evidenceCount ?? 0, dates),
         evidenceCount: state?.evidenceCount ?? 0,
         updatedOn: state ? shanghaiDateKey(state.updatedAt) : null,
+        evidenceCursor: state?.evidenceCursor ?? null,
+        supportingEvidenceIds,
         evidence,
       };
     });

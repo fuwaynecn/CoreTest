@@ -77,6 +77,8 @@ button, input { min-height: 48px; }
 .provisionalNote { margin: 1.25rem 0 0; padding: .85rem 1rem; border-left: .35rem solid #a98414; background: #fff7d8; }
 .difficultyFallback { display: grid; gap: .15rem; margin-top: .55rem !important; padding: .7rem .8rem; border-left: .3rem solid #a98414; background: #fff7d8; }
 .difficultyFallback span { font-weight: 400 !important; }
+.difficultyFallbackDetails { margin-top: .55rem; }
+.difficultyFallbackDetails > summary { display: flex; min-height: 44px; align-items: center; width: fit-content; cursor: pointer; color: #695611; font-weight: 700; }
 .parentRetestAction { display: grid; gap: .65rem; justify-items: start; margin-top: 1.25rem; }
 .parentRetestAction button { min-height: 48px; padding: .75rem 1rem; border: 0; border-radius: .75rem; background: var(--brand); color: white; cursor: pointer; font-weight: 700; }
 .parentRetestAction button:disabled { cursor: wait; opacity: .65; }
@@ -152,6 +154,12 @@ button, input { min-height: 48px; }
 .masteryWhy > p { color: #57635f; font-size: .82rem; line-height: 1.6; }
 .masteryEvidenceList > li { display: grid; gap: .3rem; scroll-margin-top: 1rem; padding: .75rem; border-left: .3rem solid var(--brand); background: #edf5f2; overflow-wrap: anywhere; }
 .masteryEvidenceList span, .masteryEvidenceList small { color: #57635f; font-size: .76rem; line-height: 1.45; }
+.masteryBasisMark { width: fit-content; padding: .18rem .4rem; border-radius: 999px; color: #155d43; background: #d7e9e4; font-size: .7rem; }
+.masteryHistory { margin-top: .55rem; }
+.masteryHistory > summary { display: flex; min-height: 44px; align-items: center; cursor: pointer; color: #57635f; font-size: .78rem; font-weight: 700; }
+.masteryWaitingSkills { margin-top: .55rem; padding: 0 .75rem; color: #57635f; font-size: .78rem; }
+.masteryWaitingSkills > summary { display: flex; min-height: 44px; align-items: center; cursor: pointer; font-weight: 700; }
+.masteryWaitingSkills > p { line-height: 1.6; overflow-wrap: anywhere; }
 .evidenceAnchor { display: inline-flex; min-height: 44px; align-items: center; margin-top: .6rem; color: var(--brand); font-size: .78rem; font-weight: 700; }
 .reviewDoseGrid { display: grid; grid-template-columns: minmax(16rem, .7fr) minmax(0, 1.3fr); gap: 1rem; }
 .dueReviewCard, .doseCard { min-width: 0; padding: 1.25rem; border: 1px solid var(--sand); border-radius: .85rem; background: white; }

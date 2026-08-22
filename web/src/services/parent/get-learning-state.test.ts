@@ -138,7 +138,13 @@ test("builds traceable mastery, effective errors, due reviews, and dosage", () =
   const view = getLearningState(seedLearningState(), "child-1", NOW);
 
   expect(view.abilityMap.find((item) => item.skillCode === "equation-two-step"))
-    .toMatchObject({ status: "learning", reasonCode: "recent_five_below_basic", evidenceCount: 5 });
+    .toMatchObject({
+      status: "learning",
+      reasonCode: "recent_five_below_basic",
+      evidenceCount: 5,
+      evidenceCursor: "evidence-5",
+      supportingEvidenceIds: ["evidence-5"],
+    });
   expect(view.abilityMap.find((item) => item.skillCode === "geometry-unseen"))
     .toMatchObject({ status: "undiagnosed", reasonCode: "no_evidence", evidenceCount: 0 });
   expect(view.abilityMap.find((item) => item.skillCode === "equation-two-step")?.evidence)

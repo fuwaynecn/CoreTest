@@ -1,4 +1,9 @@
-import { deriveMasteryState, type MasteryEvidenceInput } from "./mastery";
+import {
+  deriveMasteryState,
+  masteryReasonDescriptions,
+  type MasteryEvidenceInput,
+  type MasteryReasonCode,
+} from "./mastery";
 
 function evidence(overrides: Partial<MasteryEvidenceInput> = {}): MasteryEvidenceInput {
   return {
@@ -91,6 +96,7 @@ test("recent five allows level-one help but rejects level two and reports exact 
   }));
   expect(deriveMasteryState([...initial, ...recent])).toMatchObject({
     status: "basic", reasonCode: "learning_recent_five_basic",
+    supportingEvidenceIds: ["recent-0", "recent-1", "recent-2", "recent-3", "recent-4"],
   });
   expect(deriveMasteryState([...initial, ...recent.map((row, index) => (
     index === 0 ? { ...row, hintLevel: 2 as const } : row
@@ -100,6 +106,59 @@ test("recent five allows level-one help but rejects level two and reports exact 
   ))])).toMatchObject({ status: "learning", reasonCode: "recent_five_below_basic" });
   expect(deriveMasteryState([...initial, ...recent.slice(0, 4)]))
     .toMatchObject({ status: "learning", reasonCode: "recent_five_insufficient_count" });
+});
+
+test("keeps a complete Chinese explanation for every reducer reason code", () => {
+  const reasonCodes: MasteryReasonCode[] = [
+    "no_evidence", "diagnostic_group_unknown", "no_diagnostic_evidence",
+    "preserved_status_without_diagnostic_telemetry", "diagnostic_needs_support",
+    "diagnostic_learning", "diagnostic_basic", "recent_five_insufficient_count",
+    "recent_five_below_basic", "recent_five_high_or_unknown_hint",
+    "recent_five_single_day", "recent_five_single_template",
+    "support_two_day_independent_correct", "learning_recent_five_basic",
+    "basic_due_review_stable", "failed_due_review_stable_to_basic",
+    "failed_due_review_basic_to_learning", "two_day_failed_due_reviews",
+  ];
+
+  expect(Object.keys(masteryReasonDescriptions).sort()).toEqual(reasonCodes.sort());
+  expect(masteryReasonDescriptions.learning_recent_five_basic)
+    .toContain("最近 5 次首答至少 4 次正确");
+  expect(masteryReasonDescriptions.diagnostic_group_unknown).toContain("诊断证据");
+  expect(masteryReasonDescriptions.no_diagnostic_evidence).toContain("没有可用诊断");
+  expect(masteryReasonDescriptions.preserved_status_without_diagnostic_telemetry).toContain("保留原状态");
+});
+
+test("keeps no-diagnosis practice rows as the exact basis for waiting", () => {
+  expect(deriveMasteryState([evidence({ id: "practice-only" })])).toMatchObject({
+    status: "undiagnosed",
+    reasonCode: "no_diagnostic_evidence",
+    supportingEvidenceIds: ["practice-only"],
+  });
+});
+
+test("links state changes to the evidence that actually triggered them", () => {
+  const diagnosis = diagnosticRate(4, 5, 2);
+  expect(deriveMasteryState(diagnosis)).toMatchObject({
+    reasonCode: "diagnostic_basic",
+    supportingEvidenceIds: diagnosis.map((row) => row.id),
+    evidenceCursor: diagnosis.at(-1)!.id,
+  });
+
+  const alternate = evidence({ id: "alternate", occurredOn: "2026-08-21", structureTag: "alternate" });
+  const review = evidence({ id: "review-trigger", purpose: "review", occurredOn: "2026-08-28",
+    structureTag: "review", reviewIntervalDays: 7 });
+  expect(deriveMasteryState([...diagnosis, alternate, review])).toMatchObject({
+    reasonCode: "basic_due_review_stable",
+    supportingEvidenceIds: ["alternate", "review-trigger"],
+    evidenceCursor: "review-trigger",
+  });
+
+  const failedAgain = evidence({ id: "failed-review", purpose: "review", occurredOn: "2026-09-11",
+    reviewIntervalDays: 14, firstAttemptCorrect: false });
+  expect(deriveMasteryState([...diagnosis, alternate, review, failedAgain])).toMatchObject({
+    reasonCode: "failed_due_review_stable_to_basic",
+    supportingEvidenceIds: ["failed-review"],
+  });
 });
 
 test("stable cannot reuse a different structure from before its last demotion", () => {

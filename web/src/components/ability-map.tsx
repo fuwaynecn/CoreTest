@@ -23,6 +23,61 @@ function durationLabel(value: number | null) {
   return `活跃作答约 ${Math.round(value / 60_000)} 分钟（仅作上下文）`;
 }
 
+function hintLabel(evidence: AbilityView["evidence"][number]) {
+  if (evidence.hintLevel === null) return "提示情况未知";
+  if (evidence.independent) return "独立完成";
+  return `使用提示（级别 ${evidence.hintLevel}）`;
+}
+
+function EvidenceList({ evidence, basisIds }: {
+  evidence: AbilityView["evidence"];
+  basisIds: Set<string>;
+}) {
+  return <ul className="masteryEvidenceList">
+    {evidence.map((item) => (
+      <li id={`mastery-evidence-${item.id}`} key={item.id} tabIndex={-1}>
+        <strong>{item.occurredOn} · {item.firstAttemptCorrect ? "首答正确" : "首答未正确"}</strong>
+        {basisIds.has(item.id) && <b className="masteryBasisMark">本次状态依据</b>}
+        <span>{item.stem}</span>
+        <span>首答：{item.firstAnswer ?? "未记录"} · {hintLabel(item)}</span>
+        <small>{durationLabel(item.activeDurationMs)}</small>
+      </li>
+    ))}
+  </ul>;
+}
+
+function AbilityCard({ ability }: { ability: AbilityView }) {
+  const basisIds = new Set(ability.supportingEvidenceIds);
+  const basisEvidence = ability.evidence.filter((item) => basisIds.has(item.id));
+  const cursorEvidence = ability.evidence.find((item) => item.id === ability.evidenceCursor);
+  const anchorEvidence = cursorEvidence ?? basisEvidence.at(-1) ?? ability.evidence.at(-1);
+  const historicalEvidence = ability.evidence.filter((item) => !basisIds.has(item.id));
+  return <li>
+    <div className="masterySkillHeading">
+      <div>
+        <span>{domainLabels[ability.domain] ?? ability.domain}</span>
+        <strong>{ability.skillName}</strong>
+      </div>
+      <b>{ability.evidenceCount} 条</b>
+    </div>
+    <div className="masteryWhy">
+      <strong>为什么是这个状态</strong>
+      <p>{ability.reason}</p>
+      {ability.updatedOn && <p>状态更新：{ability.updatedOn}</p>}
+      {basisEvidence.length > 0
+        ? <EvidenceList evidence={basisEvidence} basisIds={basisIds} />
+        : <p>当前状态没有可下钻的直接依据；可查看最近证据游标。</p>}
+      {historicalEvidence.length > 0 && <details className="masteryHistory">
+        <summary>查看其余 {historicalEvidence.length} 条历史证据</summary>
+        <EvidenceList evidence={historicalEvidence} basisIds={basisIds} />
+      </details>}
+    </div>
+    {anchorEvidence && <a className="evidenceAnchor" href={`#mastery-evidence-${anchorEvidence.id}`}>
+      查看 {anchorEvidence.occurredOn} 的状态依据
+    </a>}
+  </li>;
+}
+
 export function AbilityMap({ abilities }: { abilities: AbilityView[] }) {
   return (
     <section className="learningStateSection abilityMap" aria-labelledby="ability-map-heading">
@@ -37,6 +92,12 @@ export function AbilityMap({ abilities }: { abilities: AbilityView[] }) {
       <ol className="masteryLadder" aria-label="五级能力状态">
         {states.map(([value, label, threshold], index) => {
           const matching = abilities.filter((ability) => ability.status === value);
+          const waitingWithoutEvidence = value === "undiagnosed"
+            ? matching.filter((ability) => ability.evidence.length === 0)
+            : [];
+          const displayed = value === "undiagnosed"
+            ? matching.filter((ability) => ability.evidence.length > 0)
+            : matching;
           return (
             <li key={value} data-status={value}>
               <details className="masteryStateGroup">
@@ -47,41 +108,14 @@ export function AbilityMap({ abilities }: { abilities: AbilityView[] }) {
                     <em>{matching.length} 项</em>
                   </span>
                 </summary>
-                {matching.length > 0 ? <ul className="masterySkills">
-                  {matching.map((ability) => (
-                    <li key={ability.skillId}>
-                      <div className="masterySkillHeading">
-                        <div>
-                          <span>{domainLabels[ability.domain] ?? ability.domain}</span>
-                          <strong>{ability.skillName}</strong>
-                        </div>
-                        <b>{ability.evidenceCount} 条</b>
-                      </div>
-                      <div className="masteryWhy">
-                        <strong>为什么是这个状态</strong>
-                        <p>{ability.reason}</p>
-                        {ability.updatedOn && <p>状态更新：{ability.updatedOn}</p>}
-                        {ability.evidence.length > 0 ? (
-                          <ul className="masteryEvidenceList">
-                            {ability.evidence.map((evidence) => (
-                              <li id={`mastery-evidence-${evidence.id}`} key={evidence.id} tabIndex={-1}>
-                                <strong>{evidence.occurredOn} · {evidence.firstAttemptCorrect ? "首答正确" : "首答未正确"}</strong>
-                                <span>{evidence.stem}</span>
-                                <span>首答：{evidence.firstAnswer ?? "未记录"} · {evidence.independent ? "独立完成" : `使用提示（级别 ${evidence.hintLevel ?? "未知"}）`}</span>
-                                <small>{durationLabel(evidence.activeDurationMs)}</small>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : <p>当前没有可下钻的历史首答。</p>}
-                      </div>
-                      {ability.evidence[0] && (
-                        <a className="evidenceAnchor" href={`#mastery-evidence-${ability.evidence[0].id}`}>
-                          查看 {ability.evidence[0].occurredOn} 的原始证据
-                        </a>
-                      )}
-                    </li>
-                  ))}
-                </ul> : <p className="masteryEmptyState">当前没有能力点处于这个状态。</p>}
+                {displayed.length > 0 && <ul className="masterySkills">
+                  {displayed.map((ability) => <AbilityCard key={ability.skillId} ability={ability} />)}
+                </ul>}
+                {waitingWithoutEvidence.length > 0 && <details className="masteryWaitingSkills">
+                  <summary>{waitingWithoutEvidence.length} 项尚无题目证据</summary>
+                  <p>{waitingWithoutEvidence.map((ability) => ability.skillName).join("、")}</p>
+                </details>}
+                {matching.length === 0 && <p className="masteryEmptyState">当前没有能力点处于这个状态。</p>}
               </details>
             </li>
           );

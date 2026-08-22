@@ -1,4 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { diagnosticRuns, questionTemplates, sessionItems, skills, trainingSessions, users } from "@/db/schema";
 import { createTestDatabase } from "@/test/test-db";
 import ParentPage from "./page";
@@ -71,6 +72,8 @@ beforeEach(() => {
         reason: "最近 5 次独立首答中有 3 次正确，尚未达到基础掌握门槛。",
         evidenceCount: 5,
         updatedOn: "2026-08-23",
+        evidenceCursor: "evidence-reading",
+        supportingEvidenceIds: ["evidence-reading"],
         evidence: [{ id: "evidence-reading", sessionItemId: "item-reading", occurredOn: "2026-08-23", stem: "单位题", firstAnswer: "7.5", firstAttemptCorrect: false, independent: true, hintLevel: 0, activeDurationMs: 45_000 }],
       },
     ],
@@ -103,8 +106,9 @@ test("shows all five state labels, reasons, and exact evidence links", async () 
   for (const label of ["尚未诊断", "需要支持", "正在学习", "基础掌握", "稳定保持"]) {
     expect(screen.getByText(label, { exact: true })).toBeInTheDocument();
   }
+  await userEvent.click(screen.getByText("正在学习", { exact: true }));
   expect(screen.getByText("为什么是这个状态", { exact: true })).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: /查看 2026-08-23 的原始证据/ })).toHaveAttribute("href", "#mastery-evidence-evidence-reading");
+  expect(screen.getByRole("link", { name: /查看 2026-08-23 的状态依据/ })).toHaveAttribute("href", "#mastery-evidence-evidence-reading");
   expect(screen.getByRole("link", { name: /查看习惯性失误证据/ })).toHaveAttribute("href", "#error-evidence-error-reading");
   expect(screen.getByText("方程 4 级")).toBeInTheDocument();
   expect(screen.getByText("2026-08-23 · 今天到期")).toBeInTheDocument();
@@ -244,6 +248,9 @@ test("labels all six completed-domain results as provisional version one", async
   expect(paths[1]).toHaveTextContent("第 2 部分：3 → 4 → 1 → 2");
   expect(paths[2]).toHaveTextContent("第 3 部分：4 → 1 → 2 → 3");
   expect(screen.getAllByTestId("diagnosis-difficulty-fallback")).toHaveLength(1);
+  const fallbackDetails = screen.getByText("1 题使用了最近可用难度").closest("details");
+  expect(fallbackDetails).not.toHaveAttribute("open");
+  expect(screen.getByTestId("diagnosis-difficulty-fallback")).not.toBeVisible();
   expect(screen.getByTestId("diagnosis-difficulty-fallback"))
     .toHaveTextContent("目标 4 → 实际 2");
   expect(screen.getByRole("button", { name: "发起第 2 版诊断" })).toBeVisible();

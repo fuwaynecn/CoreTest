@@ -129,6 +129,7 @@ export default async function ParentPage() {
       .filter((row) => row.part === part && row.difficulty !== null)
       .map((row) => row.difficulty as number),
   }));
+  const difficultyFallbackRows = difficultyRows.filter((row) => row.targetDifficulty !== row.difficulty);
   const diagnosisReport = completedDiagnosis
     ? parseInitialReport(completedDiagnosis.reportSnapshot)
     : null;
@@ -201,12 +202,17 @@ export default async function ParentPage() {
                   <span>第 {part} 部分：</span>{values.join(" → ")}
                 </p>
               ))}
-              {difficultyRows.filter((row) => row.targetDifficulty !== row.difficulty).map((row) => (
-                <p key={`${row.part}-${row.position}`} className="difficultyFallback" data-testid="diagnosis-difficulty-fallback">
-                  第 {row.part} 部分第 {row.position} 题：目标 {row.targetDifficulty} → 实际 {row.difficulty}
-                  <span>同领域目标难度题不可用，按规则使用最近难度。</span>
-                </p>
-              ))}
+              {difficultyFallbackRows.length > 0 && <details className="difficultyFallbackDetails">
+                <summary>{difficultyFallbackRows.length} 题使用了最近可用难度</summary>
+                <div>
+                  {difficultyFallbackRows.map((row) => (
+                    <p key={`${row.part}-${row.position}`} className="difficultyFallback" data-testid="diagnosis-difficulty-fallback">
+                      第 {row.part} 部分第 {row.position} 题：目标 {row.targetDifficulty} → 实际 {row.difficulty}
+                      <span>同领域目标难度题不可用，按规则使用最近难度。</span>
+                    </p>
+                  ))}
+                </div>
+              </details>}
             </div>
           )}
           {diagnosisReport && (
