@@ -52,6 +52,7 @@ function AbilityCard({ ability }: { ability: AbilityView }) {
   const cursorEvidence = ability.evidence.find((item) => item.id === ability.evidenceCursor);
   const anchorEvidence = cursorEvidence ?? basisEvidence.at(-1) ?? ability.evidence.at(-1);
   const historicalEvidence = ability.evidence.filter((item) => !basisIds.has(item.id));
+  const cursorIsHistorical = cursorEvidence !== undefined && !basisIds.has(cursorEvidence.id);
   return <li>
     <div className="masterySkillHeading">
       <div>
@@ -67,7 +68,7 @@ function AbilityCard({ ability }: { ability: AbilityView }) {
       {basisEvidence.length > 0
         ? <EvidenceList evidence={basisEvidence} basisIds={basisIds} />
         : <p>当前状态没有可下钻的直接依据；可查看最近证据游标。</p>}
-      {historicalEvidence.length > 0 && <details className="masteryHistory">
+      {historicalEvidence.length > 0 && <details className="masteryHistory" open={cursorIsHistorical}>
         <summary>查看其余 {historicalEvidence.length} 条历史证据</summary>
         <EvidenceList evidence={historicalEvidence} basisIds={basisIds} />
       </details>}

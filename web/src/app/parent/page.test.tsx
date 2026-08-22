@@ -76,6 +76,20 @@ beforeEach(() => {
         supportingEvidenceIds: ["evidence-reading"],
         evidence: [{ id: "evidence-reading", sessionItemId: "item-reading", occurredOn: "2026-08-23", stem: "单位题", firstAnswer: "7.5", firstAttemptCorrect: false, independent: true, hintLevel: 0, activeDurationMs: 45_000 }],
       },
+      {
+        skillId: "skill-legacy",
+        skillCode: "legacy-skill",
+        skillName: "历史聚合能力",
+        domain: "geometry_space",
+        status: "basic",
+        reasonCode: "legacy_snapshot",
+        reason: "旧版聚合快照保留了一个历史状态，但缺少可验证的诊断遥测；当前状态不可下钻正式证据。请完成新诊断后再按当前证据解释。",
+        evidenceCount: 12,
+        updatedOn: "2026-08-20",
+        evidenceCursor: null,
+        supportingEvidenceIds: [],
+        evidence: [],
+      },
     ],
     errorSummary: { knowledge: 1, habit: 1, unknown: 0 },
     errors: [{
@@ -107,7 +121,10 @@ test("shows all five state labels, reasons, and exact evidence links", async () 
     expect(screen.getByText(label, { exact: true })).toBeInTheDocument();
   }
   await userEvent.click(screen.getByText("正在学习", { exact: true }));
-  expect(screen.getByText("为什么是这个状态", { exact: true })).toBeInTheDocument();
+  await userEvent.click(screen.getByText("基础掌握", { exact: true }));
+  expect(screen.getAllByText("为什么是这个状态", { exact: true })).toHaveLength(2);
+  expect(screen.getByText(/旧版聚合快照保留了一个历史状态/)).toBeInTheDocument();
+  expect(screen.getByText(/旧版聚合快照保留了一个历史状态/)).not.toHaveTextContent("共 12 条");
   expect(screen.getByRole("link", { name: /查看 2026-08-23 的状态依据/ })).toHaveAttribute("href", "#mastery-evidence-evidence-reading");
   expect(screen.getByRole("link", { name: /查看习惯性失误证据/ })).toHaveAttribute("href", "#error-evidence-error-reading");
   expect(screen.getByText("方程 4 级")).toBeInTheDocument();

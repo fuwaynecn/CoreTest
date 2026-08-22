@@ -115,6 +115,7 @@ function seedLearningState() {
     { childId: "child-1", skillId: "skill-equation", status: "learning", evidenceCount: 5, correctCount: 4, reasonCode: "recent_five_below_basic", evidenceCursor: "evidence-5", evidenceVersion: 5, updatedAt: NOW - 2 * 86_400_000 },
     { childId: "child-1", skillId: "skill-reading", status: "needs_support", evidenceCount: 1, correctCount: 0, reasonCode: "diagnostic_needs_support", evidenceCursor: "evidence-6", evidenceVersion: 1, updatedAt: NOW - 86_400_000 },
     { childId: "child-1", skillId: "skill-computation", status: "basic", evidenceCount: 1, correctCount: 1, reasonCode: "diagnostic_basic", evidenceCursor: "evidence-7", evidenceVersion: 1, updatedAt: NOW },
+    { childId: "child-1", skillId: "skill-unseen", status: "basic", evidenceCount: 12, correctCount: 9, reasonCode: "legacy_snapshot", evidenceCursor: null, evidenceVersion: 0, updatedAt: NOW },
   ]).run();
   db.insert(reviewSchedules).values({ childId: "child-1", skillId: "skill-equation", level: 1, dueOn: "2026-08-23", lastResult: "independent_correct", updatedAt: NOW }).run();
   db.insert(dosageStates).values([
@@ -146,7 +147,12 @@ test("builds traceable mastery, effective errors, due reviews, and dosage", () =
       supportingEvidenceIds: ["evidence-5"],
     });
   expect(view.abilityMap.find((item) => item.skillCode === "geometry-unseen"))
-    .toMatchObject({ status: "undiagnosed", reasonCode: "no_evidence", evidenceCount: 0 });
+    .toMatchObject({ status: "basic", reasonCode: "legacy_snapshot", evidenceCount: 12 });
+  const legacy = view.abilityMap.find((item) => item.skillCode === "geometry-unseen")!;
+  expect(legacy.reason).toContain("旧版聚合快照");
+  expect(legacy.reason).toContain("缺少可验证的诊断遥测");
+  expect(legacy.reason).toContain("当前状态不可下钻正式证据");
+  expect(legacy.reason).not.toContain("共 12 条");
   expect(view.abilityMap.find((item) => item.skillCode === "equation-two-step")?.evidence)
     .toEqual(expect.arrayContaining([expect.objectContaining({ id: "evidence-5", activeDurationMs: 49_000 })]));
   expect(view.errorSummary).toMatchObject({ knowledge: 1, habit: 2, unknown: 0 });

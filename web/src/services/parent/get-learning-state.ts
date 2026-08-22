@@ -118,6 +118,9 @@ function isMasteryReasonCode(reasonCode: string): reasonCode is MasteryReasonCod
 }
 
 function abilityReason(status: MasteryStatus, reasonCode: string, evidenceCount: number, dates: string[]) {
+  if (reasonCode === "legacy_snapshot") {
+    return "旧版聚合快照保留了一个历史状态，但缺少可验证的诊断遥测；当前状态不可下钻正式证据。请完成新诊断后再按当前证据解释。";
+  }
   const period = dates.length === 0
     ? "还没有正式证据"
     : dates.length === 1
