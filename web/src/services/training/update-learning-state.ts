@@ -17,6 +17,12 @@ import {
   type ReviewLevel,
   type ReviewOutcome,
 } from "@/domain/review/next-review";
+import {
+  compareReviewEvents,
+  reviewEventIdentity,
+  type ReviewCorrectionIdentity,
+  type ReviewEventIdentity,
+} from "@/domain/review/review-event";
 import { addShanghaiDays, shanghaiDateKey } from "@/domain/time/shanghai-calendar";
 import {
   deriveMasteryState,
@@ -97,42 +103,28 @@ function outcome(row: EvidenceRow, corrected: boolean): ReviewOutcome {
   return row.independent ? "independent_correct" : "hinted_correct";
 }
 
-type CorrectionEvent = { id: string; on: string; at: number };
-
 function deriveReview(
   rows: EvidenceRow[],
-  corrections: ReadonlyMap<string, CorrectionEvent>,
+  corrections: ReadonlyMap<string, ReviewCorrectionIdentity>,
 ): ReviewSnapshot | null {
-  const events: Array<{
-    on: string;
-    at: number;
-    id: string;
+  const events: Array<ReviewEventIdentity & {
     diagnostic: boolean;
     row?: EvidenceRow;
-  }> = rows.filter((row) => row.purpose !== "diagnostic").map((row) => {
+  }> = rows.filter((row) => row.purpose !== "diagnostic").flatMap((row) => {
     const correction = !row.firstAttemptCorrect ? corrections.get(row.sessionItemId) : undefined;
-    return {
-      on: correction?.on ?? row.occurredOn,
-      at: correction?.at ?? row.occurredAt,
-      id: correction?.id ?? row.id,
-      diagnostic: false,
-      row,
-    };
+    const event = reviewEventIdentity(row, correction);
+    return event ? [{ ...event, diagnostic: false, row }] : [];
   });
-  const diagnosticRuns = new Map<string, EvidenceRow>();
+  const diagnosticRuns = new Map<string, ReviewEventIdentity>();
   for (const row of rows) {
-    if (row.purpose !== "diagnostic" || row.diagnosticRunId === null
-      || row.diagnosticCompletedOn === null || row.diagnosticCompletedAt === null) continue;
-    diagnosticRuns.set(row.diagnosticRunId, row);
+    const event = reviewEventIdentity(row);
+    if (row.purpose !== "diagnostic" || event === null) continue;
+    diagnosticRuns.set(event.eventId, event);
   }
-  for (const [runId, row] of diagnosticRuns) {
-    events.push({
-      on: row.diagnosticCompletedOn!, at: row.diagnosticCompletedAt!,
-      id: runId, diagnostic: true,
-    });
+  for (const event of diagnosticRuns.values()) {
+    events.push({ ...event, diagnostic: true });
   }
-  events.sort((left, right) => left.on.localeCompare(right.on)
-    || left.at - right.at || left.id.localeCompare(right.id));
+  events.sort(compareReviewEvents);
 
   let state: ReviewSnapshot | null = null;
   for (const event of events) {
@@ -274,7 +266,7 @@ export function updateLearningState(
     ))
     .orderBy(asc(attempts.submittedAt), asc(attempts.id))
     .all();
-  const corrections = new Map<string, CorrectionEvent>();
+  const corrections = new Map<string, ReviewCorrectionIdentity>();
   const attemptsByItem = new Map<string, typeof correctionRows>();
   for (const row of correctionRows) {
     const rows = attemptsByItem.get(row.sessionItemId) ?? [];

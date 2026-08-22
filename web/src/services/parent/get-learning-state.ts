@@ -14,6 +14,7 @@ import {
 } from "@/db/schema";
 import { errorCategory, type ErrorCategory } from "@/domain/errors/classify-error";
 import type { ErrorCause, MasteryStatus } from "@/domain/learning/contracts";
+import { compareReviewEvents, reviewEventIdentity } from "@/domain/review/review-event";
 import {
   deriveMasteryState,
   masteryReasonDescriptions,
@@ -395,24 +396,29 @@ export function getLearningState(
       .filter((row) => row.schedule.dueOn <= asOf)
       .map((row): DueReviewView => {
         const candidates = evidenceRows.filter((item) => item.evidence.skillId === row.schedule.skillId)
-          .map((item) => {
+          .flatMap((item) => {
             const trigger = triggerFor(item);
-            const correction = firstCorrectCorrection(attemptsByItem.get(item.evidence.sessionItemId) ?? []);
-            return {
+            const correction = !item.evidence.firstAttemptCorrect
+              ? firstCorrectCorrection(attemptsByItem.get(item.evidence.sessionItemId) ?? [])
+              : null;
+            const event = reviewEventIdentity(item.evidence, correction && {
+              id: correction.id,
+              on: shanghaiDateKey(correction.submittedAt),
+              at: correction.submittedAt,
+            });
+            return event ? [{
               item,
               trigger,
-              at: item.evidence.purpose === "diagnostic"
-                ? item.evidence.diagnosticCompletedAt ?? item.evidence.occurredAt
-                : correction?.submittedAt ?? item.evidence.occurredAt,
-            };
+              event,
+            }] : [];
           })
           .filter((candidate) => row.schedule.lastResult === null
             ? candidate.trigger.result === "diagnostic_reset"
             : candidate.trigger.result === row.schedule.lastResult)
-          .sort((left, right) => left.at - right.at
+          .sort((left, right) => compareReviewEvents(left.event, right.event)
             || left.item.evidence.id.localeCompare(right.item.evidence.id));
-        const selected = candidates.filter((candidate) => candidate.at === row.schedule.updatedAt).at(-1)
-          ?? candidates.filter((candidate) => candidate.at <= row.schedule.updatedAt).at(-1)
+        const selected = candidates.filter((candidate) => candidate.event.at === row.schedule.updatedAt).at(-1)
+          ?? candidates.filter((candidate) => candidate.event.at <= row.schedule.updatedAt).at(-1)
           ?? candidates.at(-1)
           ?? null;
         const supportingEvidenceIds = selected?.trigger.result === "diagnostic_reset"

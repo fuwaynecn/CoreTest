@@ -1,5 +1,6 @@
 import {
   attempts,
+  diagnosticRuns,
   dosageStates,
   errorObservations,
   masteryEvidence,
@@ -287,5 +288,171 @@ test("uses the last evidence id when tied events produce the current review sche
       occurredOn: "2026-08-22", stem: "最后的同毫秒证据",
       result: "independent_correct", firstAttemptCorrect: true, independent: true, hintLevel: 0,
     },
+  });
+});
+
+test("uses the correction attempt id to bind tied corrected events to the current review schedule", () => {
+  const db = seedLearningState();
+  const correctedAt = Date.parse("2026-08-24T10:00:00+08:00");
+  db.insert(trainingSessions).values([
+    {
+      id: "cross-session-a", childId: "child-1", sessionDate: "2026-08-24",
+      kind: "practice", status: "completed", startedAt: correctedAt - 1_000,
+      completedAt: correctedAt,
+    },
+    {
+      id: "cross-session-z", childId: "child-1", sessionDate: "2026-08-24",
+      kind: "practice", status: "completed", startedAt: correctedAt - 1_000,
+      completedAt: correctedAt,
+    },
+  ]).run();
+  db.insert(sessionItems).values([
+    {
+      id: "cross-item-a", sessionId: "cross-session-a", questionTemplateId: "tpl-equation",
+      position: 1, stemSnapshot: "证据 a，订正事件 z", answerSpecSnapshot: "{}",
+      explanationSnapshot: "讲解", skillIdSnapshot: "skill-equation",
+      skillNameSnapshot: "两步方程", difficultySnapshot: 4,
+      structureTagSnapshot: "equation-two-step",
+    },
+    {
+      id: "cross-item-z", sessionId: "cross-session-z", questionTemplateId: "tpl-equation",
+      position: 1, stemSnapshot: "证据 z，订正事件 a", answerSpecSnapshot: "{}",
+      explanationSnapshot: "讲解", skillIdSnapshot: "skill-equation",
+      skillNameSnapshot: "两步方程", difficultySnapshot: 4,
+      structureTagSnapshot: "equation-two-step",
+    },
+  ]).run();
+  db.insert(attempts).values([
+    {
+      id: "cross-first-a", sessionItemId: "cross-item-a", clientSubmissionId: "cross-first-submission-a",
+      answerText: "6", isCorrect: false, normalizedAnswer: "6", explanation: "讲解",
+      sessionCompleted: false, correctionNumber: 0, submittedAt: correctedAt - 1_000,
+    },
+    {
+      id: "z-correction-event", sessionItemId: "cross-item-a",
+      clientSubmissionId: "cross-correction-submission-z", answerText: "7", isCorrect: true,
+      normalizedAnswer: "7", explanation: "讲解", sessionCompleted: true,
+      correctionNumber: 1, submittedAt: correctedAt,
+    },
+    {
+      id: "cross-first-z", sessionItemId: "cross-item-z", clientSubmissionId: "cross-first-submission-z",
+      answerText: "6", isCorrect: false, normalizedAnswer: "6", explanation: "讲解",
+      sessionCompleted: false, correctionNumber: 0, submittedAt: correctedAt - 1_000,
+    },
+    {
+      id: "a-correction-event", sessionItemId: "cross-item-z",
+      clientSubmissionId: "cross-correction-submission-a", answerText: "7", isCorrect: true,
+      normalizedAnswer: "7", explanation: "讲解", sessionCompleted: true,
+      correctionNumber: 1, submittedAt: correctedAt,
+    },
+  ]).run();
+  db.insert(masteryEvidence).values([
+    {
+      id: "a-evidence-cross", childId: "child-1", skillId: "skill-equation",
+      sessionItemId: "cross-item-a", templateId: "tpl-equation", purpose: "learning",
+      firstAttemptCorrect: false, independent: false, hintLevel: 0, dosageTrack: "equation",
+      difficulty: 4, structureTag: "equation-two-step", occurredOn: "2026-08-24",
+      occurredAt: correctedAt - 1_000,
+    },
+    {
+      id: "z-evidence-cross", childId: "child-1", skillId: "skill-equation",
+      sessionItemId: "cross-item-z", templateId: "tpl-equation", purpose: "learning",
+      firstAttemptCorrect: false, independent: false, hintLevel: 0, dosageTrack: "equation",
+      difficulty: 4, structureTag: "equation-two-step", occurredOn: "2026-08-24",
+      occurredAt: correctedAt - 1_000,
+    },
+  ]).run();
+
+  updateLearningState(db, "z-evidence-cross");
+  expect(db.select().from(reviewSchedules).where(eq(reviewSchedules.skillId, "skill-equation")).get())
+    .toMatchObject({ level: 0, dueOn: "2026-08-25", lastResult: "corrected", updatedAt: correctedAt });
+  const due = getLearningState(db, "child-1", Date.parse("2026-08-25T10:00:00+08:00"))
+    .dueReviews[0];
+  expect(due).toMatchObject({
+    level: 0, dueOn: "2026-08-25", lastResult: "corrected",
+    supportingEvidenceIds: ["a-evidence-cross"],
+    trigger: expect.objectContaining({
+      evidenceId: "a-evidence-cross", attemptId: "z-correction-event",
+      sessionItemId: "cross-item-a", sessionId: "cross-session-a",
+      occurredOn: "2026-08-24", stem: "证据 a，订正事件 z", result: "corrected",
+    }),
+  });
+});
+
+test("binds a diagnostic reset to its run event and exposes the whole evidence batch", () => {
+  const db = seedLearningState();
+  const completedAt = Date.parse("2026-08-26T10:00:00+08:00");
+  db.insert(diagnosticRuns).values({
+    id: "diagnostic-run-batch", childId: "child-1", version: 1,
+    status: "completed", currentPart: 3, seed: "batch-seed",
+    startedAt: completedAt - 60_000, completedAt,
+  }).run();
+  db.insert(trainingSessions).values({
+    id: "diagnostic-batch-session", childId: "child-1", sessionDate: "2026-08-26",
+    kind: "diagnostic", diagnosticRunId: "diagnostic-run-batch", diagnosticPartNumber: 3,
+    status: "completed", startedAt: completedAt - 60_000, completedAt,
+  }).run();
+  db.insert(sessionItems).values([
+    {
+      id: "diagnostic-batch-item-a", sessionId: "diagnostic-batch-session",
+      questionTemplateId: "tpl-equation", position: 1, stemSnapshot: "诊断批次证据 a",
+      answerSpecSnapshot: "{}", explanationSnapshot: "讲解", skillIdSnapshot: "skill-equation",
+      skillNameSnapshot: "两步方程", difficultySnapshot: 4,
+      structureTagSnapshot: "equation-two-step",
+    },
+    {
+      id: "diagnostic-batch-item-z", sessionId: "diagnostic-batch-session",
+      questionTemplateId: "tpl-equation", position: 2, stemSnapshot: "诊断批次证据 z",
+      answerSpecSnapshot: "{}", explanationSnapshot: "讲解", skillIdSnapshot: "skill-equation",
+      skillNameSnapshot: "两步方程", difficultySnapshot: 4,
+      structureTagSnapshot: "equation-two-step",
+    },
+  ]).run();
+  db.insert(attempts).values([
+    {
+      id: "diagnostic-batch-attempt-a", sessionItemId: "diagnostic-batch-item-a",
+      clientSubmissionId: "diagnostic-batch-submission-a", answerText: "7", isCorrect: true,
+      normalizedAnswer: "7", explanation: "讲解", sessionCompleted: false,
+      correctionNumber: 0, submittedAt: completedAt - 2_000,
+    },
+    {
+      id: "diagnostic-batch-attempt-z", sessionItemId: "diagnostic-batch-item-z",
+      clientSubmissionId: "diagnostic-batch-submission-z", answerText: "6", isCorrect: false,
+      normalizedAnswer: "6", explanation: "讲解", sessionCompleted: true,
+      correctionNumber: 0, submittedAt: completedAt - 1_000,
+    },
+  ]).run();
+  db.insert(masteryEvidence).values([
+    {
+      id: "a-diagnostic-batch-evidence", childId: "child-1", skillId: "skill-equation",
+      sessionItemId: "diagnostic-batch-item-a", templateId: "tpl-equation", purpose: "diagnostic",
+      firstAttemptCorrect: true, independent: true, hintLevel: 0, dosageTrack: "equation",
+      difficulty: 4, structureTag: "equation-two-step", occurredOn: "2026-08-26",
+      occurredAt: completedAt - 2_000, diagnosticRunId: "diagnostic-run-batch",
+      diagnosticCompletedOn: "2026-08-26", diagnosticCompletedAt: completedAt,
+    },
+    {
+      id: "z-diagnostic-batch-evidence", childId: "child-1", skillId: "skill-equation",
+      sessionItemId: "diagnostic-batch-item-z", templateId: "tpl-equation", purpose: "diagnostic",
+      firstAttemptCorrect: false, independent: false, hintLevel: 0, dosageTrack: "equation",
+      difficulty: 4, structureTag: "equation-two-step", occurredOn: "2026-08-26",
+      occurredAt: completedAt - 1_000, diagnosticRunId: "diagnostic-run-batch",
+      diagnosticCompletedOn: "2026-08-26", diagnosticCompletedAt: completedAt,
+    },
+  ]).run();
+
+  updateLearningState(db, "z-diagnostic-batch-evidence");
+  expect(db.select().from(reviewSchedules).where(eq(reviewSchedules.skillId, "skill-equation")).get())
+    .toMatchObject({ level: 0, dueOn: "2026-08-27", lastResult: null, updatedAt: completedAt });
+  const due = getLearningState(db, "child-1", Date.parse("2026-08-27T10:00:00+08:00"))
+    .dueReviews[0];
+  expect(due).toMatchObject({
+    level: 0, dueOn: "2026-08-27", lastResult: null,
+    supportingEvidenceIds: ["a-diagnostic-batch-evidence", "z-diagnostic-batch-evidence"],
+    trigger: expect.objectContaining({
+      evidenceId: "z-diagnostic-batch-evidence", attemptId: "diagnostic-batch-attempt-z",
+      sessionItemId: "diagnostic-batch-item-z", sessionId: "diagnostic-batch-session",
+      occurredOn: "2026-08-26", stem: "诊断批次证据 z", result: "diagnostic_reset",
+    }),
   });
 });
