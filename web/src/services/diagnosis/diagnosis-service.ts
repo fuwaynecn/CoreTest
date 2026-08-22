@@ -13,6 +13,7 @@ import {
   trainingSessions,
 } from "@/db/schema";
 import { deriveInitialReport } from "@/domain/diagnosis/derive-initial-report";
+import { dosageTrackForDomain } from "@/domain/dosage/dosage-track";
 import { selectNextDiagnosticQuestion } from "@/domain/diagnosis/select-next-question";
 import type {
   DiagnosticAnswer,
@@ -28,6 +29,7 @@ import {
 } from "@/domain/questions/instantiate-template";
 import type { ReviewedTemplate } from "@/domain/questions/template-schema";
 import { scoreAnswer } from "@/domain/questions/score-answer";
+import { normalizeTelemetry } from "@/domain/training/attempt-telemetry";
 import { shanghaiDateKey } from "@/domain/time/shanghai-calendar";
 import { recordSystemErrorObservation } from "@/services/training/error-observation-service";
 import { recordLearningEvidence } from "@/services/training/record-learning-evidence";
@@ -51,6 +53,8 @@ function resolveRuntime(runtime: DiagnosisRuntime = {}) {
 type ItemMetadata = {
   answerMode: string;
   domain: DiagnosticAnswer["domain"];
+  dosageTrack?: "computation" | "equation" | null;
+  estimatedSeconds?: number;
   choiceOptions?: ChoiceOption[];
 };
 
@@ -77,6 +81,9 @@ export type SubmitDiagnosticAttemptCommand = {
   sessionItemId: string;
   clientSubmissionId: string;
   answerText: string;
+  activeDurationMs?: number;
+  hintLevel?: number;
+  hintCount?: number;
 };
 
 export type DiagnosticAttemptResult = {
@@ -169,6 +176,7 @@ function answerHistory(tx: AppTransaction, runId: string): DiagnosticAnswer[] {
     difficulty: sessionItems.difficultySnapshot,
     metadata: sessionItems.selectionReasonSnapshot,
     correct: attempts.isCorrect,
+    hintLevel: attempts.hintLevel,
   }).from(attempts)
     .innerJoin(sessionItems, eq(attempts.sessionItemId, sessionItems.id))
     .innerJoin(trainingSessions, eq(sessionItems.sessionId, trainingSessions.id))
@@ -181,7 +189,7 @@ function answerHistory(tx: AppTransaction, runId: string): DiagnosticAnswer[] {
       domain: parseItemMetadata(row.metadata).domain,
       difficulty: row.difficulty as Difficulty,
       correct: row.correct,
-      independent: true,
+      independent: row.hintLevel === 0,
     }));
 }
 
@@ -197,7 +205,9 @@ function importDiagnosticEvidence(
     skillId: sessionItems.skillIdSnapshot,
     difficulty: sessionItems.difficultySnapshot,
     structureTag: sessionItems.structureTagSnapshot,
+    metadata: sessionItems.selectionReasonSnapshot,
     correct: attempts.isCorrect,
+    hintLevel: attempts.hintLevel,
     occurredAt: attempts.submittedAt,
   }).from(attempts)
     .innerJoin(sessionItems, eq(attempts.sessionItemId, sessionItems.id))
@@ -206,10 +216,8 @@ function importDiagnosticEvidence(
     .orderBy(asc(attempts.submittedAt), asc(attempts.id))
     .all();
   for (const row of rows) {
-    const persistedHints = tx.select({ level: hintEvents.hintLevel }).from(hintEvents)
-      .where(eq(hintEvents.sessionItemId, row.sessionItemId)).all();
-    const hintLevel = persistedHints.reduce<number>((highest, hint) => Math.max(highest, hint.level), 0) as
-      0 | 1 | 2 | 3;
+    const hintLevel = row.hintLevel as 0 | 1 | 2 | 3;
+    const metadata = parseItemMetadata(row.metadata);
     recordLearningEvidence(tx, {
       childId,
       skillId: row.skillId,
@@ -219,6 +227,7 @@ function importDiagnosticEvidence(
       firstAttemptCorrect: row.correct,
       independent: hintLevel === 0,
       hintLevel,
+      dosageTrack: metadata.dosageTrack ?? dosageTrackForDomain(metadata.domain),
       difficulty: row.difficulty as 1 | 2 | 3 | 4,
       structureTag: row.structureTag,
       occurredOn: shanghaiDateKey(row.occurredAt),
@@ -438,6 +447,7 @@ function createNextItem(
       targetDifficulty: selection.targetDifficulty,
       selectedDifficulty: selection.difficulty,
       domain: template.domain,
+      dosageTrack: dosageTrackForDomain(template.domain),
       answerMode: template.answerMode,
       choiceOptions,
       hintLadder: instance.hintLadder,
@@ -592,6 +602,21 @@ export function submitDiagnosticAttempt(
 
     const spec = answerSpecSchema.parse(JSON.parse(item.answerSpec));
     const score = scoreAnswer(command.answerText, spec);
+    const persistedHints = tx.select({ level: hintEvents.hintLevel }).from(hintEvents)
+      .where(and(
+        eq(hintEvents.sessionItemId, command.sessionItemId),
+        eq(hintEvents.childId, command.childId),
+      )).all();
+    const hintCount = Math.min(persistedHints.length, 3);
+    const hintLevel = persistedHints.reduce((highest, event) => (
+      Math.max(highest, event.level)
+    ), 0);
+    const metadata = parseItemMetadata(item.metadata);
+    const telemetry = normalizeTelemetry({
+      activeDurationMs: command.activeDurationMs ?? 0,
+      hintLevel,
+      hintCount,
+    }, metadata.estimatedSeconds);
     const completedInPart = tx.select({ value: count() }).from(attempts)
       .innerJoin(sessionItems, eq(attempts.sessionItemId, sessionItems.id))
       .where(eq(sessionItems.sessionId, item.sessionId)).get()?.value ?? 0;
@@ -607,6 +632,8 @@ export function submitDiagnosticAttempt(
       normalizedAnswer: score.normalizedAnswer,
       explanation: item.explanation,
       sessionCompleted: partCompleted,
+      ...telemetry,
+      correctionNumber: 0,
       submittedAt: now,
     }).run();
 

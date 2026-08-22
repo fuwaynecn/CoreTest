@@ -18,6 +18,7 @@ export type RecordLearningEvidenceCommand = {
   firstAttemptCorrect: boolean;
   independent: boolean;
   hintLevel: 0 | 1 | 2 | 3 | null;
+  dosageTrack: "computation" | "equation" | null;
   difficulty: 1 | 2 | 3 | 4;
   structureTag: string;
   occurredOn: string;

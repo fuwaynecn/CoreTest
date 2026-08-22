@@ -11,6 +11,7 @@ import {
   trainingSessions,
 } from "@/db/schema";
 import type { SessionView } from "@/domain/training/types";
+import { dosageTrackForDomain } from "@/domain/dosage/dosage-track";
 
 export class DailyTrainingLockedError extends Error {
   constructor() {
@@ -121,6 +122,7 @@ export function getOrCreateDailySession(
       skillId: questionTemplates.skillId,
       skillName: skills.name,
       difficulty: questionTemplates.difficulty,
+      domain: questionTemplates.domain,
       contentTier: questionTemplates.contentTier,
       structureTag: questionTemplates.structureTag,
       estimatedSeconds: questionTemplates.estimatedSeconds,
@@ -180,6 +182,7 @@ export function getOrCreateDailySession(
         selectionReasonSnapshot: JSON.stringify({
           snapshotVersion: 1,
           reason: "phase1_fixed_daily",
+          dosageTrack: dosageTrackForDomain(question.domain),
           answerMode: question.answerMode,
           estimatedSeconds: question.estimatedSeconds,
           readingLoad: question.readingLoad,

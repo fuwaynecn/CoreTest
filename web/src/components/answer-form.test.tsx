@@ -70,11 +70,55 @@ test("shows sequential hints and submits the server-confirmed hint facts", async
     expect(await screen.findByText(text)).toBeInTheDocument();
   }
   expect(requestHint).toHaveBeenCalledTimes(4);
+  expect(new Set(requestHint.mock.calls.map((call) => call[1])).size).toBe(4);
 
   await userEvent.type(screen.getByLabelText("你的答案"), "6");
   await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
   expect(submit).toHaveBeenCalledWith(expect.objectContaining({ hintLevel: 3, hintCount: 3 }));
 });
+
+test.each([500, 502, 503, 504])(
+  "retries an uncertain hint request with the same request id after %s",
+  async (status) => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: "temporary" }), { status }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        level: 1, hint: "方向提示", hintCount: 1,
+      })));
+    render(<AnswerForm sessionItemId="item-hint" />);
+
+    await userEvent.click(screen.getByRole("button", { name: "查看提示" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("提示暂时无法加载");
+    await userEvent.click(screen.getByRole("button", { name: "查看提示" }));
+    expect(await screen.findByText("方向提示")).toBeVisible();
+
+    const first = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
+    const retry = JSON.parse(fetchSpy.mock.calls[1][1]?.body as string);
+    expect(retry.requestId).toBe(first.requestId);
+    expect(first.requestId).toMatch(/^[0-9a-f-]{36}$/i);
+  },
+);
+
+test.each([400, 401, 403, 404])(
+  "allocates a new hint request id after a definite %s response",
+  async (status) => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: "definite" }), { status }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        level: 1, hint: "方向提示", hintCount: 1,
+      })));
+    render(<AnswerForm sessionItemId="item-hint" />);
+
+    await userEvent.click(screen.getByRole("button", { name: "查看提示" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("definite");
+    await userEvent.click(screen.getByRole("button", { name: "查看提示" }));
+    expect(await screen.findByText("方向提示")).toBeVisible();
+
+    const first = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
+    const second = JSON.parse(fetchSpy.mock.calls[1][1]?.body as string);
+    expect(second.requestId).not.toBe(first.requestId);
+  },
+);
 
 test("stops active timing after unmount", () => {
   vi.useFakeTimers();

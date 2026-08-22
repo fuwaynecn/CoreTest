@@ -8,6 +8,7 @@ import {
   attempts,
   diagnosticRuns,
   hintEvents,
+  hintRequests,
   questionTemplates,
   sessionItems,
   skills,
@@ -33,8 +34,10 @@ import { POST } from "./route";
 
 type TestDatabase = ReturnType<typeof createTestDatabase>;
 let db: TestDatabase;
+let requestSequence = 0;
 
 beforeEach(() => {
+  requestSequence = 0;
   testState.getCurrentUser.mockReset();
   testState.getCurrentUser.mockResolvedValue({ id: "child-1", role: "child", displayName: "孩子" });
   db = createTestDatabase();
@@ -83,11 +86,16 @@ function item(id: string, sessionId: string) {
   };
 }
 
-function hintRequest(sessionItemId: string) {
+function nextRequestId() {
+  requestSequence += 1;
+  return `00000000-0000-4000-8000-${String(requestSequence).padStart(12, "0")}`;
+}
+
+function hintRequest(sessionItemId: string, requestId = nextRequestId()) {
   return new Request("http://localhost/api/child/hints", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ sessionItemId }),
+    body: JSON.stringify({ sessionItemId, requestId }),
   });
 }
 
@@ -107,6 +115,23 @@ test("reveals snapshot hints in order and repeats level three without another ev
   ]);
   expect(db.select().from(hintEvents).where(eq(hintEvents.sessionItemId, "item-1")).all())
     .toHaveLength(3);
+  expect(db.select().from(hintRequests).where(eq(hintRequests.sessionItemId, "item-1")).all())
+    .toHaveLength(4);
+});
+
+test("replays the same logical hint request without advancing", async () => {
+  const requestId = "11111111-1111-4111-8111-111111111111";
+  const first = await POST(hintRequest("item-1", requestId));
+  const replay = await POST(hintRequest("item-1", requestId));
+
+  expect(await first.json()).toEqual({ level: 1, hint: "先判断运算。", hintCount: 1 });
+  expect(await replay.json()).toEqual({ level: 1, hint: "先判断运算。", hintCount: 1 });
+  expect(db.select().from(hintEvents).all()).toHaveLength(1);
+  expect(db.select().from(hintRequests).all()).toHaveLength(1);
+
+  const mismatched = await POST(hintRequest("item-foreign", requestId));
+  expect(mismatched.status).toBe(404);
+  expect(JSON.stringify(await mismatched.json())).not.toContain("答案");
 });
 
 test("keeps hint progression durable across separate database connections", () => {
@@ -133,10 +158,16 @@ test("keeps hint progression durable across separate database connections", () =
   second.$client.exec("PRAGMA journal_mode = WAL");
 
   try {
-    expect(revealNextHint(first, "child-1", "item-1")).toMatchObject({ level: 1, hintCount: 1 });
-    expect(revealNextHint(second, "child-1", "item-1")).toMatchObject({ level: 2, hintCount: 2 });
-    expect(revealNextHint(first, "child-1", "item-1")).toMatchObject({ level: 3, hintCount: 3 });
-    expect(revealNextHint(second, "child-1", "item-1")).toMatchObject({ level: 3, hintCount: 3 });
+    const requestId = "22222222-2222-4222-8222-222222222222";
+    expect(revealNextHint(first, "child-1", "item-1", requestId)).toMatchObject({ level: 1, hintCount: 1 });
+    expect(revealNextHint(second, "child-1", "item-1", requestId)).toMatchObject({ level: 1, hintCount: 1 });
+    expect(first.select().from(hintEvents).all()).toHaveLength(1);
+    expect(second.select().from(hintRequests).all()).toHaveLength(1);
+
+    expect(revealNextHint(first, "child-1", "item-1", "33333333-3333-4333-8333-333333333333"))
+      .toMatchObject({ level: 2, hintCount: 2 });
+    expect(revealNextHint(second, "child-1", "item-1", "44444444-4444-4444-8444-444444444444"))
+      .toMatchObject({ level: 3, hintCount: 3 });
     expect(first.select().from(hintEvents).all()).toHaveLength(3);
   } finally {
     first.$client.close();
@@ -166,7 +197,7 @@ test.each(["missing", "item-foreign", "item-completed"])(
   },
 );
 
-test("rejects diagnostic items and already-correct formal items", async () => {
+test("allows the current formal diagnostic item and rejects already-correct formal items", async () => {
   db.insert(diagnosticRuns).values({
     id: "run-1", childId: "child-1", version: 1, status: "in_progress",
     currentPart: 1, seed: "seed", startedAt: 1,
@@ -183,11 +214,14 @@ test("rejects diagnostic items and already-correct formal items", async () => {
     sessionCompleted: false, submittedAt: 2,
   }).run();
 
-  for (const sessionItemId of ["diagnostic-item", "item-1"]) {
-    const response = await POST(hintRequest(sessionItemId));
-    expect(response.status).toBe(404);
-  }
-  expect(db.select().from(hintEvents).all()).toHaveLength(0);
+  const diagnostic = await POST(hintRequest("diagnostic-item"));
+  expect(diagnostic.status).toBe(200);
+  expect(await diagnostic.json()).toEqual({
+    level: 1, hint: "先判断运算。", hintCount: 1,
+  });
+  const alreadyCorrect = await POST(hintRequest("item-1"));
+  expect(alreadyCorrect.status).toBe(404);
+  expect(db.select().from(hintEvents).all()).toHaveLength(1);
 });
 
 test("rejects malformed input and never exposes answer or explanation fields", async () => {

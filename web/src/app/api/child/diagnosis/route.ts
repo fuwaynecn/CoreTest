@@ -14,6 +14,9 @@ const diagnosisAttemptInput = z.strictObject({
   sessionItemId: z.string().uuid(),
   clientSubmissionId: z.string().uuid(),
   answerText: z.string().trim().min(1).max(128),
+  activeDurationMs: z.number().finite(),
+  hintLevel: z.number().int().min(0).max(3),
+  hintCount: z.number().int().min(0).max(3),
 });
 
 type ChildAuthResult =

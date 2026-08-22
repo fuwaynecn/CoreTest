@@ -1,5 +1,5 @@
 import { phase2Catalog, phase2Skills } from "@/content/phase2-catalog";
-import { questionTemplates, skills, users } from "@/db/schema";
+import { attempts, questionTemplates, skills, users } from "@/db/schema";
 import { instantiateTemplate } from "@/domain/questions/instantiate-template";
 import { getOrCreateDiagnosis } from "@/services/diagnosis/diagnosis-service";
 import { createTestDatabase } from "@/test/test-db";
@@ -81,11 +81,17 @@ test("POST validates the command and returns the next diagnosis item", async () 
     sessionItemId: diagnosis.currentItem!.id,
     clientSubmissionId: "44444444-4444-4444-8444-444444444444",
     answerText: "wrong",
+    activeDurationMs: 1_234,
+    hintLevel: 0,
+    hintCount: 0,
   }));
   expect(response.status).toBe(200);
   expect(await response.json()).toMatchObject({
     correct: false,
     diagnosis: { completedSlots: 1, currentItem: { position: 2 } },
+  });
+  expect(db.select().from(attempts).get()).toMatchObject({
+    activeDurationMs: 1_234, hintLevel: 0, hintCount: 0, correctionNumber: 0,
   });
 });
 
@@ -95,6 +101,9 @@ test("POST rejects an item that belongs to another child or is no longer current
     sessionItemId: diagnosis.currentItem!.id,
     clientSubmissionId: "55555555-5555-4555-8555-555555555555",
     answerText: "wrong",
+    activeDurationMs: 500,
+    hintLevel: 0,
+    hintCount: 0,
   }));
   expect(first.status).toBe(200);
 
@@ -102,6 +111,9 @@ test("POST rejects an item that belongs to another child or is no longer current
     sessionItemId: diagnosis.currentItem!.id,
     clientSubmissionId: "66666666-6666-4666-8666-666666666666",
     answerText: "wrong",
+    activeDurationMs: 500,
+    hintLevel: 0,
+    hintCount: 0,
   }));
   expect(stale.status).toBe(400);
   expect(await stale.json()).toEqual({ error: "Invalid diagnosis attempt" });

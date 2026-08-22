@@ -733,7 +733,7 @@ test("adds Phase 2B learning state without inventing legacy telemetry or losing 
     expect(primaryKeyColumns(sqlite, "mastery_evidence")).toEqual(["id"]);
     expect(columns(sqlite, "mastery_evidence")).toEqual(expect.arrayContaining([
       "template_id", "hint_level", "diagnostic_run_id", "diagnostic_completed_on",
-      "diagnostic_completed_at", "review_interval_days",
+      "diagnostic_completed_at", "review_interval_days", "dosage_track",
     ]));
     expect(indexColumns(sqlite, "mastery_evidence", "mastery_evidence_source_idx"))
       .toEqual(["session_item_id"]);
@@ -742,6 +742,7 @@ test("adds Phase 2B learning state without inventing legacy telemetry or losing 
     expect(primaryKeyColumns(sqlite, "mastery_states")).toEqual(["child_id", "skill_id"]);
     expect(indexColumns(sqlite, "hint_events", "hint_event_item_level_idx"))
       .toEqual(["session_item_id", "hint_level"]);
+    expect(primaryKeyColumns(sqlite, "hint_requests")).toEqual(["request_id"]);
     expect(foreignKeyTargets(sqlite, "mastery_evidence")).toEqual(expect.arrayContaining([
       { from: "child_id", table: "users", to: "id", onDelete: "NO ACTION" },
       { from: "skill_id", table: "skills", to: "id", onDelete: "NO ACTION" },
@@ -756,6 +757,10 @@ test("adds Phase 2B learning state without inventing legacy telemetry or losing 
       { from: "actor_id", table: "users", to: "id", onDelete: "NO ACTION" },
     ]));
     expect(foreignKeyTargets(sqlite, "hint_events")).toEqual(expect.arrayContaining([
+      { from: "child_id", table: "users", to: "id", onDelete: "NO ACTION" },
+      { from: "session_item_id", table: "session_items", to: "id", onDelete: "CASCADE" },
+    ]));
+    expect(foreignKeyTargets(sqlite, "hint_requests")).toEqual(expect.arrayContaining([
       { from: "child_id", table: "users", to: "id", onDelete: "NO ACTION" },
       { from: "session_item_id", table: "session_items", to: "id", onDelete: "CASCADE" },
     ]));
@@ -862,6 +867,10 @@ test("adds Phase 2B learning state without inventing legacy telemetry or losing 
       SELECT review_interval_days AS reviewIntervalDays
       FROM mastery_evidence WHERE id = 'evidence-1'
     `).get()).toEqual({ reviewIntervalDays: 0 });
+    expect(sqlite.prepare(`
+      SELECT dosage_track AS dosageTrack
+      FROM mastery_evidence WHERE id = 'evidence-1'
+    `).get()).toEqual({ dosageTrack: null });
     expect(() => sqlite.prepare(`
       UPDATE mastery_evidence SET hint_level = 2 WHERE id = 'evidence-1'
     `).run()).toThrow();
@@ -873,6 +882,10 @@ test("adds Phase 2B learning state without inventing legacy telemetry or losing 
     `).run()).toThrow();
     expect(() => sqlite.prepare(`
       UPDATE mastery_evidence SET purpose = 'review', review_interval_days = 2
+      WHERE id = 'evidence-1'
+    `).run()).toThrow();
+    expect(() => sqlite.prepare(`
+      UPDATE mastery_evidence SET dosage_track = 'geometry'
       WHERE id = 'evidence-1'
     `).run()).toThrow();
     expect(() => sqlite.prepare(`
@@ -1030,6 +1043,8 @@ test("adds Phase 2B learning state without inventing legacy telemetry or losing 
       .toEqual({ count: 2 });
     expect(sqlite.prepare("SELECT count(*) AS count FROM hint_events WHERE session_item_id = 'phase2b-item'").get())
       .toEqual({ count: 1 });
+    expect(sqlite.prepare("SELECT count(*) AS count FROM hint_requests").get())
+      .toEqual({ count: 0 });
     expect(foreignKeyCheck(sqlite)).toEqual([]);
   } finally {
     sqlite.close();
@@ -1088,15 +1103,17 @@ test("backfills immutable template identity for already-populated mastery eviden
     `);
     migrateDatabase(db, resolve(process.cwd(), "drizzle"));
     expect(sqlite.prepare(`
-      SELECT template_id AS templateId, hint_level AS hintLevel, independent
+      SELECT template_id AS templateId, hint_level AS hintLevel, independent,
+        dosage_track AS dosageTrack
       FROM mastery_evidence WHERE id='evidence'
-    `).get()).toEqual({ templateId: "template", hintLevel: null, independent: 0 });
+    `).get()).toEqual({ templateId: "template", hintLevel: null, independent: 0, dosageTrack: null });
     expect(sqlite.prepare(`
       SELECT hint_level AS hintLevel, independent, diagnostic_run_id AS runId,
+        dosage_track AS dosageTrack,
         diagnostic_completed_on AS completedOn, diagnostic_completed_at AS completedAt
       FROM mastery_evidence WHERE id='diagnostic-evidence'
     `).get()).toEqual({
-      hintLevel: 1, independent: 0, runId: "run",
+      hintLevel: 1, independent: 0, runId: "run", dosageTrack: null,
       completedOn: "2023-11-15", completedAt: 1700000000000,
     });
     expect(foreignKeyCheck(sqlite)).toEqual([]);

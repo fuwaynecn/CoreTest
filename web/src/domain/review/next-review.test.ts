@@ -36,4 +36,3 @@ test.each([
     level: 1, dueOn, lastResult: "independent_correct",
   });
 });
-

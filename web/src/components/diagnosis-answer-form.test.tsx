@@ -1,9 +1,68 @@
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DiagnosisAnswerForm } from "./diagnosis-answer-form";
 import { DiagnosisProgress } from "./diagnosis-progress";
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
+
+test("uses the formal hint ladder and records only visible focused diagnosis time", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(0);
+  let visible = true;
+  let focused = true;
+  vi.spyOn(document, "visibilityState", "get").mockImplementation(() => (
+    visible ? "visible" : "hidden"
+  ));
+  vi.spyOn(document, "hasFocus").mockImplementation(() => focused);
+  const requestHint = vi.fn().mockResolvedValue({ level: 1, hint: "先圈出已知条件。", hintCount: 1 });
+  const submit = vi.fn().mockResolvedValue({
+    correct: true,
+    normalizedAnswer: "6",
+    explanation: "正确。",
+    diagnosis: { runId: "run-1", status: "in_progress", completedSlots: 1 },
+  });
+
+  render(<DiagnosisAnswerForm
+    sessionItemId="item-1"
+    runId="run-1"
+    submitAnswer={submit}
+    requestHint={requestHint}
+  />);
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "查看提示" }));
+    await Promise.resolve();
+  });
+  expect(screen.getByText("先圈出已知条件。")).toBeVisible();
+  fireEvent.change(screen.getByLabelText("你的答案"), { target: { value: "6" } });
+  act(() => { vi.advanceTimersByTime(1_000); });
+  visible = false;
+  fireEvent(document, new Event("visibilitychange"));
+  act(() => { vi.advanceTimersByTime(4_000); });
+  visible = true;
+  fireEvent(document, new Event("visibilitychange"));
+  act(() => { vi.advanceTimersByTime(500); });
+  focused = false;
+  fireEvent.blur(window);
+  act(() => { vi.advanceTimersByTime(3_000); });
+  focused = true;
+  fireEvent.focus(window);
+  act(() => { vi.advanceTimersByTime(250); });
+
+  fireEvent.submit(screen.getByRole("button", { name: "提交答案" }).closest("form")!);
+  await act(async () => { await Promise.resolve(); });
+
+  expect(submit).toHaveBeenCalledWith(expect.objectContaining({
+    activeDurationMs: 1_750,
+    hintLevel: 1,
+    hintCount: 1,
+  }));
+  expect(requestHint).toHaveBeenCalledWith("item-1", expect.stringMatching(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+  ));
+});
 
 test("shows the persisted position in the three-part diagnosis", () => {
   render(<DiagnosisProgress part={2} completedInPart={7} totalInPart={15} />);

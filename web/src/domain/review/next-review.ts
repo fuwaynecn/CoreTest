@@ -26,4 +26,3 @@ export function nextReviewState(input: {
     lastResult: input.outcome,
   };
 }
-

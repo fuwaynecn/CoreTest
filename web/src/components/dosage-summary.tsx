@@ -9,7 +9,20 @@ const reasonLabels: Record<DosageView["reasonCode"], string> = {
 
 const trackLabels = { computation: "算力", equation: "方程" } as const;
 
+const resultLabels = {
+  independent_correct: "独立首答正确",
+  hinted_correct: "提示后正确",
+  corrected: "订正后正确",
+  incorrect: "未正确",
+  diagnostic_reset: "诊断完成后重置",
+} as const;
+
+function percent(value: number) {
+  return `${Math.round(value * 100)}%`;
+}
+
 function DoseCard({ dose }: { dose: DosageView }) {
+  const recentWindow = dose.recentWindow ?? [];
   return (
     <article className="doseCard" data-track={dose.track}>
       <div>
@@ -24,6 +37,28 @@ function DoseCard({ dose }: { dose: DosageView }) {
       </dl>
       <p>{reasonLabels[dose.reasonCode]}</p>
       {dose.parentInterventionSuggested && <strong className="interventionNote">达到同结构上限，建议家长一起看方法，不继续加量。</strong>}
+      {recentWindow.length > 0 && <details className="evidenceDrilldown">
+        <summary>查看最近剂量证据</summary>
+        {recentWindow.map((session) => (
+          <section key={session.sessionId} aria-label={`${session.on} 剂量证据`}>
+            <strong>{session.on} · 会话 {session.sessionId}</strong>
+            <p>独立首答准确率 {percent(session.accuracy)}（{session.independentCorrectCount}/{session.totalCount}）</p>
+            <p>到期复习：{session.dueReviewOutcome === null ? "本次无到期题" : session.dueReviewOutcome === "passed" ? "通过" : "未通过"}</p>
+            <p>{session.highestHintLevel === null ? "最高提示级别未知" : `最高提示级别 ${session.highestHintLevel}`}</p>
+            {session.cappedStructureNeedsSupport && <p>同结构已达到上限且需要支持。</p>}
+            <ul>
+              {session.evidence.map((item, index) => (
+                <li key={item.evidenceId}>
+                  <span>{item.stem} · {resultLabels[item.result]}</span>
+                  <a href={`#mastery-evidence-${item.evidenceId}`}>
+                    打开 {session.on} 的第 {index + 1} 条证据
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </details>}
     </article>
   );
 }
@@ -54,6 +89,14 @@ export function DosageSummary({
                 <li key={review.skillId}>
                   <div><strong>{review.skillName}</strong><span>复习级别 {review.level}</span></div>
                   <time dateTime={review.dueOn}>{review.dueOn} · {review.overdueDays === 0 ? "今天到期" : `已逾期 ${review.overdueDays} 天`}</time>
+                  {review.trigger && <details className="evidenceDrilldown">
+                    <summary>查看本次到期依据</summary>
+                    <p>上次结果：{resultLabels[review.trigger.result]}</p>
+                    <p>{review.trigger.occurredOn} · 会话 {review.trigger.sessionId}</p>
+                    <p>{review.trigger.stem}</p>
+                    <p>{review.trigger.hintLevel === null ? "提示情况未知" : `最高提示级别 ${review.trigger.hintLevel}`}</p>
+                    <a href={`#mastery-evidence-${review.trigger.evidenceId}`}>打开这条复习证据</a>
+                  </details>}
                 </li>
               ))}
             </ul>

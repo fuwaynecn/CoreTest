@@ -165,6 +165,7 @@ test("keeps the Phase 1 daily pool and immutable metadata independent from Phase
   expect(JSON.parse(snapshots[0].selectionReasonSnapshot)).toEqual({
     snapshotVersion: 1,
     reason: "phase1_fixed_daily",
+    dosageTrack: "computation",
     answerMode: "mental",
     estimatedSeconds: 75,
     hintLadder: ["先看小数位。", "把相同数位对齐。", "逐位相加并检查小数点。"],

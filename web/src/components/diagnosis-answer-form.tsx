@@ -1,6 +1,9 @@
 "use client";
 
-import { FormEvent, useState, useSyncExternalStore } from "react";
+import { FormEvent, useRef, useState, useSyncExternalStore } from "react";
+import type { AttemptTelemetry } from "@/domain/training/attempt-telemetry";
+import { DefiniteHintError, postHint, type HintResult } from "./request-hint";
+import { useActiveDuration } from "./use-active-duration";
 
 type DiagnosisAttemptResult = {
   correct: boolean;
@@ -17,6 +20,9 @@ type Submission = {
   sessionItemId: string;
   clientSubmissionId: string;
   answerText: string;
+  activeDurationMs: number;
+  hintLevel: AttemptTelemetry["hintLevel"];
+  hintCount: number;
 };
 
 type DiagnosisAnswerFormProps = {
@@ -27,6 +33,7 @@ type DiagnosisAnswerFormProps = {
   requiresUnit?: boolean;
   choiceOptions?: readonly { label: "A" | "B" | "C" | "D"; text: string }[];
   submitAnswer?: (submission: Submission) => Promise<DiagnosisAttemptResult>;
+  requestHint?: (sessionItemId: string, requestId: string) => Promise<HintResult>;
   navigate?: (href: string) => void;
 };
 
@@ -58,7 +65,7 @@ async function postDiagnosisAnswer(submission: Submission): Promise<DiagnosisAtt
     const message = typeof data === "object" && data !== null && "error" in data && typeof data.error === "string"
       ? data.error
       : "答案需要修改后再提交。";
-    if ([400, 401, 403].includes(response.status)) throw new CertainSubmissionError(message);
+    if ([400, 401, 403, 404].includes(response.status)) throw new CertainSubmissionError(message);
     throw new Error("Uncertain diagnosis server response");
   }
   if (!isDiagnosisAttemptResult(data)) throw new Error("Uncertain diagnosis response");
@@ -75,6 +82,7 @@ export function DiagnosisAnswerForm({
   requiresUnit = false,
   choiceOptions = [],
   submitAnswer = postDiagnosisAnswer,
+  requestHint = postHint,
   navigate = (href) => window.location.assign(href),
 }: DiagnosisAnswerFormProps) {
   const hydrated = useSyncExternalStore(subscribeToHydration, () => true, () => false);
@@ -83,6 +91,11 @@ export function DiagnosisAnswerForm({
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<DiagnosisAttemptResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hint, setHint] = useState<HintResult | null>(null);
+  const [hintLoading, setHintLoading] = useState(false);
+  const [pendingTelemetry, setPendingTelemetry] = useState<AttemptTelemetry | null>(null);
+  const hintRequestIdRef = useRef<string | null>(null);
+  const currentActiveDuration = useActiveDuration();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -92,16 +105,24 @@ export function DiagnosisAnswerForm({
       return;
     }
     const clientSubmissionId = submissionId ?? crypto.randomUUID();
+    const telemetry = pendingTelemetry ?? {
+      activeDurationMs: currentActiveDuration(),
+      hintLevel: hint?.level ?? 0,
+      hintCount: hint?.hintCount ?? 0,
+    };
     setSubmissionId(clientSubmissionId);
+    setPendingTelemetry(telemetry);
     setSubmitting(true);
     setError(null);
     try {
-      const next = await submitAnswer({ sessionItemId, clientSubmissionId, answerText });
+      const next = await submitAnswer({ sessionItemId, clientSubmissionId, answerText, ...telemetry });
       setResult(next);
       setSubmissionId(null);
+      setPendingTelemetry(null);
     } catch (caught) {
       if (typeof caught === "object" && caught !== null && "certain" in caught && caught.certain === true) {
         setSubmissionId(null);
+        setPendingTelemetry(null);
         setError(caught instanceof Error ? caught.message : "答案需要修改后再提交。");
       } else {
         setError("提交状态还不能确认，请重试。");
@@ -114,6 +135,26 @@ export function DiagnosisAnswerForm({
   const uncertain = submissionId !== null && !submitting && result === null && error !== null;
   const locked = !hydrated || submitting || uncertain || result !== null;
   const nextHref = `/child/diagnosis/${result?.diagnosis.runId ?? runId}`;
+
+  async function handleHint() {
+    const requestId = hintRequestIdRef.current ?? crypto.randomUUID();
+    hintRequestIdRef.current = requestId;
+    setHintLoading(true);
+    setError(null);
+    try {
+      setHint(await requestHint(sessionItemId, requestId));
+      hintRequestIdRef.current = null;
+    } catch (caught) {
+      if (caught instanceof DefiniteHintError) {
+        hintRequestIdRef.current = null;
+        setError(caught.message);
+      } else {
+        setError("提示暂时无法加载，请稍后重试。");
+      }
+    } finally {
+      setHintLoading(false);
+    }
+  }
 
   return (
     <form className="answerForm diagnosisAnswerForm" onSubmit={handleSubmit}>
@@ -149,6 +190,14 @@ export function DiagnosisAnswerForm({
             maxLength={128}
           />
         </>
+      )}
+      <button type="button" onClick={handleHint} disabled={locked || hintLoading}>
+        {hintLoading ? "正在加载提示" : "查看提示"}
+      </button>
+      {hint && (
+        <p className="answerHint" aria-live="polite">
+          <strong>提示 {hint.level}：</strong><span>{hint.hint}</span>
+        </p>
       )}
       <button type="submit" disabled={!hydrated || submitting || result !== null}>
         {submitting ? "正在提交" : uncertain ? "重试提交" : "提交答案"}

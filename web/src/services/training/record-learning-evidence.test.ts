@@ -38,7 +38,7 @@ test("a wrong first submission appends one immutable evidence row and correction
   expect(db.select().from(masteryEvidence).where(eq(masteryEvidence.sessionItemId, itemId)).all())
     .toEqual([expect.objectContaining({
       templateId: "q-decimal-1", firstAttemptCorrect: false, independent: true,
-      hintLevel: 0, purpose: "learning", occurredOn: shanghaiDateKey(),
+      hintLevel: 0, dosageTrack: "computation", purpose: "learning", occurredOn: shanghaiDateKey(),
       diagnosticRunId: null, diagnosticCompletedAt: null,
     })]);
   expect(db.select().from(masteryStates).where(eq(masteryStates.skillId, "skill-decimal")).get())
@@ -134,6 +134,7 @@ test("cache cursor and time follow the reducer timeline across a long retest", (
   const base = {
     childId: "child-1", skillId: "skill-decimal", templateId: "q-decimal-1",
     firstAttemptCorrect: true, independent: true, hintLevel: 0 as const,
+    dosageTrack: "computation" as const,
     difficulty: 1 as const, structureTag: "decimal-add", reviewIntervalDays: 0 as const,
   };
   recordLearningEvidence(db, { ...base, sessionItemId: "diagnostic-item-1", purpose: "diagnostic",

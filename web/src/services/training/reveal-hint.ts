@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { and, asc, eq } from "drizzle-orm";
 import type { AppDatabase } from "@/db/client";
-import { attempts, hintEvents, sessionItems, trainingSessions } from "@/db/schema";
+import {
+  attempts, diagnosticRuns, hintEvents, hintRequests, sessionItems, trainingSessions,
+} from "@/db/schema";
 
 export type HintResult = {
   level: 1 | 2 | 3;
@@ -38,26 +40,69 @@ export function revealNextHint(
   db: AppDatabase,
   childId: string,
   sessionItemId: string,
+  requestId: string,
+  now = Date.now(),
 ): HintResult {
   return db.transaction((tx) => {
+    const replay = tx.select({
+      childId: hintRequests.childId,
+      sessionItemId: hintRequests.sessionItemId,
+      level: hintRequests.hintLevel,
+      metadataSnapshot: sessionItems.selectionReasonSnapshot,
+    }).from(hintRequests)
+      .innerJoin(sessionItems, eq(hintRequests.sessionItemId, sessionItems.id))
+      .where(eq(hintRequests.requestId, requestId))
+      .get();
+    if (replay) {
+      if (replay.childId !== childId || replay.sessionItemId !== sessionItemId) {
+        throw new HintAccessError();
+      }
+      const level = replay.level as 1 | 2 | 3;
+      return {
+        level,
+        hint: parseHintLadder(replay.metadataSnapshot)[level - 1],
+        hintCount: level,
+      };
+    }
+
     const item = tx.select({
+      sessionId: trainingSessions.id,
+      position: sessionItems.position,
       sessionKind: trainingSessions.kind,
+      diagnosticPartNumber: trainingSessions.diagnosticPartNumber,
+      diagnosticStatus: diagnosticRuns.status,
+      diagnosticCurrentPart: diagnosticRuns.currentPart,
       metadataSnapshot: sessionItems.selectionReasonSnapshot,
     }).from(sessionItems)
       .innerJoin(trainingSessions, eq(sessionItems.sessionId, trainingSessions.id))
+      .leftJoin(diagnosticRuns, eq(trainingSessions.diagnosticRunId, diagnosticRuns.id))
       .where(and(
         eq(sessionItems.id, sessionItemId),
         eq(trainingSessions.childId, childId),
         eq(trainingSessions.status, "in_progress"),
       ))
       .get();
-    if (!item || item.sessionKind === "diagnostic") throw new HintAccessError();
+    if (!item) throw new HintAccessError();
+    if (item.sessionKind === "diagnostic"
+      && (item.diagnosticStatus !== "in_progress"
+        || item.diagnosticPartNumber !== item.diagnosticCurrentPart)) {
+      throw new HintAccessError();
+    }
+    if (item.sessionKind === "diagnostic") {
+      const current = tx.select({ id: sessionItems.id }).from(sessionItems)
+        .where(eq(sessionItems.sessionId, item.sessionId))
+        .orderBy(asc(sessionItems.position))
+        .all().at(-1);
+      if (current?.id !== sessionItemId) throw new HintAccessError();
+    }
 
-    const alreadyCorrect = tx.select({ id: attempts.id }).from(attempts)
-      .where(and(eq(attempts.sessionItemId, sessionItemId), eq(attempts.isCorrect, true)))
+    const priorAttempt = tx.select({ correct: attempts.isCorrect }).from(attempts)
+      .where(eq(attempts.sessionItemId, sessionItemId))
       .limit(1)
       .get();
-    if (alreadyCorrect) throw new HintAccessError();
+    if (priorAttempt && (item.sessionKind === "diagnostic" || priorAttempt.correct)) {
+      throw new HintAccessError();
+    }
 
     const ladder = parseHintLadder(item.metadataSnapshot);
     const revealed = tx.select({ level: hintEvents.hintLevel }).from(hintEvents)
@@ -76,9 +121,17 @@ export function revealNextHint(
         childId,
         sessionItemId,
         hintLevel: level,
-        revealedAt: Date.now(),
+        revealedAt: now,
       }).run();
     }
+
+    tx.insert(hintRequests).values({
+      requestId,
+      childId,
+      sessionItemId,
+      hintLevel: level,
+      requestedAt: now,
+    }).run();
 
     return { level, hint: ladder[level - 1], hintCount: Math.max(count, level) };
   }, { behavior: "immediate" });

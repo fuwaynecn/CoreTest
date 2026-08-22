@@ -21,6 +21,7 @@ import {
   type MasteryReasonCode,
 } from "@/domain/training/mastery";
 import { shanghaiDateKey } from "@/domain/time/shanghai-calendar";
+import { firstAttempt, firstCorrectCorrection } from "@/domain/training/attempt-ordering";
 import type { ChildReflection } from "@/services/training/error-observation-service";
 
 export type MasteryEvidenceView = {
@@ -84,6 +85,35 @@ export type DueReviewView = {
   dueOn: string;
   overdueDays: number;
   lastResult: "independent_correct" | "hinted_correct" | "corrected" | "incorrect" | null;
+  supportingEvidenceIds: string[];
+  trigger: EvidenceTriggerView | null;
+};
+
+export type EvidenceTriggerView = {
+  evidenceId: string;
+  attemptId: string | null;
+  sessionItemId: string;
+  sessionId: string;
+  occurredOn: string;
+  stem: string;
+  result: "independent_correct" | "hinted_correct" | "corrected" | "incorrect" | "diagnostic_reset";
+  firstAttemptCorrect: boolean;
+  independent: boolean;
+  hintLevel: number | null;
+};
+
+export type DosageSessionView = {
+  sessionId: string;
+  on: string;
+  independentCorrectCount: number;
+  totalCount: number;
+  accuracy: number;
+  highestHintLevel: number | null;
+  dueReviewOutcome: "passed" | "failed" | null;
+  cappedStructureNeedsSupport: boolean;
+  supportingEvidenceIds: string[];
+  attemptIds: string[];
+  evidence: EvidenceTriggerView[];
 };
 
 export type DosageView = {
@@ -95,6 +125,8 @@ export type DosageView = {
   sessionMax: number;
   reasonCode: "advance" | "hold" | "support" | "insufficient_evidence";
   parentInterventionSuggested: boolean;
+  supportingEvidenceIds: string[];
+  recentWindow: DosageSessionView[];
 };
 
 export type ParentLearningStateView = {
@@ -188,8 +220,13 @@ export function getLearningState(
     const evidenceRows = tx.select({
       evidence: masteryEvidence,
       stem: sessionItems.stemSnapshot,
+      sessionId: trainingSessions.id,
+      sessionDate: trainingSessions.sessionDate,
+      sessionKind: trainingSessions.kind,
+      sessionStatus: trainingSessions.status,
     }).from(masteryEvidence)
       .innerJoin(sessionItems, eq(masteryEvidence.sessionItemId, sessionItems.id))
+      .innerJoin(trainingSessions, eq(sessionItems.sessionId, trainingSessions.id))
       .where(eq(masteryEvidence.childId, childId))
       .orderBy(asc(masteryEvidence.occurredOn), asc(masteryEvidence.occurredAt), asc(masteryEvidence.id))
       .all();
@@ -209,10 +246,33 @@ export function getLearningState(
       attemptsByItem.set(row.sessionItemId, values);
     }
 
+    const triggerFor = (row: typeof evidenceRows[number]): EvidenceTriggerView => {
+      const itemAttempts = attemptsByItem.get(row.evidence.sessionItemId) ?? [];
+      const first = firstAttempt(itemAttempts);
+      const correction = firstCorrectCorrection(itemAttempts);
+      const result = row.evidence.purpose === "diagnostic"
+        ? "diagnostic_reset" as const
+        : correction ? "corrected" as const
+          : !row.evidence.firstAttemptCorrect ? "incorrect" as const
+            : row.evidence.independent ? "independent_correct" as const : "hinted_correct" as const;
+      return {
+        evidenceId: row.evidence.id,
+        attemptId: correction?.id ?? first?.id ?? null,
+        sessionItemId: row.evidence.sessionItemId,
+        sessionId: row.sessionId,
+        occurredOn: correction ? shanghaiDateKey(correction.submittedAt) : row.evidence.occurredOn,
+        stem: row.stem,
+        result,
+        firstAttemptCorrect: row.evidence.firstAttemptCorrect,
+        independent: row.evidence.independent,
+        hintLevel: row.evidence.hintLevel,
+      };
+    };
+
     const evidenceBySkill = new Map<string, MasteryEvidenceView[]>();
     const rawEvidenceBySkill = new Map<string, Array<typeof masteryEvidence.$inferSelect>>();
     for (const row of evidenceRows) {
-      const first = attemptsByItem.get(row.evidence.sessionItemId)?.[0] ?? null;
+      const first = firstAttempt(attemptsByItem.get(row.evidence.sessionItemId) ?? []);
       const view: MasteryEvidenceView = {
         id: row.evidence.id,
         sessionItemId: row.evidence.sessionItemId,
@@ -294,8 +354,8 @@ export function getLearningState(
         ?? root.systemCandidate
         ?? "unknown";
       const itemAttempts = attemptsByItem.get(root.sessionItemId) ?? [];
-      const first = itemAttempts[0] ?? null;
-      const corrected = itemAttempts.find((attempt) => attempt.isCorrect && (attempt.correctionNumber ?? 0) > 0) ?? null;
+      const first = firstAttempt(itemAttempts);
+      const corrected = firstCorrectCorrection(itemAttempts);
       const item = itemById.get(root.sessionItemId);
       return {
         rootObservationId: root.id,
@@ -333,15 +393,107 @@ export function getLearningState(
       .where(eq(reviewSchedules.childId, childId))
       .orderBy(asc(reviewSchedules.dueOn), asc(skills.name)).all()
       .filter((row) => row.schedule.dueOn <= asOf)
-      .map((row): DueReviewView => ({
-        skillId: row.schedule.skillId,
-        skillCode: row.skillCode,
-        skillName: row.skillName,
-        level: row.schedule.level,
-        dueOn: row.schedule.dueOn,
-        overdueDays: dayDifference(asOf, row.schedule.dueOn),
-        lastResult: row.schedule.lastResult,
-      }));
+      .map((row): DueReviewView => {
+        const candidates = evidenceRows.filter((item) => item.evidence.skillId === row.schedule.skillId)
+          .map((item) => {
+            const trigger = triggerFor(item);
+            const correction = firstCorrectCorrection(attemptsByItem.get(item.evidence.sessionItemId) ?? []);
+            return {
+              item,
+              trigger,
+              at: item.evidence.purpose === "diagnostic"
+                ? item.evidence.diagnosticCompletedAt ?? item.evidence.occurredAt
+                : correction?.submittedAt ?? item.evidence.occurredAt,
+            };
+          })
+          .filter((candidate) => row.schedule.lastResult === null
+            ? candidate.trigger.result === "diagnostic_reset"
+            : candidate.trigger.result === row.schedule.lastResult)
+          .sort((left, right) => left.at - right.at
+            || left.item.evidence.id.localeCompare(right.item.evidence.id));
+        const selected = candidates.find((candidate) => candidate.at === row.schedule.updatedAt)
+          ?? candidates.filter((candidate) => candidate.at <= row.schedule.updatedAt).at(-1)
+          ?? candidates.at(-1)
+          ?? null;
+        const supportingEvidenceIds = selected?.trigger.result === "diagnostic_reset"
+          && selected.item.evidence.diagnosticRunId
+          ? evidenceRows.filter((item) => (
+            item.evidence.diagnosticRunId === selected.item.evidence.diagnosticRunId
+          )).map((item) => item.evidence.id)
+          : selected ? [selected.item.evidence.id] : [];
+        return {
+          skillId: row.schedule.skillId,
+          skillCode: row.skillCode,
+          skillName: row.skillName,
+          level: row.schedule.level,
+          dueOn: row.schedule.dueOn,
+          overdueDays: dayDifference(asOf, row.schedule.dueOn),
+          lastResult: row.schedule.lastResult,
+          supportingEvidenceIds,
+          trigger: selected?.trigger ?? null,
+        };
+      });
+
+    const completedDiagnosis = evidenceRows.filter((row) => (
+      row.evidence.purpose === "diagnostic"
+      && row.evidence.diagnosticCompletedOn !== null
+      && row.evidence.diagnosticCompletedAt !== null
+    )).sort((left, right) => (
+      left.evidence.diagnosticCompletedOn!.localeCompare(right.evidence.diagnosticCompletedOn!)
+      || left.evidence.diagnosticCompletedAt! - right.evidence.diagnosticCompletedAt!
+    )).at(-1) ?? null;
+    const dosageWindows = new Map<"computation" | "equation", DosageSessionView[]>();
+    for (const track of ["computation", "equation"] as const) {
+      const grouped = new Map<string, typeof evidenceRows>();
+      for (const row of evidenceRows) {
+        if (row.evidence.dosageTrack !== track || row.evidence.purpose === "diagnostic"
+          || row.sessionStatus !== "completed"
+          || !["daily", "review", "assessment"].includes(row.sessionKind)) continue;
+        if (completedDiagnosis && (row.evidence.occurredOn < completedDiagnosis.evidence.diagnosticCompletedOn!
+          || (row.evidence.occurredOn === completedDiagnosis.evidence.diagnosticCompletedOn!
+            && row.evidence.occurredAt <= completedDiagnosis.evidence.diagnosticCompletedAt!))) continue;
+        const rows = grouped.get(row.sessionId) ?? [];
+        rows.push(row);
+        grouped.set(row.sessionId, rows);
+      }
+      const sessions = [...grouped.entries()].map(([sessionId, rows]): DosageSessionView => {
+        const evidence = rows.map(triggerFor);
+        const independentCorrectCount = rows.filter((row) => (
+          row.evidence.firstAttemptCorrect && row.evidence.independent
+        )).length;
+        const hintLevels = rows.map((row) => row.evidence.hintLevel);
+        const reviewRows = rows.filter((row) => row.evidence.purpose === "review");
+        const structureStats = new Map<string, { count: number; correct: number }>();
+        for (const row of rows) {
+          const stats = structureStats.get(row.evidence.structureTag) ?? { count: 0, correct: 0 };
+          stats.count += 1;
+          if (row.evidence.firstAttemptCorrect && row.evidence.independent) stats.correct += 1;
+          structureStats.set(row.evidence.structureTag, stats);
+        }
+        return {
+          sessionId,
+          on: rows[0].sessionDate,
+          independentCorrectCount,
+          totalCount: rows.length,
+          accuracy: rows.length === 0 ? 0 : independentCorrectCount / rows.length,
+          highestHintLevel: hintLevels.some((level) => level === null)
+            ? null
+            : Math.max(0, ...hintLevels as number[]),
+          dueReviewOutcome: reviewRows.length === 0 ? null
+            : reviewRows.every((row) => row.evidence.firstAttemptCorrect && row.evidence.independent)
+              ? "passed" : "failed",
+          cappedStructureNeedsSupport: [...structureStats.values()].some((stats) => (
+            stats.count >= 6 && stats.correct / stats.count < 0.7
+          )),
+          supportingEvidenceIds: evidence.map((item) => item.evidenceId),
+          attemptIds: evidence.flatMap((item) => item.attemptId ? [item.attemptId] : []),
+          evidence,
+        };
+      }).sort((left, right) => left.on.localeCompare(right.on)
+        || left.sessionId.localeCompare(right.sessionId));
+      const recentDays = [...new Set(sessions.map((session) => session.on))].slice(-2);
+      dosageWindows.set(track, sessions.filter((session) => recentDays.includes(session.on)));
+    }
 
     const dosageRows = tx.select().from(dosageStates).where(eq(dosageStates.childId, childId)).all();
     const dosageByTrack = new Map(dosageRows.map((row) => [row.track, row]));
@@ -352,6 +504,7 @@ export function getLearningState(
         reasonCode: "insufficient_evidence" as const,
         parentInterventionSuggested: false,
       };
+      const recentWindow = dosageWindows.get(track) ?? [];
       return {
         track,
         level: row.level,
@@ -360,6 +513,8 @@ export function getLearningState(
         sessionTarget: row.sessionTarget,
         sessionMax: row.sessionMaximum,
         ...reason,
+        supportingEvidenceIds: recentWindow.flatMap((session) => session.supportingEvidenceIds),
+        recentWindow,
       };
     };
 

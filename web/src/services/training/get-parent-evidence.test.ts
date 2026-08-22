@@ -95,7 +95,7 @@ function seededAcceptedFlow() {
       submittedAt: Date.parse("2026-08-19T09:00:00+08:00"),
     },
     {
-      id: "attempt-reading-incorrect",
+      id: "z-attempt-reading-incorrect",
       sessionItemId: "item-q-reading",
       clientSubmissionId: "submission-reading-incorrect",
       answerText: "7.5",
@@ -103,10 +103,11 @@ function seededAcceptedFlow() {
       normalizedAnswer: "7.5",
       explanation: "答案必须带单位。",
       sessionCompleted: false,
+      correctionNumber: 0,
       submittedAt: Date.parse("2026-08-19T10:00:00+08:00"),
     },
     {
-      id: "attempt-reading-correct",
+      id: "a-attempt-reading-correct",
       sessionItemId: "item-q-reading",
       clientSubmissionId: "submission-reading-correct",
       answerText: "7.5 元",
@@ -114,6 +115,7 @@ function seededAcceptedFlow() {
       normalizedAnswer: "7.5 元",
       explanation: "答案必须带单位。",
       sessionCompleted: false,
+      correctionNumber: 1,
       submittedAt: Date.parse("2026-08-19T10:01:00+08:00"),
     },
     {
@@ -165,12 +167,28 @@ test("counts earliest attempts while retaining corrections in recent evidence", 
   ]);
 });
 
+test("orders tied first answers and corrections by correction number", () => {
+  const db = seededAcceptedFlow();
+  const tiedAt = Date.parse("2026-08-19T10:00:00+08:00");
+  db.update(attempts).set({ submittedAt: tiedAt })
+    .where(eq(attempts.sessionItemId, "item-q-reading")).run();
+
+  const evidence = getParentEvidence(db, "child-1", NOW);
+  expect(evidence.summary.cumulative).toEqual({ answered: 3, correct: 2, accuracy: 2 / 3 });
+  expect(evidence.recent.map((attempt) => attempt.answerText)).toEqual([
+    "7",
+    "7.5 元",
+    "7.5",
+    "6",
+  ]);
+});
+
 test("uses Asia/Shanghai day and Monday week boundaries for first attempts", () => {
   const db = seededAcceptedFlow();
   db.update(attempts).set({ submittedAt: Date.parse("2026-08-16T23:59:59+08:00") })
     .where(eq(attempts.id, "attempt-decimal")).run();
   db.update(attempts).set({ submittedAt: Date.parse("2026-08-17T00:00:00+08:00") })
-    .where(eq(attempts.id, "attempt-reading-incorrect")).run();
+    .where(eq(attempts.id, "z-attempt-reading-incorrect")).run();
   db.update(attempts).set({ submittedAt: Date.parse("2026-08-19T00:00:00+08:00") })
     .where(eq(attempts.id, "attempt-equation")).run();
 

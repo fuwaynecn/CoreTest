@@ -10,6 +10,7 @@ import {
   diagnosticParts,
   diagnosticRuns,
   errorObservations,
+  hintEvents,
   masteryEvidence,
   masteryStates,
   questionTemplates,
@@ -79,6 +80,9 @@ function submitCurrent(db: TestDatabase, childId: string, submissionNumber: numb
     sessionItemId: view.currentItem!.id,
     clientSubmissionId: `00000000-0000-4000-8000-${String(submissionNumber).padStart(12, "0")}`,
     answerText: correctAnswerFor(db, view.currentItem!.id),
+    activeDurationMs: 1_000,
+    hintLevel: 0,
+    hintCount: 0,
   }, 1_700_000_000_000 + submissionNumber);
 }
 
@@ -193,6 +197,59 @@ describe("diagnosis service", () => {
       .from(sessionItems).where(eq(sessionItems.id, first.currentItem!.id)).get()!.metadata))
       .toEqual(snapshotBeforeEdit);
     expect(db.select().from(sessionItems).all()).toHaveLength(1);
+  });
+
+  it("persists server-authoritative diagnosis telemetry and uses persisted hints in adaptation", () => {
+    const db = seedDiagnosisDatabase();
+    const first = getOrCreateDiagnosis(db, "child-1", 1);
+    const firstMetadata = JSON.parse(db.select({ metadata: sessionItems.selectionReasonSnapshot })
+      .from(sessionItems).where(eq(sessionItems.id, first.currentItem!.id)).get()!.metadata) as {
+      estimatedSeconds: number;
+    };
+    db.insert(hintEvents).values({
+      id: "diagnosis-hint-1", childId: "child-1", sessionItemId: first.currentItem!.id,
+      hintLevel: 1, revealedAt: 2,
+    }).run();
+    const firstCommand = {
+      childId: "child-1",
+      sessionItemId: first.currentItem!.id,
+      clientSubmissionId: "12121212-1212-4212-8212-121212121212",
+      answerText: correctAnswerFor(db, first.currentItem!.id),
+      activeDurationMs: 9_999_999,
+      hintLevel: 0,
+      hintCount: 0,
+    };
+    submitDiagnosticAttempt(db, firstCommand, 3);
+    expect(db.select().from(attempts).where(eq(attempts.sessionItemId, first.currentItem!.id)).get())
+      .toMatchObject({
+        activeDurationMs: firstMetadata.estimatedSeconds * 4_000,
+        hintLevel: 1,
+        hintCount: 1,
+        correctionNumber: 0,
+      });
+
+    submitDiagnosticAttempt(db, { ...firstCommand, activeDurationMs: 1, hintLevel: 0, hintCount: 0 }, 4);
+    expect(db.select().from(attempts).where(eq(attempts.sessionItemId, first.currentItem!.id)).get())
+      .toMatchObject({
+        activeDurationMs: firstMetadata.estimatedSeconds * 4_000,
+        hintLevel: 1,
+        hintCount: 1,
+        correctionNumber: 0,
+      });
+
+    const second = getDiagnosisView(db, "child-1").currentItem!;
+    const secondDifficulty = db.select({ difficulty: sessionItems.difficultySnapshot })
+      .from(sessionItems).where(eq(sessionItems.id, second.id)).get()!.difficulty;
+    submitDiagnosticAttempt(db, {
+      childId: "child-1", sessionItemId: second.id,
+      clientSubmissionId: "13131313-1313-4313-8313-131313131313",
+      answerText: correctAnswerFor(db, second.id),
+      activeDurationMs: 1_000, hintLevel: 0, hintCount: 0,
+    }, 5);
+    const third = getDiagnosisView(db, "child-1").currentItem!;
+    expect(JSON.parse(db.select({ metadata: sessionItems.selectionReasonSnapshot })
+      .from(sessionItems).where(eq(sessionItems.id, third.id)).get()!.metadata))
+      .toMatchObject({ targetDifficulty: secondDifficulty, reason: "hold_level" });
   });
 
   it("returns immutable answer delivery data for choice and unitless number items", () => {
@@ -453,6 +510,9 @@ describe("diagnosis service", () => {
     expect(evidence.every((row) => row.purpose === "diagnostic" && row.independent
       && row.hintLevel === 0 && row.diagnosticRunId === completed.runId
       && row.diagnosticCompletedAt === 1_700_000_000_045)).toBe(true);
+    expect(evidence.some((row) => row.dosageTrack === "computation")).toBe(true);
+    expect(evidence.some((row) => row.dosageTrack === "equation")).toBe(true);
+    expect(evidence.some((row) => row.dosageTrack === null)).toBe(true);
     expect(new Set(evidence.map((row) => row.sessionItemId)).size).toBe(45);
     expect(evidence.every((row) => row.templateId.length > 0 && row.occurredOn === "2023-11-15")).toBe(true);
     expect(db.select().from(masteryStates).all().reduce((sum, row) => sum + row.evidenceCount, 0)).toBe(45);

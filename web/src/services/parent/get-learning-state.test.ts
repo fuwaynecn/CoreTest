@@ -57,7 +57,7 @@ function seedLearningState() {
     id: item.sessionId,
     childId: "child-1",
     sessionDate: `2026-08-${String(17 + index).padStart(2, "0")}`,
-    kind: index === 4 ? "review" as const : "practice" as const,
+    kind: index === 4 ? "review" as const : "daily" as const,
     status: "completed" as const,
     startedAt: NOW - (7 - index) * 86_400_000,
     completedAt: NOW - (7 - index) * 86_400_000 + 1_000,
@@ -65,7 +65,7 @@ function seedLearningState() {
   db.insert(sessionItems).values(items).run();
 
   db.insert(attempts).values(items.map((item, index) => ({
-    id: `attempt-${index + 1}`,
+    id: index === 5 ? "z-attempt-reading-first" : `attempt-${index + 1}`,
     sessionItemId: item.id,
     clientSubmissionId: `submission-${index + 1}`,
     answerText: index === 5 ? "7.5" : index === 6 ? "6" : index === 4 ? "6" : "7",
@@ -77,10 +77,10 @@ function seedLearningState() {
     hintLevel: 0,
     hintCount: 0,
     correctionNumber: 0,
-    submittedAt: NOW - (7 - index) * 86_400_000 + 500,
+    submittedAt: index === 5 ? NOW - 86_400_000 + 1_500 : NOW - (7 - index) * 86_400_000 + 500,
   }))).run();
   db.insert(attempts).values({
-    id: "attempt-reading-corrected",
+    id: "a-attempt-reading-corrected",
     sessionItemId: "item-6",
     clientSubmissionId: "submission-reading-corrected",
     answerText: "7.5元",
@@ -105,6 +105,9 @@ function seedLearningState() {
     firstAttemptCorrect: index !== 4 && index !== 5,
     independent: index !== 4 && index !== 5,
     hintLevel: 0,
+    dosageTrack: item.skillIdSnapshot === "skill-equation"
+      ? "equation" as const
+      : item.skillIdSnapshot === "skill-computation" ? "computation" as const : null,
     difficulty: item.difficultySnapshot,
     structureTag: item.structureTagSnapshot,
     occurredOn: `2026-08-${String(17 + index).padStart(2, "0")}`,
@@ -117,7 +120,11 @@ function seedLearningState() {
     { childId: "child-1", skillId: "skill-computation", status: "basic", evidenceCount: 1, correctCount: 1, reasonCode: "diagnostic_basic", evidenceCursor: "evidence-7", evidenceVersion: 1, updatedAt: NOW },
     { childId: "child-1", skillId: "skill-unseen", status: "basic", evidenceCount: 12, correctCount: 9, reasonCode: "legacy_snapshot", evidenceCursor: null, evidenceVersion: 0, updatedAt: NOW },
   ]).run();
-  db.insert(reviewSchedules).values({ childId: "child-1", skillId: "skill-equation", level: 1, dueOn: "2026-08-23", lastResult: "independent_correct", updatedAt: NOW }).run();
+  db.insert(reviewSchedules).values({
+    childId: "child-1", skillId: "skill-equation", level: 0,
+    dueOn: "2026-08-23", lastResult: "incorrect",
+    updatedAt: NOW - 3 * 86_400_000 + 500,
+  }).run();
   db.insert(dosageStates).values([
     { childId: "child-1", track: "equation", level: 4, weeklyTarget: 18, sessionMinimum: 4, sessionTarget: 5, sessionMaximum: 6, reasonJson: JSON.stringify({ reasonCode: "hold", sameStructureCap: 6, parentInterventionSuggested: false }), updatedAt: NOW },
     { childId: "child-1", track: "computation", level: 3, weeklyTarget: 72, sessionMinimum: 12, sessionTarget: 15, sessionMaximum: 19, reasonJson: JSON.stringify({ reasonCode: "support", sameStructureCap: 6, parentInterventionSuggested: true }), updatedAt: NOW },
@@ -125,8 +132,8 @@ function seedLearningState() {
 
   db.insert(errorObservations).values([
     { id: "error-knowledge", childId: "child-1", sessionItemId: "item-5", attemptId: "attempt-5", source: "system", systemCandidate: "relationship", observedAt: NOW - 2_000, createdAt: NOW - 2_000 },
-    { id: "error-habit-1", childId: "child-1", sessionItemId: "item-6", attemptId: "attempt-6", source: "system", systemCandidate: "missing_unit", observedAt: NOW - 1_800, createdAt: NOW - 1_800 },
-    { id: "error-habit-1-child", childId: "child-1", sessionItemId: "item-6", attemptId: "attempt-6", source: "child", childSelfReport: "missed_condition_or_unit", previousValue: "missing_unit", previousObservationId: "error-habit-1", actorId: "child-1", observedAt: NOW - 1_700, createdAt: NOW - 1_700 },
+    { id: "error-habit-1", childId: "child-1", sessionItemId: "item-6", attemptId: "z-attempt-reading-first", source: "system", systemCandidate: "missing_unit", observedAt: NOW - 1_800, createdAt: NOW - 1_800 },
+    { id: "error-habit-1-child", childId: "child-1", sessionItemId: "item-6", attemptId: "z-attempt-reading-first", source: "child", childSelfReport: "missed_condition_or_unit", previousValue: "missing_unit", previousObservationId: "error-habit-1", actorId: "child-1", observedAt: NOW - 1_700, createdAt: NOW - 1_700 },
     { id: "error-habit-2", childId: "child-1", sessionItemId: "item-1", attemptId: "attempt-1", source: "system", systemCandidate: "relationship", observedAt: NOW - 1_600, createdAt: NOW - 1_600 },
     { id: "error-habit-2-child", childId: "child-1", sessionItemId: "item-1", attemptId: "attempt-1", source: "child", childSelfReport: "method_unknown", previousValue: "relationship", previousObservationId: "error-habit-2", actorId: "child-1", observedAt: NOW - 1_500, createdAt: NOW - 1_500 },
     { id: "error-habit-2-parent", childId: "child-1", sessionItemId: "item-1", attemptId: "attempt-1", source: "parent", parentCorrection: "calculation", previousValue: "method_unknown", previousObservationId: "error-habit-2-child", actorId: "parent-1", observedAt: NOW - 1_400, createdAt: NOW - 1_400 },
@@ -165,9 +172,41 @@ test("builds traceable mastery, effective errors, due reviews, and dosage", () =
       expect.objectContaining({ source: "parent", value: "calculation" }),
     ],
   });
-  expect(view.dosage.equation).toMatchObject({ level: 4, sessionMin: 4, sessionMax: 6 });
-  expect(view.dosage.computation).toMatchObject({ level: 3, reasonCode: "support", parentInterventionSuggested: true });
-  expect(view.dueReviews[0]).toMatchObject({ skillCode: "equation-two-step", dueOn: "2026-08-23", overdueDays: 0 });
+  expect(view.errors.find((item) => item.rootObservationId === "error-habit-1")).toMatchObject({
+    firstAnswer: "7.5",
+    correctedAnswer: "7.5元",
+  });
+  expect(view.dosage.equation).toMatchObject({
+    level: 4,
+    sessionMin: 4,
+    sessionMax: 6,
+    supportingEvidenceIds: ["evidence-4", "evidence-5"],
+    recentWindow: [
+      expect.objectContaining({
+        sessionId: "session-4", on: "2026-08-20", totalCount: 1,
+        independentCorrectCount: 1, accuracy: 1, highestHintLevel: 0,
+        supportingEvidenceIds: ["evidence-4"], attemptIds: ["attempt-4"],
+      }),
+      expect.objectContaining({
+        sessionId: "session-5", on: "2026-08-21", totalCount: 1,
+        independentCorrectCount: 0, accuracy: 0, highestHintLevel: 0,
+        dueReviewOutcome: "failed", supportingEvidenceIds: ["evidence-5"],
+        attemptIds: ["attempt-5"],
+      }),
+    ],
+  });
+  expect(view.dosage.computation).toMatchObject({
+    level: 3, reasonCode: "support", parentInterventionSuggested: true,
+    supportingEvidenceIds: ["evidence-7"],
+  });
+  expect(view.dueReviews[0]).toMatchObject({
+    skillCode: "equation-two-step", dueOn: "2026-08-23", overdueDays: 0,
+    supportingEvidenceIds: ["evidence-5"],
+    trigger: expect.objectContaining({
+      evidenceId: "evidence-5", attemptId: "attempt-5", sessionId: "session-5",
+      result: "incorrect", occurredOn: "2026-08-21", hintLevel: 0,
+    }),
+  });
 });
 
 test("returns only reviews due on or before the current Shanghai date", () => {

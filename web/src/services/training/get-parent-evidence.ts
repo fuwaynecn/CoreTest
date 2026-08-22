@@ -8,6 +8,7 @@ import {
   trainingSessions,
 } from "@/db/schema";
 import type { MasteryStatus } from "@/domain/learning/contracts";
+import { compareAttempts, firstAttempt } from "@/domain/training/attempt-ordering";
 
 export type ParentEvidence = {
   summary: {
@@ -76,6 +77,7 @@ export function getParentEvidence(
       stem: sessionItems.stemSnapshot,
       answerText: attempts.answerText,
       correct: attempts.isCorrect,
+      correctionNumber: attempts.correctionNumber,
       submittedAt: attempts.submittedAt,
       skillName: sessionItems.skillNameSnapshot,
     }).from(attempts)
@@ -88,10 +90,15 @@ export function getParentEvidence(
       .orderBy(asc(attempts.submittedAt), asc(attempts.id))
       .all();
 
-    const firstAttempts = Array.from(attemptRows.reduce((byItem, attempt) => {
-      if (!byItem.has(attempt.sessionItemId)) byItem.set(attempt.sessionItemId, attempt);
+    const attemptsByItem = attemptRows.reduce((byItem, attempt) => {
+      const rows = byItem.get(attempt.sessionItemId) ?? [];
+      rows.push(attempt);
+      byItem.set(attempt.sessionItemId, rows);
       return byItem;
-    }, new Map<string, (typeof attemptRows)[number]>()).values());
+    }, new Map<string, Array<(typeof attemptRows)[number]>>());
+    const firstAttempts = [...attemptsByItem.values()]
+      .map((rows) => firstAttempt(rows))
+      .filter((attempt): attempt is (typeof attemptRows)[number] => attempt !== null);
     const boundaries = shanghaiPeriodBoundaries(now);
     const summary = {
       cumulative: summarize(firstAttempts),
@@ -104,7 +111,7 @@ export function getParentEvidence(
         && attempt.submittedAt < boundaries.nextWeekStart
       ))),
     };
-    const recent = attemptRows.slice(-20).reverse().map((attempt) => ({
+    const recent = [...attemptRows].sort(compareAttempts).slice(-20).reverse().map((attempt) => ({
       stem: attempt.stem,
       answerText: attempt.answerText,
       correct: attempt.correct,

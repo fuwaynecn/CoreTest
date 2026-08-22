@@ -4,7 +4,10 @@ import { getDatabase } from "@/db/client";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { HintAccessError, revealNextHint } from "@/services/training/reveal-hint";
 
-const hintInput = z.strictObject({ sessionItemId: z.string().min(1) });
+const hintInput = z.strictObject({
+  sessionItemId: z.string().min(1),
+  requestId: z.uuid(),
+});
 
 export async function POST(request: Request) {
   const child = await getCurrentUser();
@@ -21,7 +24,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    return NextResponse.json(revealNextHint(getDatabase(), child.id, input.data.sessionItemId));
+    return NextResponse.json(revealNextHint(
+      getDatabase(), child.id, input.data.sessionItemId, input.data.requestId,
+    ));
   } catch (error) {
     if (error instanceof HintAccessError) {
       return NextResponse.json({ error: "Training item not found" }, { status: 404 });

@@ -1,7 +1,9 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { FormEvent, useRef, useState, useSyncExternalStore } from "react";
 import type { AttemptTelemetry } from "@/domain/training/attempt-telemetry";
+import { DefiniteHintError, postHint, type HintResult } from "./request-hint";
+import { useActiveDuration } from "./use-active-duration";
 
 export type AttemptResult = {
   correct: boolean;
@@ -21,7 +23,7 @@ type AnswerFormProps = {
     hintLevel: AttemptTelemetry["hintLevel"];
     hintCount: number;
   }) => Promise<AttemptResult>;
-  requestHint?: (sessionItemId: string) => Promise<HintResult>;
+  requestHint?: (sessionItemId: string, requestId: string) => Promise<HintResult>;
   saveReflection?: (payload: {
     sessionItemId: string;
     reflection: ChildReflection;
@@ -29,12 +31,6 @@ type AnswerFormProps = {
 };
 
 type ChildReflection = "did_not_read" | "missed_condition_or_unit" | "calculation_slip" | "method_unknown";
-
-type HintResult = {
-  level: 1 | 2 | 3;
-  hint: string;
-  hintCount: number;
-};
 
 class AttemptResponseError extends Error {
   constructor(message: string) {
@@ -84,24 +80,6 @@ async function postAttempt(payload: {
   return data;
 }
 
-function isHintResult(data: unknown): data is HintResult {
-  return typeof data === "object" && data !== null
-    && "level" in data && (data.level === 1 || data.level === 2 || data.level === 3)
-    && "hint" in data && typeof data.hint === "string"
-    && "hintCount" in data && typeof data.hintCount === "number";
-}
-
-async function postHint(sessionItemId: string): Promise<HintResult> {
-  const response = await fetch("/api/child/hints", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ sessionItemId }),
-  });
-  const data: unknown = await response.json();
-  if (!response.ok || !isHintResult(data)) throw new Error("Hint request failed");
-  return data;
-}
-
 async function postReflection(payload: { sessionItemId: string; reflection: ChildReflection }): Promise<void> {
   const response = await fetch("/api/child/error-reflections", {
     method: "POST",
@@ -128,43 +106,12 @@ export function AnswerForm({
   const [error, setError] = useState<string | null>(null);
   const [hint, setHint] = useState<HintResult | null>(null);
   const [hintLoading, setHintLoading] = useState(false);
+  const hintRequestIdRef = useRef<string | null>(null);
   const [pendingTelemetry, setPendingTelemetry] = useState<AttemptTelemetry | null>(null);
   const [hadIncorrectAnswer, setHadIncorrectAnswer] = useState(false);
   const [reflectionComplete, setReflectionComplete] = useState(false);
   const [reflectionSaving, setReflectionSaving] = useState(false);
-  const activeDurationRef = useRef(0);
-  const activeSinceRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    function syncActiveTime() {
-      const now = Date.now();
-      const active = document.visibilityState === "visible" && document.hasFocus();
-      if (active && activeSinceRef.current === null) activeSinceRef.current = now;
-      if (!active && activeSinceRef.current !== null) {
-        activeDurationRef.current += now - activeSinceRef.current;
-        activeSinceRef.current = null;
-      }
-    }
-
-    syncActiveTime();
-    document.addEventListener("visibilitychange", syncActiveTime);
-    window.addEventListener("focus", syncActiveTime);
-    window.addEventListener("blur", syncActiveTime);
-    return () => {
-      if (activeSinceRef.current !== null) {
-        activeDurationRef.current += Date.now() - activeSinceRef.current;
-        activeSinceRef.current = null;
-      }
-      document.removeEventListener("visibilitychange", syncActiveTime);
-      window.removeEventListener("focus", syncActiveTime);
-      window.removeEventListener("blur", syncActiveTime);
-    };
-  }, []);
-
-  function currentActiveDuration(): number {
-    const running = activeSinceRef.current === null ? 0 : Date.now() - activeSinceRef.current;
-    return Math.max(0, Math.trunc(activeDurationRef.current + running));
-  }
+  const currentActiveDuration = useActiveDuration();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -206,12 +153,20 @@ export function AnswerForm({
   const answerLocked = !hydrated || submitting || submissionId !== null || result !== null;
 
   async function handleHint() {
+    const requestId = hintRequestIdRef.current ?? crypto.randomUUID();
+    hintRequestIdRef.current = requestId;
     setHintLoading(true);
     setError(null);
     try {
-      setHint(await requestHint(sessionItemId));
-    } catch {
-      setError("提示暂时无法加载，请稍后重试。");
+      setHint(await requestHint(sessionItemId, requestId));
+      hintRequestIdRef.current = null;
+    } catch (caught) {
+      if (caught instanceof DefiniteHintError) {
+        hintRequestIdRef.current = null;
+        setError(caught.message);
+      } else {
+        setError("提示暂时无法加载，请稍后重试。");
+      }
     } finally {
       setHintLoading(false);
     }

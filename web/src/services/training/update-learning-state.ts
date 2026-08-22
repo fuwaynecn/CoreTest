@@ -2,7 +2,7 @@ import { and, asc, eq } from "drizzle-orm";
 import type { AppDatabase } from "@/db/client";
 import {
   attempts, dosageStates, masteryEvidence, masteryStates, reviewSchedules,
-  sessionItems, skills, trainingSessions,
+  sessionItems, trainingSessions,
 } from "@/db/schema";
 import {
   aggregateTrackDays,
@@ -22,6 +22,7 @@ import {
   deriveMasteryState,
   type MasteryEvidenceInput,
 } from "@/domain/training/mastery";
+import { firstCorrectCorrection } from "@/domain/training/attempt-ordering";
 
 type LearningStateStore = Pick<AppDatabase, "select" | "insert">;
 
@@ -156,12 +157,6 @@ function deriveReview(
   return state;
 }
 
-function trackForDomain(domain: string): DosageTrack | null {
-  if (domain === "equation_algebra" || domain.includes("方程")) return "equation";
-  if (domain === "number_operations" || domain.includes("数与运算")) return "computation";
-  return null;
-}
-
 type SessionAccumulator = Omit<TrackSessionSummary, "cappedStructureNeedsSupport"> & {
   structureStats: Record<string, { count: number; independentCorrectCount: number }>;
 };
@@ -177,11 +172,9 @@ function summarizeTrackSessions(
     sessionDate: trainingSessions.sessionDate,
     sessionKind: trainingSessions.kind,
     sessionStatus: trainingSessions.status,
-    domain: skills.domain,
   }).from(masteryEvidence)
     .innerJoin(sessionItems, eq(masteryEvidence.sessionItemId, sessionItems.id))
     .innerJoin(trainingSessions, eq(sessionItems.sessionId, trainingSessions.id))
-    .innerJoin(skills, eq(masteryEvidence.skillId, skills.id))
     .where(eq(masteryEvidence.childId, childId))
     .orderBy(asc(masteryEvidence.occurredOn), asc(masteryEvidence.occurredAt), asc(masteryEvidence.id))
     .all();
@@ -194,7 +187,7 @@ function summarizeTrackSessions(
       || !["daily", "review", "assessment"].includes(row.sessionKind)) continue;
     if (after && (row.evidence.occurredOn < after.on
       || (row.evidence.occurredOn === after.on && row.evidence.occurredAt <= after.at))) continue;
-    const track = trackForDomain(row.domain);
+    const track = row.evidence.dosageTrack;
     if (!track) continue;
     const key = row.sessionId;
     const current = grouped[track].get(key) ?? {
@@ -282,12 +275,22 @@ export function updateLearningState(
     .orderBy(asc(attempts.submittedAt), asc(attempts.id))
     .all();
   const corrections = new Map<string, CorrectionEvent>();
+  const attemptsByItem = new Map<string, typeof correctionRows>();
   for (const row of correctionRows) {
-    if (!row.correct || (row.correctionNumber ?? 0) < 1 || corrections.has(row.sessionItemId)) continue;
-    corrections.set(row.sessionItemId, {
-      id: row.id,
-      on: shanghaiDateKey(row.submittedAt),
-      at: row.submittedAt,
+    const rows = attemptsByItem.get(row.sessionItemId) ?? [];
+    rows.push(row);
+    attemptsByItem.set(row.sessionItemId, rows);
+  }
+  for (const [sessionItemId, rows] of attemptsByItem) {
+    const correction = firstCorrectCorrection(rows.map((row) => ({
+      ...row,
+      isCorrect: row.correct,
+    })));
+    if (!correction) continue;
+    corrections.set(sessionItemId, {
+      id: correction.id,
+      on: shanghaiDateKey(correction.submittedAt),
+      at: correction.submittedAt,
     });
   }
 

@@ -43,6 +43,7 @@ function appendEvidence(db: AppDatabase, input: {
   diagnosticCompletedOn?: string;
   status?: "in_progress" | "completed";
   structureTag?: string;
+  dosageTrack?: "computation" | "equation" | null;
 }) {
   sequence += 1;
   const skillId = input.skillId ?? "skill-computation";
@@ -80,6 +81,9 @@ function appendEvidence(db: AppDatabase, input: {
     childId: "child-1", skillId, sessionItemId: itemId, templateId,
     purpose, firstAttemptCorrect: input.correct ?? true,
     independent: input.independent ?? true, hintLevel: input.hintLevel ?? 0,
+    dosageTrack: input.dosageTrack === undefined
+      ? skillId === "skill-equation" ? "equation" : "computation"
+      : input.dosageTrack,
     difficulty: 1, structureTag, occurredOn: input.on, occurredAt,
     diagnosticRunId,
     diagnosticCompletedOn: purpose === "diagnostic" ? diagnosticCompletedOn : null,
@@ -136,6 +140,40 @@ test("cross-day independent sessions advance review and dosage, while a failed d
   });
   expect(db.select().from(dosageStates).where(eq(dosageStates.track, "computation")).get())
     .toMatchObject({ level: 1, weeklyTarget: 60, sessionTarget: 15 });
+});
+
+test("dosage replay uses the immutable evidence track after the skill domain changes", () => {
+  const db = seed();
+  appendEvidence(db, { purpose: "diagnostic", on: "2026-08-18" });
+  appendEvidence(db, { on: "2026-08-20" });
+  const trigger = appendEvidence(db, {
+    purpose: "review", on: "2026-08-21", reviewIntervalDays: 1,
+  });
+  const before = db.select().from(dosageStates).all().toSorted((left, right) => (
+    left.track.localeCompare(right.track)
+  ));
+
+  db.update(skills).set({ domain: "equation_algebra" })
+    .where(eq(skills.id, "skill-computation")).run();
+  updateLearningState(db, trigger.evidence.id);
+
+  expect(db.select().from(dosageStates).all().toSorted((left, right) => (
+    left.track.localeCompare(right.track)
+  ))).toEqual(before);
+});
+
+test("unknown legacy dosage tracks do not get forced into the current skill domain", () => {
+  const db = seed();
+  appendEvidence(db, { purpose: "diagnostic", on: "2026-08-18", dosageTrack: null });
+  appendEvidence(db, { on: "2026-08-20", dosageTrack: null });
+  appendEvidence(db, {
+    purpose: "review", on: "2026-08-21", reviewIntervalDays: 1, dosageTrack: null,
+  });
+
+  expect(db.select().from(dosageStates).where(eq(dosageStates.track, "computation")).get())
+    .toMatchObject({ level: 1 });
+  expect(db.select().from(dosageStates).where(eq(dosageStates.track, "equation")).get())
+    .toMatchObject({ level: 1 });
 });
 
 test("a level-one hint is supported rather than independent and lowers review level", () => {
@@ -350,7 +388,10 @@ test("the final correct attempt completes the session before dosage derivation",
         kind: "number", value: 2, tolerance: 0, unit: null,
       }), explanationSnapshot: "1+1=2", skillIdSnapshot: "skill-computation",
       skillNameSnapshot: "小数", structureTagSnapshot: "same-structure",
-      selectionReasonSnapshot: JSON.stringify({ reviewIntervalDays: 1 }),
+      selectionReasonSnapshot: JSON.stringify({
+        reviewIntervalDays: 1,
+        dosageTrack: "computation",
+      }),
     }).run();
     submitAttempt(db, { childId: "child-1", sessionItemId: "final-review-item",
       clientSubmissionId: "44444444-4444-4444-8444-444444444444", answerText: "2" });
@@ -397,7 +438,7 @@ test("a forced reducer failure rolls the containing attempt transaction back", (
     recordLearningEvidence(tx, {
       childId: "child-1", skillId: "skill-computation", sessionItemId: "rollback-item",
       templateId: "template-computation", purpose: "learning", firstAttemptCorrect: false,
-      independent: true, hintLevel: 0, difficulty: 1, structureTag: "decimal",
+      independent: true, hintLevel: 0, dosageTrack: "computation", difficulty: 1, structureTag: "decimal",
       occurredOn: "invalid-date", occurredAt, diagnosticRunId: null,
       diagnosticCompletedOn: null, diagnosticCompletedAt: null, reviewIntervalDays: 0,
     });

@@ -157,6 +157,17 @@ export const hintEvents = sqliteTable("hint_events", {
   check("hint_events_level_range", sql`${table.hintLevel} BETWEEN 1 AND 3`),
 ]);
 
+export const hintRequests = sqliteTable("hint_requests", {
+  requestId: text("request_id").primaryKey(),
+  childId: text("child_id").notNull().references(() => users.id),
+  sessionItemId: text("session_item_id").notNull()
+    .references(() => sessionItems.id, { onDelete: "cascade" }),
+  hintLevel: integer("hint_level").notNull(),
+  requestedAt: integer("requested_at").notNull(),
+}, (table) => [
+  check("hint_requests_level_range", sql`${table.hintLevel} BETWEEN 1 AND 3`),
+]);
+
 export const masteryEvidence = sqliteTable("mastery_evidence", {
   id: text("id").primaryKey(),
   childId: text("child_id").notNull().references(() => users.id),
@@ -167,6 +178,7 @@ export const masteryEvidence = sqliteTable("mastery_evidence", {
   firstAttemptCorrect: integer("first_attempt_correct", { mode: "boolean" }).notNull(),
   independent: integer("independent", { mode: "boolean" }).notNull(),
   hintLevel: integer("hint_level"),
+  dosageTrack: text("dosage_track", { enum: ["computation", "equation"] }),
   difficulty: integer("difficulty").notNull(),
   structureTag: text("structure_tag").notNull(),
   occurredOn: text("occurred_on").notNull(),
@@ -182,6 +194,7 @@ export const masteryEvidence = sqliteTable("mastery_evidence", {
   check("mastery_evidence_independent_boolean", sql`${table.independent} IN (0, 1)`),
   check("mastery_evidence_hint_level", sql`${table.hintLevel} IS NULL OR ${table.hintLevel} BETWEEN 0 AND 3`),
   check("mastery_evidence_hint_independence", sql`${table.independent} = 0 OR ${table.hintLevel} = 0`),
+  check("mastery_evidence_dosage_track", sql`${table.dosageTrack} IS NULL OR ${table.dosageTrack} IN ('computation', 'equation')`),
   check("mastery_evidence_difficulty_range", sql`${table.difficulty} BETWEEN 1 AND 4`),
   check("mastery_evidence_review_interval", sql`${table.reviewIntervalDays} IN (0, 1, 3, 7, 14, 30)`),
   check("mastery_evidence_review_purpose", sql`(${table.purpose} = 'review' AND ${table.reviewIntervalDays} IN (1, 3, 7, 14, 30)) OR (${table.purpose} <> 'review' AND ${table.reviewIntervalDays} = 0)`),

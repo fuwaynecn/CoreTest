@@ -10,6 +10,7 @@ import {
 } from "@/db/schema";
 import { answerSpecSchema } from "@/domain/questions/answer-spec";
 import { scoreAnswer } from "@/domain/questions/score-answer";
+import { dosageTrackForDomain } from "@/domain/dosage/dosage-track";
 import { normalizeTelemetry } from "@/domain/training/attempt-telemetry";
 import { shanghaiDateKey } from "@/domain/time/shanghai-calendar";
 import { recordSystemErrorObservation } from "./error-observation-service";
@@ -63,6 +64,24 @@ function estimatedSecondsFromSnapshot(raw: string): number {
     // Legacy snapshots can predate estimated-time metadata.
   }
   return 300;
+}
+
+function dosageTrackFromSnapshot(raw: string) {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed === "object" && parsed !== null && "dosageTrack" in parsed) {
+      if (parsed.dosageTrack === "computation" || parsed.dosageTrack === "equation") {
+        return parsed.dosageTrack;
+      }
+      if (parsed.dosageTrack === null) return null;
+    }
+    if (typeof parsed === "object" && parsed !== null && "domain" in parsed) {
+      return dosageTrackForDomain(parsed.domain);
+    }
+  } catch {
+    // Legacy snapshots do not have a frozen dosage classification.
+  }
+  return null;
 }
 
 export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): AttemptResult {
@@ -198,6 +217,7 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
         firstAttemptCorrect: score.correct,
         independent: hintCount === 0,
         hintLevel: hintLevel as 0 | 1 | 2 | 3,
+        dosageTrack: dosageTrackFromSnapshot(item.metadataSnapshot),
         difficulty: item.difficulty as 1 | 2 | 3 | 4,
         structureTag: item.structureTag,
         occurredOn: shanghaiDateKey(now),

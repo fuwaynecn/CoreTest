@@ -123,6 +123,18 @@ test("@tablet @parent missing unit becomes traceable evidence and a parent corre
   await expect(evidence).toContainText("7.5 元");
   await expect(evidence).toContainText("孩子自评");
   await expect(page.getByText(`${todayInShanghai()} · 今天到期`)).toBeVisible();
+  await page.getByText("查看本次到期依据").click();
+  await expect(page.getByText("上次结果：订正后正确")).toBeVisible();
+  await expect(page.getByRole("link", { name: "打开这条复习证据" }))
+    .toHaveAttribute("href", /#mastery-evidence-/);
+  const computationDose = page.locator('.doseCard[data-track="computation"]');
+  await computationDose.getByText("查看最近剂量证据").click();
+  await expect(computationDose.getByText(/独立首答准确率 100%（1\/1）/)).toBeVisible();
+  await expect(computationDose.getByRole("link", { name: /打开 .* 的第 1 条证据/ }))
+    .toHaveAttribute("href", /#mastery-evidence-/);
+  await page.locator(".dosageSection").screenshot({
+    path: `.tmp/learning-state-dosage-${testInfo.project.name}.png`,
+  });
   if (testInfo.project.name !== "parent-mobile") {
     await page.locator(".abilityMap").screenshot({ path: `.tmp/learning-state-${testInfo.project.name}.png` });
   }
