@@ -411,7 +411,7 @@ export function getLearningState(
             : candidate.trigger.result === row.schedule.lastResult)
           .sort((left, right) => left.at - right.at
             || left.item.evidence.id.localeCompare(right.item.evidence.id));
-        const selected = candidates.find((candidate) => candidate.at === row.schedule.updatedAt)
+        const selected = candidates.filter((candidate) => candidate.at === row.schedule.updatedAt).at(-1)
           ?? candidates.filter((candidate) => candidate.at <= row.schedule.updatedAt).at(-1)
           ?? candidates.at(-1)
           ?? null;

@@ -134,6 +134,33 @@ test("replays the same logical hint request without advancing", async () => {
   expect(JSON.stringify(await mismatched.json())).not.toContain("答案");
 });
 
+test("rejects a new training hint after a correction but replays the original request", async () => {
+  const originalRequestId = "55555555-5555-4555-8555-555555555555";
+  const first = await POST(hintRequest("item-1", originalRequestId));
+  expect(await first.json()).toMatchObject({ level: 1, hintCount: 1 });
+  db.insert(attempts).values([
+    {
+      id: "attempt-wrong", sessionItemId: "item-1",
+      clientSubmissionId: "55555555-5555-4555-8555-555555555551",
+      answerText: "1", isCorrect: false, normalizedAnswer: "1", explanation: "答案是 2。",
+      sessionCompleted: false, correctionNumber: 0, submittedAt: 2,
+    },
+    {
+      id: "attempt-corrected", sessionItemId: "item-1",
+      clientSubmissionId: "55555555-5555-4555-8555-555555555552",
+      answerText: "2", isCorrect: true, normalizedAnswer: "2", explanation: "答案是 2。",
+      sessionCompleted: false, correctionNumber: 1, submittedAt: 3,
+    },
+  ]).run();
+
+  const replay = await POST(hintRequest("item-1", originalRequestId));
+  expect(await replay.json()).toMatchObject({ level: 1, hintCount: 1 });
+  const next = await POST(hintRequest("item-1", "66666666-6666-4666-8666-666666666666"));
+  expect(next.status).toBe(404);
+  expect(db.select().from(hintEvents).all()).toHaveLength(1);
+  expect(db.select().from(hintRequests).all()).toHaveLength(1);
+});
+
 test("keeps hint progression durable across separate database connections", () => {
   const directory = mkdtempSync(join(tmpdir(), "math-trainer-hints-"));
   const filename = join(directory, "hints.sqlite");
@@ -197,7 +224,7 @@ test.each(["missing", "item-foreign", "item-completed"])(
   },
 );
 
-test("allows the current formal diagnostic item and rejects already-correct formal items", async () => {
+test("allows the current formal diagnostic item and rejects any further hint after it is answered", async () => {
   db.insert(diagnosticRuns).values({
     id: "run-1", childId: "child-1", version: 1, status: "in_progress",
     currentPart: 1, seed: "seed", startedAt: 1,
@@ -219,6 +246,14 @@ test("allows the current formal diagnostic item and rejects already-correct form
   expect(await diagnostic.json()).toEqual({
     level: 1, hint: "先判断运算。", hintCount: 1,
   });
+  db.insert(attempts).values({
+    id: "diagnostic-attempt", sessionItemId: "diagnostic-item",
+    clientSubmissionId: "77777777-7777-4777-8777-777777777777",
+    answerText: "1", isCorrect: false, normalizedAnswer: "1", explanation: "答案是 2。",
+    sessionCompleted: false, correctionNumber: 0, submittedAt: 3,
+  }).run();
+  const answeredDiagnostic = await POST(hintRequest("diagnostic-item"));
+  expect(answeredDiagnostic.status).toBe(404);
   const alreadyCorrect = await POST(hintRequest("item-1"));
   expect(alreadyCorrect.status).toBe(404);
   expect(db.select().from(hintEvents).all()).toHaveLength(1);

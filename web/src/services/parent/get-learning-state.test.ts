@@ -11,7 +11,9 @@ import {
   trainingSessions,
   users,
 } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { createTestDatabase } from "@/test/test-db";
+import { updateLearningState } from "@/services/training/update-learning-state";
 import { getLearningState } from "./get-learning-state";
 
 const NOW = Date.parse("2026-08-23T10:00:00+08:00");
@@ -212,4 +214,78 @@ test("builds traceable mastery, effective errors, due reviews, and dosage", () =
 test("returns only reviews due on or before the current Shanghai date", () => {
   const view = getLearningState(seedLearningState(), "child-1", Date.parse("2026-08-22T23:59:59+08:00"));
   expect(view.dueReviews).toEqual([]);
+});
+
+test("uses the last evidence id when tied events produce the current review schedule", () => {
+  const db = seedLearningState();
+  const tiedAt = Date.parse("2026-08-22T10:00:00+08:00");
+  db.insert(trainingSessions).values([
+    {
+      id: "tied-session-a", childId: "child-1", sessionDate: "2026-08-22",
+      kind: "practice", status: "completed", startedAt: tiedAt, completedAt: tiedAt,
+    },
+    {
+      id: "tied-session-z", childId: "child-1", sessionDate: "2026-08-22",
+      kind: "practice", status: "completed", startedAt: tiedAt, completedAt: tiedAt,
+    },
+  ]).run();
+  db.insert(sessionItems).values([
+    {
+      id: "tied-item-a", sessionId: "tied-session-a", questionTemplateId: "tpl-equation",
+      position: 1, stemSnapshot: "较早的同毫秒证据", answerSpecSnapshot: "{}",
+      explanationSnapshot: "讲解", skillIdSnapshot: "skill-equation",
+      skillNameSnapshot: "两步方程", difficultySnapshot: 4,
+      structureTagSnapshot: "equation-two-step",
+    },
+    {
+      id: "tied-item-z", sessionId: "tied-session-z", questionTemplateId: "tpl-equation",
+      position: 1, stemSnapshot: "最后的同毫秒证据", answerSpecSnapshot: "{}",
+      explanationSnapshot: "讲解", skillIdSnapshot: "skill-equation",
+      skillNameSnapshot: "两步方程", difficultySnapshot: 4,
+      structureTagSnapshot: "equation-two-step",
+    },
+  ]).run();
+  db.insert(attempts).values([
+    {
+      id: "tied-attempt-a", sessionItemId: "tied-item-a", clientSubmissionId: "tied-submission-a",
+      answerText: "7", isCorrect: true, normalizedAnswer: "7", explanation: "讲解",
+      sessionCompleted: true, correctionNumber: 0, submittedAt: tiedAt,
+    },
+    {
+      id: "tied-attempt-z", sessionItemId: "tied-item-z", clientSubmissionId: "tied-submission-z",
+      answerText: "7", isCorrect: true, normalizedAnswer: "7", explanation: "讲解",
+      sessionCompleted: true, correctionNumber: 0, submittedAt: tiedAt,
+    },
+  ]).run();
+  db.insert(masteryEvidence).values([
+    {
+      id: "a-evidence-tied", childId: "child-1", skillId: "skill-equation",
+      sessionItemId: "tied-item-a", templateId: "tpl-equation", purpose: "learning",
+      firstAttemptCorrect: true, independent: true, hintLevel: 0, dosageTrack: "equation",
+      difficulty: 4, structureTag: "equation-two-step", occurredOn: "2026-08-22",
+      occurredAt: tiedAt,
+    },
+    {
+      id: "z-evidence-tied", childId: "child-1", skillId: "skill-equation",
+      sessionItemId: "tied-item-z", templateId: "tpl-equation", purpose: "learning",
+      firstAttemptCorrect: true, independent: true, hintLevel: 0, dosageTrack: "equation",
+      difficulty: 4, structureTag: "equation-two-step", occurredOn: "2026-08-22",
+      occurredAt: tiedAt,
+    },
+  ]).run();
+
+  updateLearningState(db, "z-evidence-tied");
+  expect(db.select().from(reviewSchedules).where(eq(reviewSchedules.skillId, "skill-equation")).get())
+    .toMatchObject({ level: 2, dueOn: "2026-08-29", updatedAt: tiedAt });
+  const due = getLearningState(db, "child-1", Date.parse("2026-08-29T10:00:00+08:00"))
+    .dueReviews[0];
+  expect(due).toMatchObject({
+    supportingEvidenceIds: ["z-evidence-tied"],
+    trigger: {
+      evidenceId: "z-evidence-tied", attemptId: "tied-attempt-z",
+      sessionItemId: "tied-item-z", sessionId: "tied-session-z",
+      occurredOn: "2026-08-22", stem: "最后的同毫秒证据",
+      result: "independent_correct", firstAttemptCorrect: true, independent: true, hintLevel: 0,
+    },
+  });
 });

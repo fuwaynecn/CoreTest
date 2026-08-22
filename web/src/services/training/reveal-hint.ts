@@ -96,13 +96,16 @@ export function revealNextHint(
       if (current?.id !== sessionItemId) throw new HintAccessError();
     }
 
-    const priorAttempt = tx.select({ correct: attempts.isCorrect }).from(attempts)
-      .where(eq(attempts.sessionItemId, sessionItemId))
+    const terminalAttempt = tx.select({ id: attempts.id }).from(attempts)
+      .where(item.sessionKind === "diagnostic"
+        ? eq(attempts.sessionItemId, sessionItemId)
+        : and(
+          eq(attempts.sessionItemId, sessionItemId),
+          eq(attempts.isCorrect, true),
+        ))
       .limit(1)
       .get();
-    if (priorAttempt && (item.sessionKind === "diagnostic" || priorAttempt.correct)) {
-      throw new HintAccessError();
-    }
+    if (terminalAttempt) throw new HintAccessError();
 
     const ladder = parseHintLadder(item.metadataSnapshot);
     const revealed = tx.select({ level: hintEvents.hintLevel }).from(hintEvents)
