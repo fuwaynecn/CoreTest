@@ -5,6 +5,7 @@ import type { AppDatabase } from "@/db/client";
 import {
   attempts,
   diagnosticRuns,
+  learningPlans,
   questionTemplates,
   sessionItems,
   skills,
@@ -12,6 +13,7 @@ import {
 } from "@/db/schema";
 import type { SessionView } from "@/domain/training/types";
 import { dosageTrackForDomain } from "@/domain/dosage/dosage-track";
+import { getOrCreateAdaptiveSession } from "./create-adaptive-session";
 
 export class DailyTrainingLockedError extends Error {
   constructor() {
@@ -95,6 +97,9 @@ export function getOrCreateDailySession(
   childId: string,
   date: string,
 ): SessionView {
+  const activePlan = db.select({ id: learningPlans.id }).from(learningPlans)
+    .where(and(eq(learningPlans.childId, childId), eq(learningPlans.status, "active"))).limit(1).get();
+  if (activePlan) return getOrCreateAdaptiveSession(db, childId, date);
   const sessionId = db.transaction((tx) => {
     const existing = tx.select({ id: trainingSessions.id })
       .from(trainingSessions)
