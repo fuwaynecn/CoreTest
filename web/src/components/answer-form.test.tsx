@@ -413,6 +413,19 @@ test("retries an unparseable 2xx response with the same id", async () => {
   });
 });
 
+test("includes a completed reading card with the first answer", async () => {
+  const submit = vi.fn().mockResolvedValue({ correct: true, normalizedAnswer: "6", explanation: "解析", sessionCompleted: false });
+  render(<AnswerForm sessionItemId="item-reading" readingCard submitAnswer={submit} />);
+  for (const label of ["题目要我求什么", "已知了什么", "单位是什么", "哪些信息有用", "数量之间有什么关系", "答案大约在哪个范围"]) {
+    await userEvent.type(screen.getByLabelText(label), "已填写");
+  }
+  await userEvent.type(screen.getByLabelText("你的答案"), "6");
+  await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
+  expect(submit).toHaveBeenCalledWith(expect.objectContaining({ readingCardResponse: {
+    target: "已填写", givens: "已填写", units: "已填写", usefulFacts: "已填写", relationship: "已填写", estimateRange: "已填写",
+  } }));
+});
+
 test("retries an incomplete 2xx result with the same id", async () => {
   const fetchSpy = vi.spyOn(globalThis, "fetch")
     .mockResolvedValueOnce(new Response(JSON.stringify({ correct: true })))

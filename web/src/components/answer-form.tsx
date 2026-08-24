@@ -3,6 +3,7 @@
 import { FormEvent, useRef, useState, useSyncExternalStore } from "react";
 import type { AttemptTelemetry } from "@/domain/training/attempt-telemetry";
 import { DefiniteHintError, postHint, type HintResult } from "./request-hint";
+import { ReadingCard, type ReadingCardResponse } from "./reading-card";
 import { useActiveDuration } from "./use-active-duration";
 
 export type AttemptResult = {
@@ -14,6 +15,7 @@ export type AttemptResult = {
 
 type AnswerFormProps = {
   sessionItemId: string;
+  readingCard?: boolean;
   nextHref?: string;
   submitAnswer?: (payload: {
     sessionItemId: string;
@@ -22,6 +24,7 @@ type AnswerFormProps = {
     activeDurationMs: number;
     hintLevel: AttemptTelemetry["hintLevel"];
     hintCount: number;
+    readingCardResponse?: ReadingCardResponse;
   }) => Promise<AttemptResult>;
   requestHint?: (sessionItemId: string, requestId: string) => Promise<HintResult>;
   saveReflection?: (payload: {
@@ -59,6 +62,7 @@ async function postAttempt(payload: {
   activeDurationMs: number;
   hintLevel: AttemptTelemetry["hintLevel"];
   hintCount: number;
+  readingCardResponse?: ReadingCardResponse;
 }): Promise<AttemptResult> {
   const response = await fetch("/api/child/attempts", {
     method: "POST",
@@ -93,6 +97,7 @@ const subscribeToHydration = () => () => undefined;
 
 export function AnswerForm({
   sessionItemId,
+  readingCard = false,
   nextHref = "/child",
   submitAnswer = postAttempt,
   requestHint = postHint,
@@ -111,10 +116,15 @@ export function AnswerForm({
   const [hadIncorrectAnswer, setHadIncorrectAnswer] = useState(false);
   const [reflectionComplete, setReflectionComplete] = useState(false);
   const [reflectionSaving, setReflectionSaving] = useState(false);
+  const [readingCardResponse, setReadingCardResponse] = useState<ReadingCardResponse | null>(null);
   const currentActiveDuration = useActiveDuration();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (readingCard && (!readingCardResponse || Object.values(readingCardResponse).some((value) => !value.trim()))) {
+      setError("先完成审题卡，再提交答案。");
+      return;
+    }
     const clientSubmissionId = submissionId ?? crypto.randomUUID();
     const telemetry = pendingTelemetry ?? {
       activeDurationMs: currentActiveDuration(),
@@ -131,9 +141,11 @@ export function AnswerForm({
         sessionItemId,
         clientSubmissionId,
         answerText,
+        readingCardResponse: readingCardResponse ?? undefined,
         ...telemetry,
       });
       setResult(nextResult);
+      if (nextResult.sessionCompleted) localStorage.removeItem(`math-scratch:${sessionItemId}`);
       if (!nextResult.correct) setHadIncorrectAnswer(true);
       setSubmissionId(null);
       setPendingTelemetry(null);
@@ -196,6 +208,7 @@ export function AnswerForm({
 
   return (
     <form className="answerForm" onSubmit={handleSubmit}>
+      {readingCard && <ReadingCard onChange={setReadingCardResponse} />}
       <label className="answerLabel" htmlFor={`answer-${sessionItemId}`}>你的答案</label>
       <input
         id={`answer-${sessionItemId}`}

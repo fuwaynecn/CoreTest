@@ -22,6 +22,9 @@ export default async function ChildHomePage() {
     );
   }
   const session = getOrCreateDailySession(db, child.id, shanghaiDateKey());
+  if (session.status === "completed_early") {
+    return <main className="trainingPage completionCard"><p className="eyebrow">今天先到这里</p><h1>已经保存好今天完成的部分</h1><p>下次训练会从适合你的内容继续开始。</p></main>;
+  }
   const label = session.questions.some((question) => question.answered)
     ? "继续今天的训练"
     : "开始今天的训练";

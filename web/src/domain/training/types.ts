@@ -1,4 +1,4 @@
-export type SessionQuestion = { id: string; position: number; stem: string; answered: boolean };
+export type SessionQuestion = { id: string; position: number; stem: string; answered: boolean; category?: string; readingCard?: boolean };
 
 export type SessionView = {
   id: string;

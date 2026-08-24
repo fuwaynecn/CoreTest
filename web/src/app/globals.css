@@ -32,6 +32,17 @@ button, input { min-height: 48px; }
 .activeRetest p { margin-top: 0; }
 .activeRetest a { display: inline-flex; min-height: 48px; align-items: center; padding: .55rem .8rem; border: 1px solid var(--brand); border-radius: .65rem; color: var(--brand); font-weight: 700; text-decoration: none; }
 .sessionProgress { margin: 0 0 1rem; color: #57635f; font-weight: 700; }
+.trainingSegments { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .5rem; margin-bottom: 1.25rem; }
+.trainingSegments span { display: grid; gap: .2rem; padding: .65rem .75rem; border-bottom: .25rem solid var(--sand); color: #57635f; font-size: .82rem; font-weight: 700; }
+.trainingSegments span[aria-current="step"] { border-color: var(--brand); color: var(--ink); background: #edf5f2; }
+.trainingSegments small { color: inherit; font: inherit; opacity: .75; }
+.readingCard, .scratchpad { display: grid; gap: .7rem; padding: 1rem; border: 1px solid var(--sand); border-radius: .75rem; background: white; }
+.readingCard legend { padding: 0 .25rem; color: var(--brand); font-weight: 700; }
+.readingCard label, .scratchpad { font-weight: 700; }
+.readingCard input, .scratchpad textarea { width: 100%; min-height: 48px; padding: .65rem .8rem; border: 1px solid #9ca7a3; border-radius: .6rem; background: white; color: var(--ink); }
+.scratchpad { margin-top: 1.25rem; }
+.scratchpad textarea { min-height: 7rem; resize: vertical; }
+.stopSession { width: fit-content; min-height: 48px; margin-top: 1.5rem; padding: .7rem 1rem; border: 1px solid var(--brand); border-radius: .75rem; background: white; color: var(--brand); cursor: pointer; font-weight: 700; }
 .diagnosisPage { overflow-x: clip; }
 .diagnosisProgress { margin-bottom: 1.25rem; }
 .diagnosisProgressCopy { display: flex; justify-content: space-between; gap: 1rem; margin-bottom: .7rem; color: #57635f; }
@@ -244,6 +255,7 @@ button, input { min-height: 48px; }
   .diagnosisHistory li { display: grid; gap: .35rem; }
   .errorTotals, .answerTrail { grid-template-columns: 1fr; }
   .errorCorrection { grid-template-columns: 1fr; }
+  .trainingSegments { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }

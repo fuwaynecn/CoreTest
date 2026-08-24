@@ -15,6 +15,9 @@ const attemptInput = z.strictObject({
   activeDurationMs: z.number().finite(),
   hintLevel: z.number().finite(),
   hintCount: z.number().finite(),
+  readingCardResponse: z.object({
+    target: z.string(), givens: z.string(), units: z.string(), usefulFacts: z.string(), relationship: z.string(), estimateRange: z.string(),
+  }).optional(),
 });
 
 export async function POST(request: Request) {

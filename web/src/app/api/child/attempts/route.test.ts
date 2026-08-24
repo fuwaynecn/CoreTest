@@ -91,6 +91,20 @@ test("normalizes active duration by the item estimate and trusts persisted hint 
     .toMatchObject({ activeDurationMs: 240_000, hintLevel: 2, hintCount: 2 });
 });
 
+test("persists the reading card only with the reading item's first answer", async () => {
+  const session = getOrCreateDailySession(db, "child-1", "2026-08-19");
+  const response = await POST(attemptRequest({
+    sessionItemId: session.questions[1].id,
+    clientSubmissionId: "51515151-5151-4151-8151-515151515155",
+    answerText: "7.5元",
+    readingCardResponse: { target: "多少钱", givens: "7.5元一盒", units: "元", usefulFacts: "买一盒", relationship: "单价乘数量", estimateRange: "7到8元" },
+  }));
+  expect(response.status).toBe(200);
+  expect(db.select({ readingCardResponse: attempts.readingCardResponse }).from(attempts).get()).toMatchObject({
+    readingCardResponse: expect.stringContaining("单价乘数量"),
+  });
+});
+
 test("keeps persisted telemetry immutable when a submission id is replayed", async () => {
   const session = getOrCreateDailySession(db, "child-1", "2026-08-19");
   const first = await POST(attemptRequest({

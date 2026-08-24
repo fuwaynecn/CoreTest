@@ -25,6 +25,7 @@ export type SubmitAttemptCommand = {
   activeDurationMs?: number;
   hintLevel?: number;
   hintCount?: number;
+  readingCardResponse?: { target: string; givens: string; units: string; usefulFacts: string; relationship: string; estimateRange: string };
 };
 
 export type AttemptResult = {
@@ -97,6 +98,10 @@ function evidenceClassification(sessionKind: string, raw: string) {
     : { purpose: "learning" as const, reviewIntervalDays: 0 as const };
 }
 
+function needsReadingCard(raw: string) {
+  try { return JSON.parse(raw).readingCard === true; } catch { return false; }
+}
+
 export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): AttemptResult {
   if (command.answerText.length > 128) throw new InvalidAnswerError();
 
@@ -152,6 +157,7 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
       .get();
     if (!item) throw new TrainingAccessError();
     if (item.sessionKind === "diagnostic") throw new TrainingAccessError();
+    if (needsReadingCard(item.metadataSnapshot) && (!command.readingCardResponse || Object.values(command.readingCardResponse).some((value) => !value.trim()))) throw new InvalidAnswerError();
 
     const persistedHints = tx.select({ level: hintEvents.hintLevel }).from(hintEvents)
       .where(and(
@@ -201,6 +207,7 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
       sessionCompleted,
       ...telemetry,
       correctionNumber: priorAttemptCount,
+      readingCardResponse: priorAttemptCount === 0 && command.readingCardResponse ? JSON.stringify(command.readingCardResponse) : null,
       submittedAt: now,
     }).run();
 
