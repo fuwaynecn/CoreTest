@@ -426,6 +426,17 @@ test("includes a completed reading card with the first answer", async () => {
   } }));
 });
 
+test("clears every session scratchpad after the final answer", async () => {
+  localStorage.setItem("math-scratch:item-1", "done");
+  localStorage.setItem("math-scratch:item-2", "also done");
+  const submit = vi.fn().mockResolvedValue({ correct: true, normalizedAnswer: "6", explanation: "解析", sessionCompleted: true });
+  render(<AnswerForm sessionItemId="item-2" sessionItemIds={["item-1", "item-2"]} submitAnswer={submit} />);
+  await userEvent.type(screen.getByLabelText("你的答案"), "6");
+  await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
+  expect(localStorage.getItem("math-scratch:item-1")).toBeNull();
+  expect(localStorage.getItem("math-scratch:item-2")).toBeNull();
+});
+
 test("retries an incomplete 2xx result with the same id", async () => {
   const fetchSpy = vi.spyOn(globalThis, "fetch")
     .mockResolvedValueOnce(new Response(JSON.stringify({ correct: true })))

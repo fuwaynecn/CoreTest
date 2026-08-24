@@ -1,5 +1,6 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 
 export type TrainingSegment = "warmup" | "core" | "reading" | "correction";
@@ -19,13 +20,18 @@ export function TrainingSegments({ current, composition }: { current: TrainingSe
   ))}</nav>;
 }
 
-export function StopSessionButton({ sessionId, sessionItemIds }: { sessionId: string; sessionItemIds: string[] }) {
+export function StopSessionButton({ sessionId, sessionItemIds, targetAt }: { sessionId: string; sessionItemIds: string[]; targetAt?: number }) {
   const router = useRouter();
+  const reachedTarget = useSyncExternalStore(
+    (notify) => { const timer = window.setInterval(notify, 1_000); return () => window.clearInterval(timer); },
+    () => targetAt !== undefined && Date.now() >= targetAt,
+    () => false,
+  );
   async function stop() {
     const response = await fetch(`/api/child/sessions/${sessionId}/stop`, { method: "POST" });
     if (!response.ok) return;
     for (const itemId of sessionItemIds) localStorage.removeItem(`math-scratch:${itemId}`);
     router.push("/child");
   }
-  return <button className="stopSession" type="button" onClick={stop}>今天先到这里</button>;
+  return <div>{reachedTarget && <p className="targetTimePrompt">今天的目标时间到了，可以先到这里。</p>}<button className="stopSession" type="button" onClick={stop}>{reachedTarget ? "今天先到这里" : "结束今天训练"}</button></div>;
 }

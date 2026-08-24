@@ -28,3 +28,9 @@ Also passed: `npm run lint`, `npm run typecheck`, `npm run build`, and `git diff
 ## Concerns
 
 `npm run test:run` had one unrelated existing failure: `src/db/seed.test.ts` timed out at its fixed 5-second limit; the remaining 347 tests passed. No task files are imported by that seed test.
+
+## Review fixes
+
+- Added a multi-item completion test and now pass the current session's item IDs into the answer form so every `math-scratch:<sessionItemId>` key is cleared on completion.
+- Made stop status transition an `immediate` transaction with a child/session/in-progress predicate. A completed-session regression test confirms its status and completion timestamp stay intact.
+- Passed `startedAt + targetSeconds` from the child session page to the existing client stop control. Its target-time test verifies the prompt and action appear at the deadline.

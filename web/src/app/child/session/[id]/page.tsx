@@ -5,7 +5,7 @@ import { QuestionCard } from "@/components/question-card";
 import { Scratchpad } from "@/components/scratchpad";
 import { StopSessionButton, TrainingSegments, type TrainingSegment } from "@/components/training-segments";
 import { getDatabase } from "@/db/client";
-import { sessionItems } from "@/db/schema";
+import { sessionItems, trainingSessions } from "@/db/schema";
 import { shanghaiDateKey } from "@/domain/time/shanghai-calendar";
 import { requireRole } from "@/lib/auth/current-user";
 import { getOrCreateDailySession } from "@/services/training/create-daily-session";
@@ -31,6 +31,7 @@ export default async function ChildSessionPage({ params }: { params: Promise<{ i
   if (session.id !== id) notFound();
 
   const details = db.select({ id: sessionItems.id, metadata: sessionItems.selectionReasonSnapshot }).from(sessionItems).where(eq(sessionItems.sessionId, session.id)).all();
+  const timing = db.select({ startedAt: trainingSessions.startedAt, targetSeconds: trainingSessions.targetSeconds }).from(trainingSessions).where(eq(trainingSessions.id, session.id)).get();
   const metadataById = new Map(details.map((item) => [item.id, itemMetadata(item.metadata)]));
   const question = session.questions.find((item) => !item.answered);
 
@@ -54,8 +55,8 @@ export default async function ChildSessionPage({ params }: { params: Promise<{ i
       <TrainingSegments current={categoryToSegment(metadataById.get(question.id)?.category, metadataById.get(question.id)?.selectionReason)} composition={(["warmup", "core", "reading", "correction"] as TrainingSegment[]).reduce((counts, segment) => ({ ...counts, [segment]: session.questions.filter((item) => categoryToSegment(metadataById.get(item.id)?.category, metadataById.get(item.id)?.selectionReason) === segment).length }), { warmup: 0, core: 0, reading: 0, correction: 0 })} />
       <QuestionCard stem={question.stem} />
       <Scratchpad sessionItemId={question.id} />
-      <AnswerForm sessionItemId={question.id} readingCard={metadataById.get(question.id)?.readingCard === true} nextHref={`/child/session/${session.id}`} />
-      <StopSessionButton sessionId={session.id} sessionItemIds={session.questions.map((item) => item.id)} />
+      <AnswerForm sessionItemId={question.id} sessionItemIds={session.questions.map((item) => item.id)} readingCard={metadataById.get(question.id)?.readingCard === true} nextHref={`/child/session/${session.id}`} />
+      <StopSessionButton sessionId={session.id} sessionItemIds={session.questions.map((item) => item.id)} targetAt={timing?.targetSeconds ? timing.startedAt + timing.targetSeconds * 1_000 : undefined} />
     </main>
   );
 }

@@ -15,6 +15,7 @@ export type AttemptResult = {
 
 type AnswerFormProps = {
   sessionItemId: string;
+  sessionItemIds?: string[];
   readingCard?: boolean;
   nextHref?: string;
   submitAnswer?: (payload: {
@@ -97,6 +98,7 @@ const subscribeToHydration = () => () => undefined;
 
 export function AnswerForm({
   sessionItemId,
+  sessionItemIds = [sessionItemId],
   readingCard = false,
   nextHref = "/child",
   submitAnswer = postAttempt,
@@ -145,7 +147,7 @@ export function AnswerForm({
         ...telemetry,
       });
       setResult(nextResult);
-      if (nextResult.sessionCompleted) localStorage.removeItem(`math-scratch:${sessionItemId}`);
+      if (nextResult.sessionCompleted) for (const itemId of sessionItemIds) localStorage.removeItem(`math-scratch:${itemId}`);
       if (!nextResult.correct) setHadIncorrectAnswer(true);
       setSubmissionId(null);
       setPendingTelemetry(null);

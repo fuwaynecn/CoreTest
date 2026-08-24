@@ -30,3 +30,16 @@ test("marks a session completed early without clearing unanswered due reviews", 
   expect(db.select().from(attempts).all()).toHaveLength(1);
   expect(db.select({ dueOn: reviewSchedules.dueOn }).from(reviewSchedules).get()).toEqual({ dueOn: "2026-08-25" });
 });
+
+test("does not overwrite an already completed session", async () => {
+  const db = createTestDatabase();
+  testState.db = db;
+  testState.getCurrentUser.mockResolvedValue({ id: "child-1", role: "child" });
+  db.insert(users).values({ id: "child-1", role: "child", displayName: "孩子", credentialHash: "hash", createdAt: 1 }).run();
+  db.insert(trainingSessions).values({ id: "completed-session", childId: "child-1", sessionDate: "2026-08-25", status: "completed", startedAt: 1, completedAt: 99 }).run();
+
+  const response = await POST(new Request("http://localhost/api/child/sessions/completed-session/stop", { method: "POST" }), { params: Promise.resolve({ id: "completed-session" }) });
+
+  expect(await response.json()).toEqual({ status: "completed" });
+  expect(db.select({ status: trainingSessions.status, completedAt: trainingSessions.completedAt }).from(trainingSessions).where(eq(trainingSessions.id, "completed-session")).get()).toEqual({ status: "completed", completedAt: 99 });
+});
