@@ -1,9 +1,10 @@
 import { eq } from "drizzle-orm";
 import { expect, test } from "vitest";
 import { phase2Catalog, phase2Skills } from "@/content/phase2-catalog";
-import { diagnosticRuns, learningPlans, planTargets, questionTemplates, sessionItems, skills, trainingSessions, users, reviewSchedules, masteryStates } from "@/db/schema";
+import { diagnosticRuns, learningPlans, masteryEvidence, parentPreferences, planTargets, questionTemplates, sessionItems, skills, trainingSessions, users, reviewSchedules, masteryStates } from "@/db/schema";
 import { createTestDatabase } from "@/test/test-db";
-import { DiagnosisRequiredError, getOrCreateAdaptiveSession } from "./create-adaptive-session";
+import { ActivePlanRequiredError, DiagnosisRequiredError, getOrCreateAdaptiveSession } from "./create-adaptive-session";
+import { submitAttempt } from "./submit-attempt";
 
 function seed() {
   const db = createTestDatabase();
@@ -40,4 +41,40 @@ test("creates immutable same-day adaptive snapshots from the active plan", () =>
   expect(session).toMatchObject({ kind: "daily", learningPlanId: "plan", planRevision: 2, ruleVersion: "phase2c-v1" });
   expect(items.length).toBeGreaterThan(0);
   expect(items[0]).toMatchObject({ variantSeed: expect.stringContaining("2026-08-20"), selectionReasonSnapshot: expect.stringContaining("selectionReason") });
+});
+
+test("classifies due daily items as review evidence with their frozen interval", () => {
+  const db = seed();
+  db.insert(diagnosticRuns).values({ id: "diagnosis", childId: "child", version: 1, status: "completed", currentPart: 3, seed: "seed", startedAt: 1, completedAt: 2, reportSnapshot: "{}" }).run();
+  db.insert(learningPlans).values({ id: "plan", childId: "child", diagnosisRunId: "diagnosis", version: 1, revision: 1, status: "active", startsOn: "2026-08-17", endsOn: "2026-09-27", reasonSnapshot: "{}", createdAt: 1 }).run();
+  db.insert(reviewSchedules).values({ childId: "child", skillId: "skill-decimal", level: 1, dueOn: "2026-08-19", lastResult: null, updatedAt: 1 }).run();
+  const session = getOrCreateAdaptiveSession(db, "child", "2026-08-20");
+  const item = db.select().from(sessionItems).where(eq(sessionItems.sessionId, session.id)).all()
+    .find((row) => JSON.parse(row.selectionReasonSnapshot).category === "review")!;
+  const answer = JSON.parse(item.answerSpecSnapshot).value;
+  submitAttempt(db, { childId: "child", sessionItemId: item.id, clientSubmissionId: "33333333-3333-4333-8333-333333333333", answerText: String(answer) });
+  expect(db.select().from(masteryEvidence).where(eq(masteryEvidence.sessionItemId, item.id)).get())
+    .toMatchObject({ purpose: "review", reviewIntervalDays: 3 });
+});
+
+test("does not let an existing daily session bypass the diagnosis gate", () => {
+  const db = seed();
+  db.insert(trainingSessions).values({ id: "old", childId: "child", sessionDate: "2026-08-20", kind: "daily", status: "in_progress", startedAt: 1 }).run();
+  expect(() => getOrCreateAdaptiveSession(db, "child", "2026-08-20")).toThrow(DiagnosisRequiredError);
+});
+
+test("does not let an existing daily session bypass the active-plan gate", () => {
+  const db = seed();
+  db.insert(diagnosticRuns).values({ id: "diagnosis", childId: "child", version: 1, status: "completed", currentPart: 3, seed: "seed", startedAt: 1, completedAt: 2, reportSnapshot: "{}" }).run();
+  db.insert(trainingSessions).values({ id: "old", childId: "child", sessionDate: "2026-08-20", kind: "daily", status: "in_progress", startedAt: 1 }).run();
+  expect(() => getOrCreateAdaptiveSession(db, "child", "2026-08-20")).toThrow(ActivePlanRequiredError);
+});
+
+test("uses the last configured Shanghai training day for the week-four assessment", () => {
+  const db = seed();
+  db.insert(diagnosticRuns).values({ id: "diagnosis", childId: "child", version: 1, status: "completed", currentPart: 3, seed: "seed", startedAt: 1, completedAt: 2, reportSnapshot: "{}" }).run();
+  db.insert(learningPlans).values({ id: "plan", childId: "child", diagnosisRunId: "diagnosis", version: 1, revision: 1, status: "active", startsOn: "2026-08-17", endsOn: "2026-09-27", reasonSnapshot: "{}", createdAt: 1 }).run();
+  db.insert(parentPreferences).values({ childId: "child", trainingWeekdays: "[1,2,3,4]", targetMinutes: 20, specialistFocus: "none", updatedAt: 1 }).run();
+  const session = getOrCreateAdaptiveSession(db, "child", "2026-09-10");
+  expect(db.select().from(trainingSessions).where(eq(trainingSessions.id, session.id)).get()?.kind).toBe("assessment");
 });

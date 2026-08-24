@@ -13,8 +13,8 @@ export function allocateComposition(total: number, focus: SpecialistFocus): Dail
     ratios.weakness -= 10;
   } else if (focus !== "none") {
     ratios.weakness += 15;
-    ratios.extension -= 10;
-    ratios.weakness -= 5;
+    ratios.extension -= 5;
+    ratios.reading -= 10;
   }
   const result = Object.fromEntries(tieOrder.map((category) => [category, Math.floor(total * ratios[category] / 100)])) as DailyComposition;
   let remaining = total - Object.values(result).reduce((sum, value) => sum + value, 0);

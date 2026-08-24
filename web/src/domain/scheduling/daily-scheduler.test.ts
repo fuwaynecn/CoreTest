@@ -16,12 +16,31 @@ const candidates: ScheduledCandidate[] = [
 test("allocates composition with largest remainders and specialist focus", () => {
   expect(allocateComposition(20, "none")).toEqual({ weakness: 9, review: 5, reading: 4, extension: 2 });
   expect(allocateComposition(20, "reading")).toEqual({ weakness: 7, review: 5, reading: 7, extension: 1 });
+  expect(allocateComposition(20, "computation")).toEqual({ weakness: 12, review: 5, reading: 2, extension: 1 });
+  expect(allocateComposition(20, "equation")).toEqual({ weakness: 12, review: 5, reading: 2, extension: 1 });
+  expect(allocateComposition(4, "none")).toEqual({ weakness: 2, review: 1, reading: 1, extension: 0 });
 });
 
 test("reallocates an unavailable review slot to weakness before shortening", () => {
   const result = selectDailyItems({ candidates, targetSeconds: 600, composition: { weakness: 1, review: 3, reading: 0, extension: 0 }, date: "2026-08-20", seed: "day" });
   expect(result.items.filter((item) => item.category === "weakness")).toHaveLength(2);
   expect(result.shortages).toEqual(expect.objectContaining({ review: 1 }));
+});
+
+test("uses target difficulty after mastery rank when ordering candidates", () => {
+  const result = selectDailyItems({ candidates: [
+    { templateId: "far", skillId: "one", structureTag: "one", category: "weakness", difficulty: 4, targetDifficulty: 2, estimatedSeconds: 60, dueOn: null },
+    { templateId: "near", skillId: "two", structureTag: "two", category: "weakness", difficulty: 2, targetDifficulty: 2, estimatedSeconds: 60, dueOn: null },
+  ], targetSeconds: 60, composition: { weakness: 1, review: 0, reading: 0, extension: 0 }, date: "2026-08-20", seed: "day" });
+  expect(result.items[0].templateId).toBe("near");
+});
+
+test("caps one structure at six and permits only the final item beyond the duration target", () => {
+  const sameStructure = Array.from({ length: 7 }, (_, index): ScheduledCandidate => ({ templateId: `same-${index}`, skillId: `skill-${index}`, structureTag: "same", category: "weakness", difficulty: 1, estimatedSeconds: 60, dueOn: null }));
+  const capped = selectDailyItems({ candidates: sameStructure, targetSeconds: 1_000, composition: { weakness: 7, review: 0, reading: 0, extension: 0 }, date: "2026-08-20", seed: "day" });
+  expect(capped.items).toHaveLength(6);
+  const duration = selectDailyItems({ candidates: sameStructure.map((candidate, index) => ({ ...candidate, templateId: `duration-${index}`, structureTag: `duration-${index}` })), targetSeconds: 100, composition: { weakness: 3, review: 0, reading: 0, extension: 0 }, date: "2026-08-20", seed: "day" });
+  expect(duration.items.reduce((total, item) => total + item.estimatedSeconds, 0)).toBe(120);
 });
 
 test("selects overdue reviews first without repeats and reports shortages", () => {

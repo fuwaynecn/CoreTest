@@ -84,6 +84,16 @@ function dosageTrackFromSnapshot(raw: string) {
   return null;
 }
 
+function evidenceClassification(sessionKind: string, raw: string) {
+  if (sessionKind === "assessment") return { purpose: "assessment" as const, reviewIntervalDays: 0 as const };
+  let metadata: { category?: unknown; selectionReason?: unknown; reviewIntervalDays?: unknown } = {};
+  try { metadata = JSON.parse(raw) as typeof metadata; } catch { /* Legacy snapshots are learning items. */ }
+  const review = sessionKind === "review" || metadata.category === "review" || metadata.selectionReason === "due_review" || metadata.selectionReason === "overdue_review";
+  if (!review) return { purpose: "learning" as const, reviewIntervalDays: 0 as const };
+  if (![1, 3, 7, 14, 30].includes(metadata.reviewIntervalDays as number)) throw new Error("Review item interval snapshot is invalid");
+  return { purpose: "review" as const, reviewIntervalDays: metadata.reviewIntervalDays as 1 | 3 | 7 | 14 | 30 };
+}
+
 export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): AttemptResult {
   if (command.answerText.length > 128) throw new InvalidAnswerError();
 
@@ -198,16 +208,7 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
     }
 
     if (priorAttemptCount === 0 && item.sessionKind !== "practice") {
-      const purpose = item.sessionKind === "review" ? "review"
-        : item.sessionKind === "assessment" ? "assessment" : "learning";
-      let reviewIntervalDays: 0 | 1 | 3 | 7 | 14 | 30 = 0;
-      if (purpose === "review") {
-        const parsed = JSON.parse(item.metadataSnapshot) as { reviewIntervalDays?: unknown };
-        if (![1, 3, 7, 14, 30].includes(parsed.reviewIntervalDays as number)) {
-          throw new Error("Review item interval snapshot is invalid");
-        }
-        reviewIntervalDays = parsed.reviewIntervalDays as 1 | 3 | 7 | 14 | 30;
-      }
+      const { purpose, reviewIntervalDays } = evidenceClassification(item.sessionKind, item.metadataSnapshot);
       recordLearningEvidence(tx, {
         childId: command.childId,
         skillId: item.skillId,
