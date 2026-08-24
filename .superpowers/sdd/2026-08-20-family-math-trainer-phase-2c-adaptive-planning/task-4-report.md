@@ -1,0 +1,30 @@
+# Task 4 report
+
+## Delivered
+
+- Added four-part child-session progress, reading-card fields, browser-local scratchpad recovery, and an early-stop route.
+- Reading-card data is required only when the immutable item snapshot requires it and is written with the first attempt.
+- Early stop preserves completed attempts and does not alter due-review schedules; stop clears that session's local drafts.
+
+## TDD evidence
+
+Red command:
+
+```text
+npx vitest run src/components/training-segments.test.tsx src/components/reading-card.test.tsx src/components/scratchpad.test.tsx src/app/api/child/sessions/[id]/stop/route.test.ts
+```
+
+It failed as expected because the three components and stop route did not exist.
+
+Green command/result:
+
+```text
+npx vitest run src/app/api/child/attempts/route.test.ts src/components/reading-card.test.tsx src/components/scratchpad.test.tsx src/components/answer-form.test.tsx src/app/api/child/sessions/[id]/stop/route.test.ts src/services/training/create-adaptive-session.test.ts
+52 tests passed
+```
+
+Also passed: `npm run lint`, `npm run typecheck`, `npm run build`, and `git diff --check`.
+
+## Concerns
+
+`npm run test:run` had one unrelated existing failure: `src/db/seed.test.ts` timed out at its fixed 5-second limit; the remaining 347 tests passed. No task files are imported by that seed test.
