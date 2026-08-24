@@ -186,6 +186,7 @@ test("migrates and stably replays an existing attempt", () => {
       hintLevel: null,
       hintCount: null,
       correctionNumber: null,
+      readingCardResponse: null,
       submittedAt: 2,
     });
     const foreignKeys = db.$client.prepare("PRAGMA foreign_key_list('attempts')").all() as unknown as Array<{
@@ -1117,6 +1118,71 @@ test("backfills immutable template identity for already-populated mastery eviden
       completedOn: "2023-11-15", completedAt: 1700000000000,
     });
     expect(foreignKeyCheck(sqlite)).toEqual([]);
+  } finally {
+    sqlite.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("adds versioned planning tables without changing populated Phase 2B attempts", () => {
+  const directory = mkdtempSync(join(tmpdir(), "math-trainer-phase2c-schema-"));
+  const filename = join(directory, "phase2b.sqlite");
+  const beforePlanning = join(directory, "before-planning");
+  mkdirSync(beforePlanning);
+  for (const migration of [
+    "20260819140335_last_mimic", "20260819151632_concerned_professor_monster",
+    "20260819172252_opposite_rumiko_fujikawa", "20260820035833_phase2a_diagnosis",
+    "20260820083528_phase2a_template_metadata", "20260820101400_phase2b_learning_state",
+    "20260820102921_phase2b_learning_state_constraints",
+    "20260820114223_phase2b_mastery_template_evidence",
+    "20260820120919_phase2b_mastery_timeline", "20260822055003_charming_toxin",
+  ]) cpSync(resolve(process.cwd(), "drizzle", migration), join(beforePlanning, migration), { recursive: true });
+  const db = createDatabase(filename);
+  const sqlite = db.$client;
+  try {
+    migrateDatabase(db, beforePlanning);
+    sqlite.exec(`
+      INSERT INTO users VALUES ('child', 'child', '孩子', 'hash', 1);
+      INSERT INTO skills VALUES ('skill', 'skill', '能力', 'number_operations');
+      INSERT INTO question_templates (id, skill_id, stem, answer_spec, explanation, difficulty, active)
+        VALUES ('template', 'skill', '1+1=?', '{"kind":"number","value":2,"tolerance":0,"unit":null}', '2', 1, 1);
+      INSERT INTO diagnostic_runs (id, child_id, version, status, current_part, seed, started_at, completed_at)
+        VALUES ('run', 'child', 1, 'completed', 3, 'seed', 1, 2);
+      INSERT INTO training_sessions (id, child_id, session_date, kind, rule_version, composition_snapshot, status, started_at)
+        VALUES ('session', 'child', '2026-08-20', 'daily', 'phase2b', '{}', 'completed', 1);
+      INSERT INTO session_items (id, session_id, question_template_id, position, stem_snapshot,
+        answer_spec_snapshot, explanation_snapshot, skill_id_snapshot, skill_name_snapshot)
+        VALUES ('item', 'session', 'template', 0, '1+1=?',
+          '{"kind":"number","value":2,"tolerance":0,"unit":null}', '2', 'skill', '能力');
+      INSERT INTO attempts (id, session_item_id, client_submission_id, answer_text, is_correct,
+        normalized_answer, explanation, session_completed, submitted_at)
+        VALUES ('attempt', 'item', 'submission', '2', 1, '2', '2', 1, 2);
+    `);
+    const existingAttemptCount = sqlite.prepare("SELECT count(*) AS count FROM attempts").get();
+
+    migrateDatabase(db, resolve(process.cwd(), "drizzle"));
+
+    expect(primaryKeyColumns(sqlite, "learning_plans")).toEqual(["id"]);
+    expect(indexColumns(sqlite, "learning_plans", "learning_plan_child_version_idx"))
+      .toEqual(["child_id", "version", "revision"]);
+    expect(primaryKeyColumns(sqlite, "plan_targets")).toEqual(["plan_id", "week_number", "target_key"]);
+    expect(primaryKeyColumns(sqlite, "parent_preferences")).toEqual(["child_id"]);
+    expect(columns(sqlite, "training_sessions")).toEqual(expect.arrayContaining([
+      "learning_plan_id", "plan_revision", "composition_snapshot",
+    ]));
+    expect(columns(sqlite, "attempts")).toContain("reading_card_response");
+    expect(foreignKeyCheck(sqlite)).toEqual([]);
+    expect(sqlite.prepare("SELECT count(*) AS count FROM attempts").get()).toEqual(existingAttemptCount);
+
+    const insertPlan = sqlite.prepare(`
+      INSERT INTO learning_plans (
+        id, child_id, diagnosis_run_id, version, revision, status,
+        starts_on, ends_on, reason_snapshot, created_at
+      ) VALUES (?, 'child', 'run', 1, ?, 'active', '2026-08-24', '2026-10-04', '{}', 3)
+    `);
+    insertPlan.run("plan-revision-1", 1);
+    insertPlan.run("plan-revision-2", 2);
+    expect(() => insertPlan.run("plan-revision-1-duplicate", 2)).toThrow();
   } finally {
     sqlite.close();
     rmSync(directory, { recursive: true, force: true });

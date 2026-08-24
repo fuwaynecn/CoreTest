@@ -81,6 +81,46 @@ export const diagnosticParts = sqliteTable("diagnostic_parts", {
   completedAt: integer("completed_at"),
 }, (table) => [primaryKey({ columns: [table.runId, table.partNumber] })]);
 
+export const learningPlans = sqliteTable("learning_plans", {
+  id: text("id").primaryKey(),
+  childId: text("child_id").notNull().references(() => users.id),
+  diagnosisRunId: text("diagnosis_run_id").notNull().references(() => diagnosticRuns.id),
+  version: integer("version").notNull(),
+  revision: integer("revision").notNull().default(1),
+  status: text("status", { enum: ["active", "completed", "superseded"] }).notNull(),
+  startsOn: text("starts_on").notNull(),
+  endsOn: text("ends_on").notNull(),
+  reasonSnapshot: text("reason_snapshot").notNull(),
+  createdAt: integer("created_at").notNull(),
+}, (table) => [uniqueIndex("learning_plan_child_version_idx").on(
+  table.childId,
+  table.version,
+  table.revision,
+)]);
+
+export const planTargets = sqliteTable("plan_targets", {
+  planId: text("plan_id").notNull().references(() => learningPlans.id, { onDelete: "cascade" }),
+  weekNumber: integer("week_number").notNull(),
+  targetKey: text("target_key").notNull(),
+  skillId: text("skill_id").references(() => skills.id),
+  track: text("track", { enum: ["computation", "equation"] }),
+  category: text("category", { enum: ["weakness", "review", "reading", "extension"] }).notNull(),
+  minimum: integer("minimum").notNull(),
+  target: integer("target").notNull(),
+  maximum: integer("maximum").notNull(),
+  reasonCode: text("reason_code").notNull(),
+}, (table) => [primaryKey({ columns: [table.planId, table.weekNumber, table.targetKey] })]);
+
+export const parentPreferences = sqliteTable("parent_preferences", {
+  childId: text("child_id").primaryKey().references(() => users.id),
+  trainingWeekdays: text("training_weekdays").notNull(),
+  targetMinutes: integer("target_minutes").notNull().default(30),
+  specialistFocus: text("specialist_focus", {
+    enum: ["none", "computation", "equation", "reading"],
+  }).notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
+
 export const trainingSessions = sqliteTable("training_sessions", {
   id: text("id").primaryKey(),
   childId: text("child_id").notNull().references(() => users.id),
@@ -91,9 +131,11 @@ export const trainingSessions = sqliteTable("training_sessions", {
   ruleVersion: text("rule_version").notNull().default("phase1"),
   targetSeconds: integer("target_seconds"),
   compositionSnapshot: text("composition_snapshot").notNull().default("{}"),
+  learningPlanId: text("learning_plan_id").references(() => learningPlans.id),
+  planRevision: integer("plan_revision").notNull().default(0),
   diagnosticRunId: text("diagnostic_run_id").references(() => diagnosticRuns.id),
   diagnosticPartNumber: integer("diagnostic_part_number"),
-  status: text("status", { enum: ["in_progress", "completed"] }).notNull(),
+  status: text("status", { enum: ["in_progress", "completed", "completed_early"] }).notNull(),
   startedAt: integer("started_at").notNull(),
   completedAt: integer("completed_at"),
 }, (table) => [
@@ -137,6 +179,7 @@ export const attempts = sqliteTable("attempts", {
   hintLevel: integer("hint_level"),
   hintCount: integer("hint_count"),
   correctionNumber: integer("correction_number"),
+  readingCardResponse: text("reading_card_response"),
   submittedAt: integer("submitted_at").notNull(),
 }, (table) => [
   check("attempts_active_duration_nonnegative", sql`${table.activeDurationMs} IS NULL OR ${table.activeDurationMs} >= 0`),
