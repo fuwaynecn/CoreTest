@@ -1,4 +1,4 @@
-import { addShanghaiDays } from "@/domain/time/shanghai-calendar";
+import { addShanghaiDays, shanghaiWeekKey } from "@/domain/time/shanghai-calendar";
 
 export type PlanCategory = "weakness" | "review" | "reading" | "extension";
 export type WeeklyTarget = {
@@ -81,10 +81,11 @@ function targets(input: BuildSixWeekPlanInput): WeeklyTarget[] {
 }
 
 export function buildSixWeekPlan(input: BuildSixWeekPlanInput): SixWeekPlanDraft {
+  const startsOn = shanghaiWeekKey(new Date(`${input.startsOn}T12:00:00+08:00`));
   const planTargets = targets(input);
   return {
-    startsOn: input.startsOn,
-    endsOn: addShanghaiDays(input.startsOn, 41),
+    startsOn,
+    endsOn: addShanghaiDays(startsOn, 41),
     weeks: Array.from({ length: 6 }, (_, index) => ({
       week: (index + 1) as PlanWeek["week"], trainingDays: 5,
       assessment: index === 3, replanAfter: index === 5,

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { shanghaiDateKey } from "@/domain/time/shanghai-calendar";
 import { buildSixWeekPlan, type BuildSixWeekPlanInput } from "./build-six-week-plan";
 
 function fixtureInput(overrides: Partial<BuildSixWeekPlanInput> = {}): BuildSixWeekPlanInput {
@@ -30,6 +31,16 @@ describe("buildSixWeekPlan", () => {
     expect(draft.weeks.every((week) => week.trainingDays === 5)).toBe(true);
     expect(draft.weeks[0].targets.find((target) => target.key === "equation"))
       .toMatchObject({ minimum: 15, target: 18, maximum: 20 });
+  });
+
+  it("normalizes direct non-Monday and Shanghai-boundary inputs to their Shanghai Monday", () => {
+    expect(buildSixWeekPlan(fixtureInput({ startsOn: "2026-08-26" }))).toMatchObject({
+      startsOn: "2026-08-24", endsOn: "2026-10-04",
+    });
+    const shanghaiMonday = shanghaiDateKey(new Date("2026-08-23T16:00:00Z"));
+    expect(buildSixWeekPlan(fixtureInput({ startsOn: shanghaiMonday }))).toMatchObject({
+      startsOn: "2026-08-24", endsOn: "2026-10-04",
+    });
   });
 
   it("prioritizes weakest skills, retains due-review minimums, and deterministically orders ties", () => {

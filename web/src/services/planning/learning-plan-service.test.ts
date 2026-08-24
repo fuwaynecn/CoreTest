@@ -1,5 +1,11 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { constants } from "node:sqlite";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
+import { createDatabase } from "@/db/client";
+import { migrateDatabase } from "@/db/migrate";
 import { createTestDatabase } from "@/test/test-db";
 import {
   diagnosticRuns, dosageStates, learningPlans, masteryStates, parentPreferences,
@@ -9,8 +15,7 @@ import {
   LearningPlanStateError, createInitialPlan, reviseActivePlan, rollPlanAfterWeekSix,
 } from "./learning-plan-service";
 
-function seed() {
-  const db = createTestDatabase();
+function seed(db = createTestDatabase()) {
   db.insert(users).values({ id: "child-1", role: "child", displayName: "孩子", credentialHash: "hash", createdAt: 1 }).run();
   db.insert(skills).values([
     { id: "skill-equation", code: "equation", name: "方程", domain: "equation_algebra" },
@@ -41,7 +46,7 @@ describe("learning plan service", () => {
     expect(() => createInitialPlan(db, "child-1", new Date("2026-08-23T16:00:00Z"), 3)).toThrow(LearningPlanStateError);
   });
 
-  it("creates one initial plan transactionally and returns it to concurrent duplicate callers", () => {
+  it("creates one initial plan transactionally and returns it to duplicate callers", () => {
     const db = seed();
     const now = new Date("2026-08-23T16:00:00Z");
     const first = createInitialPlan(db, "child-1", now, 3);
@@ -51,6 +56,40 @@ describe("learning plan service", () => {
     expect(first).toMatchObject({ version: 1, revision: 1, startsOn: "2026-08-24", endsOn: "2026-10-04", status: "active" });
     expect(db.select().from(learningPlans).all()).toHaveLength(1);
     expect(db.select().from(planTargets).where(eq(planTargets.planId, first.id)).all()).not.toHaveLength(0);
+  });
+
+  it("holds an immediate transaction against a second connection, then lets its retry return the one plan", () => {
+    const directory = mkdtempSync(path.join(tmpdir(), "math-trainer-plan-contention-"));
+    const filename = path.join(directory, "planning.sqlite");
+    const firstConnection = createDatabase(filename);
+    migrateDatabase(firstConnection, path.resolve(process.cwd(), "drizzle"));
+    seed(firstConnection);
+    const secondConnection = createDatabase(filename);
+    const now = new Date("2026-08-23T16:00:00Z");
+    let contended = false;
+
+    try {
+      firstConnection.$client.setAuthorizer((actionCode, tableName) => {
+        if (!contended && actionCode === constants.SQLITE_READ && tableName === "diagnostic_runs") {
+          contended = true;
+          expect(() => createInitialPlan(secondConnection, "child-1", now, 3)).toThrow(/begin immediate/i);
+        }
+        return constants.SQLITE_OK;
+      });
+      const first = createInitialPlan(firstConnection, "child-1", now, 3);
+      firstConnection.$client.setAuthorizer(null);
+      const retried = createInitialPlan(secondConnection, "child-1", now, 3);
+
+      expect(contended).toBe(true);
+      expect(retried.id).toBe(first.id);
+      expect(secondConnection.select().from(learningPlans)
+        .where(eq(learningPlans.status, "active")).all()).toHaveLength(1);
+    } finally {
+      firstConnection.$client.setAuthorizer(null);
+      firstConnection.$client.close();
+      secondConnection.$client.close();
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 
   it("supersedes only the active revision and retains historical targets", () => {
