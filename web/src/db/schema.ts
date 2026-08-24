@@ -109,7 +109,11 @@ export const planTargets = sqliteTable("plan_targets", {
   target: integer("target").notNull(),
   maximum: integer("maximum").notNull(),
   reasonCode: text("reason_code").notNull(),
-}, (table) => [primaryKey({ columns: [table.planId, table.weekNumber, table.targetKey] })]);
+}, (table) => [
+  primaryKey({ columns: [table.planId, table.weekNumber, table.targetKey] }),
+  check("plan_targets_week_number", sql`${table.weekNumber} BETWEEN 1 AND 6`),
+  check("plan_targets_target_order", sql`${table.minimum} <= ${table.target} AND ${table.target} <= ${table.maximum}`),
+]);
 
 export const parentPreferences = sqliteTable("parent_preferences", {
   childId: text("child_id").primaryKey().references(() => users.id),

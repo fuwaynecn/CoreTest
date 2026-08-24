@@ -1149,7 +1149,7 @@ test("adds versioned planning tables without changing populated Phase 2B attempt
       INSERT INTO diagnostic_runs (id, child_id, version, status, current_part, seed, started_at, completed_at)
         VALUES ('run', 'child', 1, 'completed', 3, 'seed', 1, 2);
       INSERT INTO training_sessions (id, child_id, session_date, kind, rule_version, composition_snapshot, status, started_at)
-        VALUES ('session', 'child', '2026-08-20', 'daily', 'phase2b', '{}', 'completed', 1);
+        VALUES ('session', 'child', '2026-08-20', 'daily', 'phase2b', '{"legacy":true}', 'completed', 1);
       INSERT INTO session_items (id, session_id, question_template_id, position, stem_snapshot,
         answer_spec_snapshot, explanation_snapshot, skill_id_snapshot, skill_name_snapshot)
         VALUES ('item', 'session', 'template', 0, '1+1=?',
@@ -1173,6 +1173,9 @@ test("adds versioned planning tables without changing populated Phase 2B attempt
     expect(columns(sqlite, "attempts")).toContain("reading_card_response");
     expect(foreignKeyCheck(sqlite)).toEqual([]);
     expect(sqlite.prepare("SELECT count(*) AS count FROM attempts").get()).toEqual(existingAttemptCount);
+    expect(sqlite.prepare(`
+      SELECT composition_snapshot AS compositionSnapshot FROM training_sessions WHERE id = 'session'
+    `).get()).toEqual({ compositionSnapshot: '{"legacy":true}' });
 
     const insertPlan = sqlite.prepare(`
       INSERT INTO learning_plans (
@@ -1183,6 +1186,16 @@ test("adds versioned planning tables without changing populated Phase 2B attempt
     insertPlan.run("plan-revision-1", 1);
     insertPlan.run("plan-revision-2", 2);
     expect(() => insertPlan.run("plan-revision-1-duplicate", 2)).toThrow();
+    expect(() => sqlite.prepare(`
+      INSERT INTO plan_targets (
+        plan_id, week_number, target_key, category, minimum, target, maximum, reason_code
+      ) VALUES ('plan-revision-1', 0, 'bad-week', 'weakness', 1, 1, 1, 'test')
+    `).run()).toThrow();
+    expect(() => sqlite.prepare(`
+      INSERT INTO plan_targets (
+        plan_id, week_number, target_key, category, minimum, target, maximum, reason_code
+      ) VALUES ('plan-revision-1', 1, 'bad-range', 'weakness', 2, 1, 3, 'test')
+    `).run()).toThrow();
   } finally {
     sqlite.close();
     rmSync(directory, { recursive: true, force: true });

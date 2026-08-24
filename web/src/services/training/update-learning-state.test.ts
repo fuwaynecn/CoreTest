@@ -41,7 +41,7 @@ function appendEvidence(db: AppDatabase, input: {
   reviewIntervalDays?: 0 | 1 | 3 | 7 | 14 | 30;
   sessionId?: string;
   diagnosticCompletedOn?: string;
-  status?: "in_progress" | "completed";
+  status?: "in_progress" | "completed" | "completed_early";
   structureTag?: string;
   dosageTrack?: "computation" | "equation" | null;
 }) {
@@ -220,6 +220,18 @@ test("in-progress formal sessions do not contribute dosage until completion", ()
   updateLearningState(db, pendingReview.evidence.id);
   expect(db.select().from(dosageStates).where(eq(dosageStates.track, "computation")).get())
     .toMatchObject({ level: 2 });
+});
+
+test("completed-early formal sessions contribute completed evidence to dosage", () => {
+  const db = seed();
+  appendEvidence(db, { purpose: "diagnostic", on: "2026-08-18" });
+  appendEvidence(db, { on: "2026-08-20", status: "completed_early" });
+  appendEvidence(db, {
+    purpose: "review", on: "2026-08-21", reviewIntervalDays: 1, status: "completed_early",
+  });
+
+  expect(db.select().from(dosageStates).where(eq(dosageStates.track, "computation")).get())
+    .toMatchObject({ level: 2, weeklyTarget: 60 });
 });
 
 test("multiple completed sessions on one Shanghai day cause at most one dosage transition", () => {

@@ -32,6 +32,10 @@ import { firstCorrectCorrection } from "@/domain/training/attempt-ordering";
 
 type LearningStateStore = Pick<AppDatabase, "select" | "insert">;
 
+function isCompletedSessionStatus(status: typeof trainingSessions.$inferSelect.status) {
+  return status === "completed" || status === "completed_early";
+}
+
 type EvidenceRow = typeof masteryEvidence.$inferSelect;
 
 function masteryInput(row: EvidenceRow): MasteryEvidenceInput {
@@ -175,7 +179,7 @@ function summarizeTrackSessions(
   };
   for (const row of rows) {
     if (row.evidence.purpose === "diagnostic") continue;
-    if (row.sessionStatus !== "completed"
+    if (!isCompletedSessionStatus(row.sessionStatus)
       || !["daily", "review", "assessment"].includes(row.sessionKind)) continue;
     if (after && (row.evidence.occurredOn < after.on
       || (row.evidence.occurredOn === after.on && row.evidence.occurredAt <= after.at))) continue;

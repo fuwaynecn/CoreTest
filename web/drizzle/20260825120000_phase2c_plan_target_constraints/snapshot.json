@@ -1,0 +1,2907 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "id": "56d753c2-3009-4f64-aa42-63f40a1a5f25",
+  "prevIds": [
+    "0ae022af-a847-44d2-b9dc-21a3ef50deb6"
+  ],
+  "ddl": [
+    {
+      "name": "attempts",
+      "entityType": "tables"
+    },
+    {
+      "name": "auth_sessions",
+      "entityType": "tables"
+    },
+    {
+      "name": "diagnostic_parts",
+      "entityType": "tables"
+    },
+    {
+      "name": "diagnostic_runs",
+      "entityType": "tables"
+    },
+    {
+      "name": "dosage_states",
+      "entityType": "tables"
+    },
+    {
+      "name": "error_observations",
+      "entityType": "tables"
+    },
+    {
+      "name": "hint_events",
+      "entityType": "tables"
+    },
+    {
+      "name": "hint_requests",
+      "entityType": "tables"
+    },
+    {
+      "name": "learning_plans",
+      "entityType": "tables"
+    },
+    {
+      "name": "mastery_evidence",
+      "entityType": "tables"
+    },
+    {
+      "name": "mastery_states",
+      "entityType": "tables"
+    },
+    {
+      "name": "parent_preferences",
+      "entityType": "tables"
+    },
+    {
+      "name": "plan_targets",
+      "entityType": "tables"
+    },
+    {
+      "name": "question_templates",
+      "entityType": "tables"
+    },
+    {
+      "name": "review_schedules",
+      "entityType": "tables"
+    },
+    {
+      "name": "session_items",
+      "entityType": "tables"
+    },
+    {
+      "name": "skills",
+      "entityType": "tables"
+    },
+    {
+      "name": "training_sessions",
+      "entityType": "tables"
+    },
+    {
+      "name": "users",
+      "entityType": "tables"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "attempts"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "session_item_id",
+      "entityType": "columns",
+      "table": "attempts"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "client_submission_id",
+      "entityType": "columns",
+      "table": "attempts"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "answer_text",
+      "entityType": "columns",
+      "table": "attempts"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "is_correct",
+      "entityType": "columns",
+      "table": "attempts"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "normalized_answer",
+      "entityType": "columns",
+      "table": "attempts"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "explanation",
+      "entityType": "columns",
+      "table": "attempts"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "session_completed",
+      "entityType": "columns",
+      "table": "attempts"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "active_duration_ms",
+      "entityType": "columns",
+      "table": "attempts"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "hint_level",
+      "entityType": "columns",
+      "table": "attempts"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "hint_count",
+      "entityType": "columns",
+      "table": "attempts"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "correction_number",
+      "entityType": "columns",
+      "table": "attempts"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "reading_card_response",
+      "entityType": "columns",
+      "table": "attempts"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "submitted_at",
+      "entityType": "columns",
+      "table": "attempts"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "auth_sessions"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "user_id",
+      "entityType": "columns",
+      "table": "auth_sessions"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "token_hash",
+      "entityType": "columns",
+      "table": "auth_sessions"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "expires_at",
+      "entityType": "columns",
+      "table": "auth_sessions"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "run_id",
+      "entityType": "columns",
+      "table": "diagnostic_parts"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "part_number",
+      "entityType": "columns",
+      "table": "diagnostic_parts"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "status",
+      "entityType": "columns",
+      "table": "diagnostic_parts"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "started_at",
+      "entityType": "columns",
+      "table": "diagnostic_parts"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "completed_at",
+      "entityType": "columns",
+      "table": "diagnostic_parts"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "diagnostic_runs"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "child_id",
+      "entityType": "columns",
+      "table": "diagnostic_runs"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "version",
+      "entityType": "columns",
+      "table": "diagnostic_runs"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "status",
+      "entityType": "columns",
+      "table": "diagnostic_runs"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "1",
+      "generated": null,
+      "name": "current_part",
+      "entityType": "columns",
+      "table": "diagnostic_runs"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "seed",
+      "entityType": "columns",
+      "table": "diagnostic_runs"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "report_snapshot",
+      "entityType": "columns",
+      "table": "diagnostic_runs"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "started_at",
+      "entityType": "columns",
+      "table": "diagnostic_runs"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "completed_at",
+      "entityType": "columns",
+      "table": "diagnostic_runs"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "child_id",
+      "entityType": "columns",
+      "table": "dosage_states"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "track",
+      "entityType": "columns",
+      "table": "dosage_states"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "level",
+      "entityType": "columns",
+      "table": "dosage_states"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "weekly_target",
+      "entityType": "columns",
+      "table": "dosage_states"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "session_minimum",
+      "entityType": "columns",
+      "table": "dosage_states"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "session_target",
+      "entityType": "columns",
+      "table": "dosage_states"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "session_maximum",
+      "entityType": "columns",
+      "table": "dosage_states"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "reason_json",
+      "entityType": "columns",
+      "table": "dosage_states"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "dosage_states"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "error_observations"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "child_id",
+      "entityType": "columns",
+      "table": "error_observations"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "session_item_id",
+      "entityType": "columns",
+      "table": "error_observations"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "attempt_id",
+      "entityType": "columns",
+      "table": "error_observations"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "source",
+      "entityType": "columns",
+      "table": "error_observations"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "system_candidate",
+      "entityType": "columns",
+      "table": "error_observations"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "child_self_report",
+      "entityType": "columns",
+      "table": "error_observations"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "parent_correction",
+      "entityType": "columns",
+      "table": "error_observations"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "previous_value",
+      "entityType": "columns",
+      "table": "error_observations"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "previous_observation_id",
+      "entityType": "columns",
+      "table": "error_observations"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "actor_id",
+      "entityType": "columns",
+      "table": "error_observations"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "observed_at",
+      "entityType": "columns",
+      "table": "error_observations"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "error_observations"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "hint_events"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "child_id",
+      "entityType": "columns",
+      "table": "hint_events"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "session_item_id",
+      "entityType": "columns",
+      "table": "hint_events"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "hint_level",
+      "entityType": "columns",
+      "table": "hint_events"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "revealed_at",
+      "entityType": "columns",
+      "table": "hint_events"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "request_id",
+      "entityType": "columns",
+      "table": "hint_requests"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "child_id",
+      "entityType": "columns",
+      "table": "hint_requests"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "session_item_id",
+      "entityType": "columns",
+      "table": "hint_requests"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "hint_level",
+      "entityType": "columns",
+      "table": "hint_requests"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "requested_at",
+      "entityType": "columns",
+      "table": "hint_requests"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "learning_plans"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "child_id",
+      "entityType": "columns",
+      "table": "learning_plans"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "diagnosis_run_id",
+      "entityType": "columns",
+      "table": "learning_plans"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "version",
+      "entityType": "columns",
+      "table": "learning_plans"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "1",
+      "generated": null,
+      "name": "revision",
+      "entityType": "columns",
+      "table": "learning_plans"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "status",
+      "entityType": "columns",
+      "table": "learning_plans"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "starts_on",
+      "entityType": "columns",
+      "table": "learning_plans"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "ends_on",
+      "entityType": "columns",
+      "table": "learning_plans"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "reason_snapshot",
+      "entityType": "columns",
+      "table": "learning_plans"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "learning_plans"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "mastery_evidence"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "child_id",
+      "entityType": "columns",
+      "table": "mastery_evidence"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "skill_id",
+      "entityType": "columns",
+      "table": "mastery_evidence"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "session_item_id",
+      "entityType": "columns",
+      "table": "mastery_evidence"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "template_id",
+      "entityType": "columns",
+      "table": "mastery_evidence"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "purpose",
+      "entityType": "columns",
+      "table": "mastery_evidence"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "first_attempt_correct",
+      "entityType": "columns",
+      "table": "mastery_evidence"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "independent",
+      "entityType": "columns",
+      "table": "mastery_evidence"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "hint_level",
+      "entityType": "columns",
+      "table": "mastery_evidence"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "dosage_track",
+      "entityType": "columns",
+      "table": "mastery_evidence"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "difficulty",
+      "entityType": "columns",
+      "table": "mastery_evidence"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "structure_tag",
+      "entityType": "columns",
+      "table": "mastery_evidence"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "occurred_on",
+      "entityType": "columns",
+      "table": "mastery_evidence"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "occurred_at",
+      "entityType": "columns",
+      "table": "mastery_evidence"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "diagnostic_run_id",
+      "entityType": "columns",
+      "table": "mastery_evidence"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "diagnostic_completed_on",
+      "entityType": "columns",
+      "table": "mastery_evidence"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "diagnostic_completed_at",
+      "entityType": "columns",
+      "table": "mastery_evidence"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "name": "review_interval_days",
+      "entityType": "columns",
+      "table": "mastery_evidence"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "child_id",
+      "entityType": "columns",
+      "table": "mastery_states"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "skill_id",
+      "entityType": "columns",
+      "table": "mastery_states"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "status",
+      "entityType": "columns",
+      "table": "mastery_states"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "name": "evidence_count",
+      "entityType": "columns",
+      "table": "mastery_states"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "name": "correct_count",
+      "entityType": "columns",
+      "table": "mastery_states"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'legacy_snapshot'",
+      "generated": null,
+      "name": "reason_code",
+      "entityType": "columns",
+      "table": "mastery_states"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "evidence_cursor",
+      "entityType": "columns",
+      "table": "mastery_states"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "name": "evidence_version",
+      "entityType": "columns",
+      "table": "mastery_states"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "mastery_states"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "child_id",
+      "entityType": "columns",
+      "table": "parent_preferences"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "training_weekdays",
+      "entityType": "columns",
+      "table": "parent_preferences"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "30",
+      "generated": null,
+      "name": "target_minutes",
+      "entityType": "columns",
+      "table": "parent_preferences"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "specialist_focus",
+      "entityType": "columns",
+      "table": "parent_preferences"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "parent_preferences"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "plan_id",
+      "entityType": "columns",
+      "table": "plan_targets"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "week_number",
+      "entityType": "columns",
+      "table": "plan_targets"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "target_key",
+      "entityType": "columns",
+      "table": "plan_targets"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "skill_id",
+      "entityType": "columns",
+      "table": "plan_targets"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "track",
+      "entityType": "columns",
+      "table": "plan_targets"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "category",
+      "entityType": "columns",
+      "table": "plan_targets"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "minimum",
+      "entityType": "columns",
+      "table": "plan_targets"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "target",
+      "entityType": "columns",
+      "table": "plan_targets"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "maximum",
+      "entityType": "columns",
+      "table": "plan_targets"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "reason_code",
+      "entityType": "columns",
+      "table": "plan_targets"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "question_templates"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "skill_id",
+      "entityType": "columns",
+      "table": "question_templates"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'number_operations'",
+      "generated": null,
+      "name": "domain",
+      "entityType": "columns",
+      "table": "question_templates"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'core'",
+      "generated": null,
+      "name": "content_tier",
+      "entityType": "columns",
+      "table": "question_templates"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'legacy'",
+      "generated": null,
+      "name": "structure_tag",
+      "entityType": "columns",
+      "table": "question_templates"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "60",
+      "generated": null,
+      "name": "estimated_seconds",
+      "entityType": "columns",
+      "table": "question_templates"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'short'",
+      "generated": null,
+      "name": "reading_load",
+      "entityType": "columns",
+      "table": "question_templates"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'written'",
+      "generated": null,
+      "name": "answer_mode",
+      "entityType": "columns",
+      "table": "question_templates"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'{}'",
+      "generated": null,
+      "name": "variant_spec",
+      "entityType": "columns",
+      "table": "question_templates"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'[]'",
+      "generated": null,
+      "name": "hint_ladder",
+      "entityType": "columns",
+      "table": "question_templates"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "common_errors",
+      "entityType": "columns",
+      "table": "question_templates"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "reading_card",
+      "entityType": "columns",
+      "table": "question_templates"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'unknown'",
+      "generated": null,
+      "name": "source",
+      "entityType": "columns",
+      "table": "question_templates"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'unknown'",
+      "generated": null,
+      "name": "license_status",
+      "entityType": "columns",
+      "table": "question_templates"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "stem",
+      "entityType": "columns",
+      "table": "question_templates"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "answer_spec",
+      "entityType": "columns",
+      "table": "question_templates"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "explanation",
+      "entityType": "columns",
+      "table": "question_templates"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "difficulty",
+      "entityType": "columns",
+      "table": "question_templates"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "true",
+      "generated": null,
+      "name": "active",
+      "entityType": "columns",
+      "table": "question_templates"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "child_id",
+      "entityType": "columns",
+      "table": "review_schedules"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "skill_id",
+      "entityType": "columns",
+      "table": "review_schedules"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "level",
+      "entityType": "columns",
+      "table": "review_schedules"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "due_on",
+      "entityType": "columns",
+      "table": "review_schedules"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "last_result",
+      "entityType": "columns",
+      "table": "review_schedules"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "review_schedules"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "session_items"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "session_id",
+      "entityType": "columns",
+      "table": "session_items"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "question_template_id",
+      "entityType": "columns",
+      "table": "session_items"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "position",
+      "entityType": "columns",
+      "table": "session_items"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "stem_snapshot",
+      "entityType": "columns",
+      "table": "session_items"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "answer_spec_snapshot",
+      "entityType": "columns",
+      "table": "session_items"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "explanation_snapshot",
+      "entityType": "columns",
+      "table": "session_items"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "skill_id_snapshot",
+      "entityType": "columns",
+      "table": "session_items"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "skill_name_snapshot",
+      "entityType": "columns",
+      "table": "session_items"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "1",
+      "generated": null,
+      "name": "difficulty_snapshot",
+      "entityType": "columns",
+      "table": "session_items"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'core'",
+      "generated": null,
+      "name": "content_tier_snapshot",
+      "entityType": "columns",
+      "table": "session_items"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'legacy'",
+      "generated": null,
+      "name": "structure_tag_snapshot",
+      "entityType": "columns",
+      "table": "session_items"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'phase1'",
+      "generated": null,
+      "name": "variant_seed",
+      "entityType": "columns",
+      "table": "session_items"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'{}'",
+      "generated": null,
+      "name": "selection_reason_snapshot",
+      "entityType": "columns",
+      "table": "session_items"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "skills"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "code",
+      "entityType": "columns",
+      "table": "skills"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "name",
+      "entityType": "columns",
+      "table": "skills"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "domain",
+      "entityType": "columns",
+      "table": "skills"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "training_sessions"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "child_id",
+      "entityType": "columns",
+      "table": "training_sessions"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "session_date",
+      "entityType": "columns",
+      "table": "training_sessions"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'daily'",
+      "generated": null,
+      "name": "kind",
+      "entityType": "columns",
+      "table": "training_sessions"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'phase1'",
+      "generated": null,
+      "name": "rule_version",
+      "entityType": "columns",
+      "table": "training_sessions"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "target_seconds",
+      "entityType": "columns",
+      "table": "training_sessions"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'{}'",
+      "generated": null,
+      "name": "composition_snapshot",
+      "entityType": "columns",
+      "table": "training_sessions"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "learning_plan_id",
+      "entityType": "columns",
+      "table": "training_sessions"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "name": "plan_revision",
+      "entityType": "columns",
+      "table": "training_sessions"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "diagnostic_run_id",
+      "entityType": "columns",
+      "table": "training_sessions"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "diagnostic_part_number",
+      "entityType": "columns",
+      "table": "training_sessions"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "status",
+      "entityType": "columns",
+      "table": "training_sessions"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "started_at",
+      "entityType": "columns",
+      "table": "training_sessions"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "completed_at",
+      "entityType": "columns",
+      "table": "training_sessions"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "role",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "display_name",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "credential_hash",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "users"
+    },
+    {
+      "columns": [
+        "session_item_id"
+      ],
+      "tableTo": "session_items",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_attempts_session_item_id_session_items_id_fk",
+      "entityType": "fks",
+      "table": "attempts"
+    },
+    {
+      "columns": [
+        "user_id"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_auth_sessions_user_id_users_id_fk",
+      "entityType": "fks",
+      "table": "auth_sessions"
+    },
+    {
+      "columns": [
+        "run_id"
+      ],
+      "tableTo": "diagnostic_runs",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_diagnostic_parts_run_id_diagnostic_runs_id_fk",
+      "entityType": "fks",
+      "table": "diagnostic_parts"
+    },
+    {
+      "columns": [
+        "child_id"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_diagnostic_runs_child_id_users_id_fk",
+      "entityType": "fks",
+      "table": "diagnostic_runs"
+    },
+    {
+      "columns": [
+        "child_id"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_dosage_states_child_id_users_id_fk",
+      "entityType": "fks",
+      "table": "dosage_states"
+    },
+    {
+      "columns": [
+        "child_id"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_error_observations_child_id_users_id_fk",
+      "entityType": "fks",
+      "table": "error_observations"
+    },
+    {
+      "columns": [
+        "session_item_id"
+      ],
+      "tableTo": "session_items",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_error_observations_session_item_id_session_items_id_fk",
+      "entityType": "fks",
+      "table": "error_observations"
+    },
+    {
+      "columns": [
+        "attempt_id"
+      ],
+      "tableTo": "attempts",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_error_observations_attempt_id_attempts_id_fk",
+      "entityType": "fks",
+      "table": "error_observations"
+    },
+    {
+      "columns": [
+        "previous_observation_id"
+      ],
+      "tableTo": "error_observations",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_error_observations_previous_observation_id_error_observations_id_fk",
+      "entityType": "fks",
+      "table": "error_observations"
+    },
+    {
+      "columns": [
+        "actor_id"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_error_observations_actor_id_users_id_fk",
+      "entityType": "fks",
+      "table": "error_observations"
+    },
+    {
+      "columns": [
+        "child_id"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_hint_events_child_id_users_id_fk",
+      "entityType": "fks",
+      "table": "hint_events"
+    },
+    {
+      "columns": [
+        "session_item_id"
+      ],
+      "tableTo": "session_items",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_hint_events_session_item_id_session_items_id_fk",
+      "entityType": "fks",
+      "table": "hint_events"
+    },
+    {
+      "columns": [
+        "child_id"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_hint_requests_child_id_users_id_fk",
+      "entityType": "fks",
+      "table": "hint_requests"
+    },
+    {
+      "columns": [
+        "session_item_id"
+      ],
+      "tableTo": "session_items",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_hint_requests_session_item_id_session_items_id_fk",
+      "entityType": "fks",
+      "table": "hint_requests"
+    },
+    {
+      "columns": [
+        "child_id"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_learning_plans_child_id_users_id_fk",
+      "entityType": "fks",
+      "table": "learning_plans"
+    },
+    {
+      "columns": [
+        "diagnosis_run_id"
+      ],
+      "tableTo": "diagnostic_runs",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_learning_plans_diagnosis_run_id_diagnostic_runs_id_fk",
+      "entityType": "fks",
+      "table": "learning_plans"
+    },
+    {
+      "columns": [
+        "child_id"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_mastery_evidence_child_id_users_id_fk",
+      "entityType": "fks",
+      "table": "mastery_evidence"
+    },
+    {
+      "columns": [
+        "skill_id"
+      ],
+      "tableTo": "skills",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_mastery_evidence_skill_id_skills_id_fk",
+      "entityType": "fks",
+      "table": "mastery_evidence"
+    },
+    {
+      "columns": [
+        "session_item_id"
+      ],
+      "tableTo": "session_items",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_mastery_evidence_session_item_id_session_items_id_fk",
+      "entityType": "fks",
+      "table": "mastery_evidence"
+    },
+    {
+      "columns": [
+        "template_id"
+      ],
+      "tableTo": "question_templates",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_mastery_evidence_template_id_question_templates_id_fk",
+      "entityType": "fks",
+      "table": "mastery_evidence"
+    },
+    {
+      "columns": [
+        "diagnostic_run_id"
+      ],
+      "tableTo": "diagnostic_runs",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_mastery_evidence_diagnostic_run_id_diagnostic_runs_id_fk",
+      "entityType": "fks",
+      "table": "mastery_evidence"
+    },
+    {
+      "columns": [
+        "child_id"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_mastery_states_child_id_users_id_fk",
+      "entityType": "fks",
+      "table": "mastery_states"
+    },
+    {
+      "columns": [
+        "skill_id"
+      ],
+      "tableTo": "skills",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_mastery_states_skill_id_skills_id_fk",
+      "entityType": "fks",
+      "table": "mastery_states"
+    },
+    {
+      "columns": [
+        "child_id"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_parent_preferences_child_id_users_id_fk",
+      "entityType": "fks",
+      "table": "parent_preferences"
+    },
+    {
+      "columns": [
+        "plan_id"
+      ],
+      "tableTo": "learning_plans",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_plan_targets_plan_id_learning_plans_id_fk",
+      "entityType": "fks",
+      "table": "plan_targets"
+    },
+    {
+      "columns": [
+        "skill_id"
+      ],
+      "tableTo": "skills",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_plan_targets_skill_id_skills_id_fk",
+      "entityType": "fks",
+      "table": "plan_targets"
+    },
+    {
+      "columns": [
+        "skill_id"
+      ],
+      "tableTo": "skills",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_question_templates_skill_id_skills_id_fk",
+      "entityType": "fks",
+      "table": "question_templates"
+    },
+    {
+      "columns": [
+        "child_id"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_review_schedules_child_id_users_id_fk",
+      "entityType": "fks",
+      "table": "review_schedules"
+    },
+    {
+      "columns": [
+        "skill_id"
+      ],
+      "tableTo": "skills",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_review_schedules_skill_id_skills_id_fk",
+      "entityType": "fks",
+      "table": "review_schedules"
+    },
+    {
+      "columns": [
+        "session_id"
+      ],
+      "tableTo": "training_sessions",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_session_items_session_id_training_sessions_id_fk",
+      "entityType": "fks",
+      "table": "session_items"
+    },
+    {
+      "columns": [
+        "question_template_id"
+      ],
+      "tableTo": "question_templates",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_session_items_question_template_id_question_templates_id_fk",
+      "entityType": "fks",
+      "table": "session_items"
+    },
+    {
+      "columns": [
+        "skill_id_snapshot"
+      ],
+      "tableTo": "skills",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_session_items_skill_id_snapshot_skills_id_fk",
+      "entityType": "fks",
+      "table": "session_items"
+    },
+    {
+      "columns": [
+        "child_id"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_training_sessions_child_id_users_id_fk",
+      "entityType": "fks",
+      "table": "training_sessions"
+    },
+    {
+      "columns": [
+        "learning_plan_id"
+      ],
+      "tableTo": "learning_plans",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_training_sessions_learning_plan_id_learning_plans_id_fk",
+      "entityType": "fks",
+      "table": "training_sessions"
+    },
+    {
+      "columns": [
+        "diagnostic_run_id"
+      ],
+      "tableTo": "diagnostic_runs",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_training_sessions_diagnostic_run_id_diagnostic_runs_id_fk",
+      "entityType": "fks",
+      "table": "training_sessions"
+    },
+    {
+      "columns": [
+        "run_id",
+        "part_number"
+      ],
+      "nameExplicit": false,
+      "name": "diagnostic_parts_pk",
+      "entityType": "pks",
+      "table": "diagnostic_parts"
+    },
+    {
+      "columns": [
+        "child_id",
+        "track"
+      ],
+      "nameExplicit": false,
+      "name": "dosage_states_pk",
+      "entityType": "pks",
+      "table": "dosage_states"
+    },
+    {
+      "columns": [
+        "child_id",
+        "skill_id"
+      ],
+      "nameExplicit": false,
+      "name": "mastery_states_pk",
+      "entityType": "pks",
+      "table": "mastery_states"
+    },
+    {
+      "columns": [
+        "plan_id",
+        "week_number",
+        "target_key"
+      ],
+      "nameExplicit": false,
+      "name": "plan_targets_pk",
+      "entityType": "pks",
+      "table": "plan_targets"
+    },
+    {
+      "columns": [
+        "child_id",
+        "skill_id"
+      ],
+      "nameExplicit": false,
+      "name": "review_schedules_pk",
+      "entityType": "pks",
+      "table": "review_schedules"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "attempts_pk",
+      "table": "attempts",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "auth_sessions_pk",
+      "table": "auth_sessions",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "diagnostic_runs_pk",
+      "table": "diagnostic_runs",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "error_observations_pk",
+      "table": "error_observations",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "hint_events_pk",
+      "table": "hint_events",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "request_id"
+      ],
+      "nameExplicit": false,
+      "name": "hint_requests_pk",
+      "table": "hint_requests",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "learning_plans_pk",
+      "table": "learning_plans",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "mastery_evidence_pk",
+      "table": "mastery_evidence",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "child_id"
+      ],
+      "nameExplicit": false,
+      "name": "parent_preferences_pk",
+      "table": "parent_preferences",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "question_templates_pk",
+      "table": "question_templates",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "session_items_pk",
+      "table": "session_items",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "skills_pk",
+      "table": "skills",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "training_sessions_pk",
+      "table": "training_sessions",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "users_pk",
+      "table": "users",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        {
+          "value": "token_hash",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "name": "auth_sessions_token_hash_idx",
+      "entityType": "indexes",
+      "table": "auth_sessions"
+    },
+    {
+      "columns": [
+        {
+          "value": "child_id",
+          "isExpression": false
+        },
+        {
+          "value": "version",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "name": "diagnostic_run_child_version_idx",
+      "entityType": "indexes",
+      "table": "diagnostic_runs"
+    },
+    {
+      "columns": [
+        {
+          "value": "session_item_id",
+          "isExpression": false
+        },
+        {
+          "value": "hint_level",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "name": "hint_event_item_level_idx",
+      "entityType": "indexes",
+      "table": "hint_events"
+    },
+    {
+      "columns": [
+        {
+          "value": "child_id",
+          "isExpression": false
+        },
+        {
+          "value": "version",
+          "isExpression": false
+        },
+        {
+          "value": "revision",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "name": "learning_plan_child_version_idx",
+      "entityType": "indexes",
+      "table": "learning_plans"
+    },
+    {
+      "columns": [
+        {
+          "value": "session_item_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "name": "mastery_evidence_source_idx",
+      "entityType": "indexes",
+      "table": "mastery_evidence"
+    },
+    {
+      "columns": [
+        {
+          "value": "child_id",
+          "isExpression": false
+        },
+        {
+          "value": "session_date",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": "\"training_sessions\".\"kind\" IN ('daily', 'assessment')",
+      "origin": "manual",
+      "name": "one_formal_session_per_child_day",
+      "entityType": "indexes",
+      "table": "training_sessions"
+    },
+    {
+      "columns": [
+        {
+          "value": "diagnostic_run_id",
+          "isExpression": false
+        },
+        {
+          "value": "diagnostic_part_number",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": "\"training_sessions\".\"diagnostic_run_id\" IS NOT NULL AND \"training_sessions\".\"diagnostic_part_number\" IS NOT NULL",
+      "origin": "manual",
+      "name": "one_session_per_diagnostic_part",
+      "entityType": "indexes",
+      "table": "training_sessions"
+    },
+    {
+      "columns": [
+        "client_submission_id"
+      ],
+      "nameExplicit": false,
+      "name": "attempts_client_submission_id_unique",
+      "entityType": "uniques",
+      "table": "attempts"
+    },
+    {
+      "columns": [
+        "code"
+      ],
+      "nameExplicit": false,
+      "name": "skills_code_unique",
+      "entityType": "uniques",
+      "table": "skills"
+    },
+    {
+      "value": "\"active_duration_ms\" IS NULL OR \"active_duration_ms\" >= 0",
+      "name": "attempts_active_duration_nonnegative",
+      "entityType": "checks",
+      "table": "attempts"
+    },
+    {
+      "value": "\"hint_level\" IS NULL OR \"hint_level\" BETWEEN 0 AND 3",
+      "name": "attempts_hint_level_range",
+      "entityType": "checks",
+      "table": "attempts"
+    },
+    {
+      "value": "\"hint_count\" IS NULL OR \"hint_count\" BETWEEN 0 AND 3",
+      "name": "attempts_hint_count_range",
+      "entityType": "checks",
+      "table": "attempts"
+    },
+    {
+      "value": "\"correction_number\" IS NULL OR \"correction_number\" >= 0",
+      "name": "attempts_correction_number_nonnegative",
+      "entityType": "checks",
+      "table": "attempts"
+    },
+    {
+      "value": "\"track\" IN ('computation', 'equation')",
+      "name": "dosage_states_track",
+      "entityType": "checks",
+      "table": "dosage_states"
+    },
+    {
+      "value": "(\"track\" = 'computation' AND \"level\" BETWEEN 1 AND 7) OR (\"track\" = 'equation' AND \"level\" BETWEEN 1 AND 6)",
+      "name": "dosage_states_level_range",
+      "entityType": "checks",
+      "table": "dosage_states"
+    },
+    {
+      "value": "(\n    \"track\" = 'computation'\n    AND \"weekly_target\" BETWEEN 60 AND 95\n    AND \"session_minimum\" BETWEEN 12 AND 19\n    AND \"session_target\" BETWEEN 12 AND 19\n    AND \"session_maximum\" BETWEEN 12 AND 19\n  ) OR (\n    \"track\" = 'equation'\n    AND \"weekly_target\" BETWEEN 15 AND 20\n    AND \"session_minimum\" BETWEEN 4 AND 6\n    AND \"session_target\" BETWEEN 4 AND 6\n    AND \"session_maximum\" BETWEEN 4 AND 6\n  )",
+      "name": "dosage_states_track_targets",
+      "entityType": "checks",
+      "table": "dosage_states"
+    },
+    {
+      "value": "\"session_minimum\" <= \"session_target\" AND \"session_target\" <= \"session_maximum\"",
+      "name": "dosage_states_target_order",
+      "entityType": "checks",
+      "table": "dosage_states"
+    },
+    {
+      "value": "\"source\" IN ('system', 'child', 'parent')",
+      "name": "error_observations_source",
+      "entityType": "checks",
+      "table": "error_observations"
+    },
+    {
+      "value": "\"system_candidate\" IS NULL OR \"system_candidate\" IN ('missing_unit', 'copied_number', 'calculation', 'relationship', 'range_check', 'incomplete_reading', 'unknown')",
+      "name": "error_observations_system_candidate",
+      "entityType": "checks",
+      "table": "error_observations"
+    },
+    {
+      "value": "\"child_self_report\" IS NULL OR \"child_self_report\" IN ('did_not_read', 'missed_condition_or_unit', 'calculation_slip', 'method_unknown')",
+      "name": "error_observations_child_report",
+      "entityType": "checks",
+      "table": "error_observations"
+    },
+    {
+      "value": "\"parent_correction\" IS NULL OR \"parent_correction\" IN ('missing_unit', 'copied_number', 'calculation', 'relationship', 'range_check', 'incomplete_reading', 'unknown')",
+      "name": "error_observations_parent_correction",
+      "entityType": "checks",
+      "table": "error_observations"
+    },
+    {
+      "value": "\"previous_value\" IS NULL OR \"previous_value\" IN ('missing_unit', 'copied_number', 'calculation', 'relationship', 'range_check', 'incomplete_reading', 'unknown', 'did_not_read', 'missed_condition_or_unit', 'calculation_slip', 'method_unknown')",
+      "name": "error_observations_previous_value",
+      "entityType": "checks",
+      "table": "error_observations"
+    },
+    {
+      "value": "(\n    (\"source\" = 'system' AND \"system_candidate\" IS NOT NULL AND \"child_self_report\" IS NULL AND \"parent_correction\" IS NULL AND \"previous_value\" IS NULL AND \"actor_id\" IS NULL AND \"previous_observation_id\" IS NULL)\n    OR (\"source\" = 'child' AND \"system_candidate\" IS NULL AND \"child_self_report\" IS NOT NULL AND \"parent_correction\" IS NULL AND \"previous_value\" IS NOT NULL AND \"actor_id\" IS NOT NULL AND \"previous_observation_id\" IS NOT NULL)\n    OR (\"source\" = 'parent' AND \"system_candidate\" IS NULL AND \"child_self_report\" IS NULL AND \"parent_correction\" IS NOT NULL AND \"previous_value\" IS NOT NULL AND \"actor_id\" IS NOT NULL AND \"previous_observation_id\" IS NOT NULL)\n  )",
+      "name": "error_observations_event_shape",
+      "entityType": "checks",
+      "table": "error_observations"
+    },
+    {
+      "value": "\"hint_level\" BETWEEN 1 AND 3",
+      "name": "hint_events_level_range",
+      "entityType": "checks",
+      "table": "hint_events"
+    },
+    {
+      "value": "\"hint_level\" BETWEEN 1 AND 3",
+      "name": "hint_requests_level_range",
+      "entityType": "checks",
+      "table": "hint_requests"
+    },
+    {
+      "value": "\"purpose\" IN ('diagnostic', 'learning', 'review', 'assessment')",
+      "name": "mastery_evidence_purpose",
+      "entityType": "checks",
+      "table": "mastery_evidence"
+    },
+    {
+      "value": "\"first_attempt_correct\" IN (0, 1)",
+      "name": "mastery_evidence_first_correct_boolean",
+      "entityType": "checks",
+      "table": "mastery_evidence"
+    },
+    {
+      "value": "\"independent\" IN (0, 1)",
+      "name": "mastery_evidence_independent_boolean",
+      "entityType": "checks",
+      "table": "mastery_evidence"
+    },
+    {
+      "value": "\"hint_level\" IS NULL OR \"hint_level\" BETWEEN 0 AND 3",
+      "name": "mastery_evidence_hint_level",
+      "entityType": "checks",
+      "table": "mastery_evidence"
+    },
+    {
+      "value": "\"independent\" = 0 OR \"hint_level\" = 0",
+      "name": "mastery_evidence_hint_independence",
+      "entityType": "checks",
+      "table": "mastery_evidence"
+    },
+    {
+      "value": "\"dosage_track\" IS NULL OR \"dosage_track\" IN ('computation', 'equation')",
+      "name": "mastery_evidence_dosage_track",
+      "entityType": "checks",
+      "table": "mastery_evidence"
+    },
+    {
+      "value": "\"difficulty\" BETWEEN 1 AND 4",
+      "name": "mastery_evidence_difficulty_range",
+      "entityType": "checks",
+      "table": "mastery_evidence"
+    },
+    {
+      "value": "\"review_interval_days\" IN (0, 1, 3, 7, 14, 30)",
+      "name": "mastery_evidence_review_interval",
+      "entityType": "checks",
+      "table": "mastery_evidence"
+    },
+    {
+      "value": "(\"purpose\" = 'review' AND \"review_interval_days\" IN (1, 3, 7, 14, 30)) OR (\"purpose\" <> 'review' AND \"review_interval_days\" = 0)",
+      "name": "mastery_evidence_review_purpose",
+      "entityType": "checks",
+      "table": "mastery_evidence"
+    },
+    {
+      "value": "(\n    \"purpose\" = 'diagnostic'\n    AND ((\"diagnostic_run_id\" IS NULL AND \"diagnostic_completed_on\" IS NULL AND \"diagnostic_completed_at\" IS NULL)\n      OR (\"diagnostic_run_id\" IS NOT NULL AND \"diagnostic_completed_on\" IS NOT NULL AND \"diagnostic_completed_at\" IS NOT NULL))\n  ) OR (\"purpose\" <> 'diagnostic' AND \"diagnostic_run_id\" IS NULL AND \"diagnostic_completed_on\" IS NULL AND \"diagnostic_completed_at\" IS NULL)",
+      "name": "mastery_evidence_diagnostic_group",
+      "entityType": "checks",
+      "table": "mastery_evidence"
+    },
+    {
+      "value": "\"status\" IN ('undiagnosed', 'needs_support', 'learning', 'basic', 'stable')",
+      "name": "mastery_states_status",
+      "entityType": "checks",
+      "table": "mastery_states"
+    },
+    {
+      "value": "\"evidence_count\" >= 0 AND \"correct_count\" >= 0 AND \"correct_count\" <= \"evidence_count\"",
+      "name": "mastery_states_counts",
+      "entityType": "checks",
+      "table": "mastery_states"
+    },
+    {
+      "value": "\"evidence_version\" >= 0",
+      "name": "mastery_states_evidence_version",
+      "entityType": "checks",
+      "table": "mastery_states"
+    },
+    {
+      "value": "\"week_number\" BETWEEN 1 AND 6",
+      "name": "plan_targets_week_number",
+      "entityType": "checks",
+      "table": "plan_targets"
+    },
+    {
+      "value": "\"minimum\" <= \"target\" AND \"target\" <= \"maximum\"",
+      "name": "plan_targets_target_order",
+      "entityType": "checks",
+      "table": "plan_targets"
+    },
+    {
+      "value": "\"level\" BETWEEN 0 AND 4",
+      "name": "review_schedules_level_range",
+      "entityType": "checks",
+      "table": "review_schedules"
+    },
+    {
+      "value": "\"last_result\" IS NULL OR \"last_result\" IN ('independent_correct', 'hinted_correct', 'corrected', 'incorrect')",
+      "name": "review_schedules_last_result",
+      "entityType": "checks",
+      "table": "review_schedules"
+    }
+  ],
+  "renames": []
+}
