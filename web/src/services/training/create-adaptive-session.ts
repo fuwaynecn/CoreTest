@@ -24,7 +24,7 @@ function trainingWeekdays(raw: string | undefined) {
   try {
     const parsed: unknown = raw && JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length && parsed.every((day) => Number.isInteger(day) && day >= 0 && day <= 6)) {
-      return [...new Set(parsed)].sort((left, right) => left - right);
+      return [...new Set(parsed)].sort((left, right) => (left || 7) - (right || 7));
     }
   } catch { /* Default training weekdays keep Phase 1's weekday convention. */ }
   return [1, 2, 3, 4, 5];

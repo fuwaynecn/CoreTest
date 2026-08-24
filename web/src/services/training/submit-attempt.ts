@@ -85,13 +85,16 @@ function dosageTrackFromSnapshot(raw: string) {
 }
 
 function evidenceClassification(sessionKind: string, raw: string) {
-  if (sessionKind === "assessment") return { purpose: "assessment" as const, reviewIntervalDays: 0 as const };
   let metadata: { category?: unknown; selectionReason?: unknown; reviewIntervalDays?: unknown } = {};
   try { metadata = JSON.parse(raw) as typeof metadata; } catch { /* Legacy snapshots are learning items. */ }
   const review = sessionKind === "review" || metadata.category === "review" || metadata.selectionReason === "due_review" || metadata.selectionReason === "overdue_review";
-  if (!review) return { purpose: "learning" as const, reviewIntervalDays: 0 as const };
-  if (![1, 3, 7, 14, 30].includes(metadata.reviewIntervalDays as number)) throw new Error("Review item interval snapshot is invalid");
-  return { purpose: "review" as const, reviewIntervalDays: metadata.reviewIntervalDays as 1 | 3 | 7 | 14 | 30 };
+  if (review) {
+    if (![1, 3, 7, 14, 30].includes(metadata.reviewIntervalDays as number)) throw new Error("Review item interval snapshot is invalid");
+    return { purpose: "review" as const, reviewIntervalDays: metadata.reviewIntervalDays as 1 | 3 | 7 | 14 | 30 };
+  }
+  return sessionKind === "assessment"
+    ? { purpose: "assessment" as const, reviewIntervalDays: 0 as const }
+    : { purpose: "learning" as const, reviewIntervalDays: 0 as const };
 }
 
 export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): AttemptResult {

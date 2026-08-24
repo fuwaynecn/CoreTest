@@ -78,3 +78,25 @@ test("uses the last configured Shanghai training day for the week-four assessmen
   const session = getOrCreateAdaptiveSession(db, "child", "2026-09-10");
   expect(db.select().from(trainingSessions).where(eq(trainingSessions.id, session.id)).get()?.kind).toBe("assessment");
 });
+
+test("keeps a due review as review evidence on the week-four assessment day", () => {
+  const db = seed();
+  db.insert(diagnosticRuns).values({ id: "diagnosis", childId: "child", version: 1, status: "completed", currentPart: 3, seed: "seed", startedAt: 1, completedAt: 2, reportSnapshot: "{}" }).run();
+  db.insert(learningPlans).values({ id: "plan", childId: "child", diagnosisRunId: "diagnosis", version: 1, revision: 1, status: "active", startsOn: "2026-08-17", endsOn: "2026-09-27", reasonSnapshot: "{}", createdAt: 1 }).run();
+  db.insert(reviewSchedules).values({ childId: "child", skillId: "skill-decimal", level: 1, dueOn: "2026-09-10", lastResult: null, updatedAt: 1 }).run();
+  const session = getOrCreateAdaptiveSession(db, "child", "2026-09-11");
+  const item = db.select().from(sessionItems).where(eq(sessionItems.sessionId, session.id)).all()
+    .find((row) => JSON.parse(row.selectionReasonSnapshot).category === "review")!;
+  submitAttempt(db, { childId: "child", sessionItemId: item.id, clientSubmissionId: "44444444-4444-4444-8444-444444444444", answerText: String(JSON.parse(item.answerSpecSnapshot).value) });
+  expect(db.select().from(masteryEvidence).where(eq(masteryEvidence.sessionItemId, item.id)).get())
+    .toMatchObject({ purpose: "review", reviewIntervalDays: 3 });
+});
+
+test("treats Sunday as the final configured Shanghai training day", () => {
+  const db = seed();
+  db.insert(diagnosticRuns).values({ id: "diagnosis", childId: "child", version: 1, status: "completed", currentPart: 3, seed: "seed", startedAt: 1, completedAt: 2, reportSnapshot: "{}" }).run();
+  db.insert(learningPlans).values({ id: "plan", childId: "child", diagnosisRunId: "diagnosis", version: 1, revision: 1, status: "active", startsOn: "2026-08-17", endsOn: "2026-09-27", reasonSnapshot: "{}", createdAt: 1 }).run();
+  db.insert(parentPreferences).values({ childId: "child", trainingWeekdays: "[1,2,3,4,5,0]", targetMinutes: 20, specialistFocus: "none", updatedAt: 1 }).run();
+  const session = getOrCreateAdaptiveSession(db, "child", "2026-09-13");
+  expect(db.select().from(trainingSessions).where(eq(trainingSessions.id, session.id)).get()?.kind).toBe("assessment");
+});
