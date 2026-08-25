@@ -256,7 +256,7 @@ const catalogInputs: TemplateInput[] = [
   },
   {
     id: "num-estimate-03", skillCode: "estimate", domain: "number_operations",
-    difficulty: 3, structureTag: "estimate-range", answerMode: "choice",
+    difficulty: 1, structureTag: "estimate-range", answerMode: "choice",
     stemPattern: "不做精确计算，{{expression}} 的结果最接近哪一个？A. {{a}}  B. {{b}}  C. {{c}}  D. {{d}}",
     answerSpecPattern: choiceAnswer("B"),
     explanationPattern: "把两个数分别看作接近的整十或整数，估算结果接近选项 B。",
@@ -264,7 +264,7 @@ const catalogInputs: TemplateInput[] = [
   },
   {
     id: "num-reverse-check-03", skillCode: "reverse-check", domain: "number_operations",
-    difficulty: 3, structureTag: "inverse-check", answerMode: "choice",
+    difficulty: 4, structureTag: "inverse-check", answerMode: "choice",
     stemPattern: "算式 {{expression}} 的结果是 {{claim}}。下面哪一个算式能直接检查这个结果？A. {{a}}  B. {{b}}  C. {{c}}  D. {{d}}",
     answerSpecPattern: choiceAnswer("C"),
     explanationPattern: "用对应的逆运算把结果还原到原数，选项 C 能完成检查。",
@@ -449,7 +449,7 @@ const catalogInputs: TemplateInput[] = [
   },
   {
     id: "eq-l5-complex-04", skillCode: "equation-l5", domain: "equation_algebra",
-    difficulty: 4, structureTag: "equation-direct", answerMode: "equation",
+    difficulty: 4, structureTag: "equation-verification", answerMode: "equation",
     stemPattern: "解方程：{{factor}}(x + {{offset}}) = {{right}}。",
     answerSpecPattern: numberAnswer(),
     explanationPattern: "先把等式两边除以 {{factor}}，再减去 {{offset}}，得到 x = {{answer}}。",
@@ -457,7 +457,7 @@ const catalogInputs: TemplateInput[] = [
   },
   {
     id: "eq-l6-model-04", skillCode: "equation-l6", domain: "equation_algebra",
-    difficulty: 4, structureTag: "equation-step", answerMode: "choice",
+    difficulty: 4, structureTag: "equation-verification", answerMode: "choice",
     stemPattern: "检查方程 {{leftFactor}}x + {{leftOffset}} = {{rightFactor}}x + {{rightOffset}} 的解 x = {{claim}}，应优先做什么？A. 只算左边  B. 把 {{claim}} 分别代入等号两边  C. 把所有数相加  D. 改写题目条件",
     answerSpecPattern: choiceAnswer("B"),
     explanationPattern: "检验方程的解要把同一个数代入等号两边，比较两边是否相等。",
@@ -546,7 +546,7 @@ const catalogInputs: TemplateInput[] = [
   },
   {
     id: "geo-angle-03", skillCode: "angle", domain: "geometry_space",
-    difficulty: 3, structureTag: "angle-supplement", answerMode: "written",
+    difficulty: 1, structureTag: "angle-supplement", answerMode: "written",
     stemPattern: "一个平角被分成两个角，其中一个是 {{known}} 度，另一个是多少度？",
     answerSpecPattern: numberAnswer("度"),
     explanationPattern: "平角是 180 度，用 180 - {{known}}，得到 {{answer}} 度。",
@@ -585,12 +585,12 @@ const catalogInputs: TemplateInput[] = [
     variables: { base: [14, 18, 25], height: [9, 12, 16], answer: [63, 108, 200] },
   },
   {
-    id: "geo-volume-02", skillCode: "volume", domain: "geometry_space",
-    difficulty: 2, structureTag: "cuboid-volume", answerMode: "written",
-    stemPattern: "长方体长 {{length}} 厘米、宽 {{width}} 厘米、高 {{height}} 厘米，体积是多少立方厘米？",
-    answerSpecPattern: numberAnswer("立方厘米"),
-    explanationPattern: "长方体体积等于长乘宽乘高，结果是 {{answer}} 立方厘米。",
-    variables: { length: [5, 7, 9], width: [3, 4, 5], height: [2, 3, 4], answer: [30, 84, 180] },
+    id: "geo-length-convert-01", skillCode: "length-conversion", domain: "geometry_space",
+    difficulty: 2, structureTag: "length-conversion", answerMode: "written", readingCard: true,
+    stemPattern: "步道前段长 {{meters}} 米，后段长 {{centimeters}} 厘米。全长是多少米？请写单位。",
+    answerSpecPattern: numberAnswer("米"),
+    explanationPattern: "先把厘米信息换算成米，再相加；单位统一后的数量关系得到 {{answer}} 米。",
+    variables: { meters: [5, 7.5, 9], centimeters: [40, 80, 25], answer: [5.4, 8.3, 9.25] },
   },
   {
     id: "geo-volume-03", skillCode: "volume", domain: "geometry_space",
@@ -610,7 +610,7 @@ const catalogInputs: TemplateInput[] = [
   },
   {
     id: "geo-spatial-02", skillCode: "spatial", domain: "geometry_space",
-    difficulty: 4, structureTag: "spatial-view", answerMode: "choice", readingCard: true,
+    difficulty: 3, structureTag: "spatial-view", answerMode: "choice", readingCard: true,
     stemPattern: "用 {{count}} 个相同小正方体排成一列，再在从左数第 {{position}} 个上方叠 1 个。从正面看，各列高度最合理的是：A. {{a}}  B. {{b}}  C. {{c}}  D. {{d}}",
     answerSpecPattern: choiceAnswer("C"),
     explanationPattern: "先把每列作为一条信息：只有第 {{position}} 列高度为 2，其余列高度为 1，所以数量关系对应 C。",
@@ -691,7 +691,7 @@ const catalogInputs: TemplateInput[] = [
   },
   {
     id: "data-bar-03", skillCode: "data-bar", domain: "data_statistics",
-    difficulty: 3, structureTag: "bar-compare", answerMode: "written", readingCard: true,
+    difficulty: 2, structureTag: "bar-compare", answerMode: "written", readingCard: true,
     stemPattern: "条形图文字记录显示：一班回收 {{first}} 千克，二班回收 {{second}} 千克，三班回收 {{third}} 千克。最多的班比最少的班多多少千克？",
     answerSpecPattern: numberAnswer("千克"),
     explanationPattern: "先从三条信息中找最大值和最小值，再相减，数量关系得到 {{answer}} 千克。",
@@ -731,7 +731,7 @@ const catalogInputs: TemplateInput[] = [
   },
   {
     id: "data-possibility-02", skillCode: "possibility", domain: "data_statistics",
-    difficulty: 3, structureTag: "simple-probability", answerMode: "choice",
+    difficulty: 2, structureTag: "simple-probability", answerMode: "choice",
     stemPattern: "袋中有 {{red}} 个红球、{{blue}} 个蓝球和 {{green}} 个绿球。任取一个，哪种颜色最可能出现？A. 红  B. 蓝  C. 绿  D. 三种一样",
     answerSpecPattern: choiceAnswer("B"),
     explanationPattern: "比较三种球的数量，蓝球最多，所以取到蓝球的可能性最大。",
@@ -740,7 +740,7 @@ const catalogInputs: TemplateInput[] = [
 
   {
     id: "app-price-01", skillCode: "price-model", domain: "application_modeling",
-    difficulty: 2, structureTag: "unit-price", answerMode: "written", readingCard: true,
+    difficulty: 1, structureTag: "unit-price", answerMode: "written", readingCard: true,
     stemPattern: "每本练习册 {{price}} 元，买 {{count}} 本一共需要多少元？",
     answerSpecPattern: numberAnswer("元"),
     explanationPattern: "总价等于单价乘数量，{{price}} × {{count}} = {{answer}} 元。",
@@ -896,7 +896,7 @@ const catalogInputs: TemplateInput[] = [
     stemPattern: "学校买来 {{boxes}} 箱纸，每箱 {{perBox}} 包。先给低年级 {{first}} 包，再把剩下的平均分给 {{classes}} 个班，每班多少包？",
     answerSpecPattern: numberAnswer("包"),
     explanationPattern: "先根据箱数与每箱信息求总量，再减去已分出的数量，最后平均分；数量关系得到 {{answer}} 包。",
-    variables: { boxes: [5, 7, 9], perBox: [16, 18, 20], first: [20, 28, 36], classes: [4, 5, 6], answer: [15, 19.6, 24] },
+    variables: { boxes: [5, 7, 9], perBox: [16, 18, 20], first: [20, 28, 36], classes: [4, 7, 6], answer: [15, 14, 24] },
   },
   {
     id: "app-multi-step-04", skillCode: "multi-step-model", domain: "application_modeling",
@@ -1083,6 +1083,7 @@ const skillDefinitions = {
   volume: ["体积", "geometry_space"],
   "composite-geometry": ["组合图形", "geometry_space"],
   spatial: ["空间观察", "geometry_space"],
+  "length-conversion": ["长度单位换算", "geometry_space"],
   "data-table": ["表格阅读", "data_statistics"],
   "data-bar": ["条形图", "data_statistics"],
   "data-line": ["折线图", "data_statistics"],

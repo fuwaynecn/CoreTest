@@ -27,3 +27,14 @@
 ## Notes
 
 The only follow-up needed after the catalog expansion was aligning three stale tests whose expectations were tied to the old 72-template catalog. No validator, scheduler, database runtime logic, dependency, or deployment code changed.
+
+## Repair round 1
+
+- Rebalanced the 48 additions to L1=6, L2=12, L3=18, L4=12.
+- Added a level-4 number check, geometry length conversion, L1 application scaffold, and two `equation-verification` entries.
+- Replaced the fractional package allocation with whole-package variants.
+- Registered the new `length-conversion` skill; updated skill/catalog and diagnosis/seed baselines.
+- Repaired diagnosis test indentation and the plan EOF formatting issue.
+- Focused verification: 3 files, 42 tests passed.
+- Full `npm run verify`: lint, typecheck, 50 files/359 tests, and production build passed.
+- `git diff --check 11daa0b..HEAD` was rerun; the historical plan commit still reports its EOF blank-line finding until that earlier commit is rewritten.

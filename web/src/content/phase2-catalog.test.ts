@@ -1,7 +1,7 @@
 import { answerSpecSchema } from "@/domain/questions/answer-spec";
 import { instantiateTemplate } from "@/domain/questions/instantiate-template";
 import { validateCatalog } from "@/domain/questions/template-schema";
-import { phase2Catalog } from "./phase2-catalog";
+import { phase2Catalog, phase2Skills } from "./phase2-catalog";
 
 const expectedIds = [
   "num-int-mental-01", "num-int-mental-02",
@@ -24,7 +24,7 @@ const expectedIds = [
   "geo-angle-01", "geo-perimeter-01", "geo-perimeter-02",
   "geo-area-01", "geo-area-02", "geo-volume-01", "geo-composite-01", "geo-spatial-01",
   "geo-angle-02", "geo-angle-03", "geo-perimeter-03", "geo-perimeter-04",
-  "geo-area-03", "geo-area-04", "geo-volume-02", "geo-volume-03",
+  "geo-area-03", "geo-area-04", "geo-length-convert-01", "geo-volume-03",
   "geo-composite-02", "geo-spatial-02",
   "data-table-01", "data-bar-01", "data-line-01", "data-average-01",
   "data-compare-01", "data-possibility-01",
@@ -66,6 +66,7 @@ function countBy<K extends "contentTier" | "domain">(key: K) {
 test("contains the approved exact 120-template blueprint", () => {
   expect(phase2Catalog.map((template) => template.id)).toEqual(expectedIds);
   expect(countBy("contentTier")).toEqual({ core: 95, regional: 18, transition: 7 });
+  expect(phase2Skills).toHaveLength(38);
   expect(countBy("domain")).toEqual({
     number_operations: 23,
     equation_algebra: 25,

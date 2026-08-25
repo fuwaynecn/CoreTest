@@ -50,4 +50,3 @@
 - [ ] **Step 5: Record the completion evidence**
 
   Update the SDD progress ledger with the exact counts, test commands, and commit hash; commit the catalog, tests, plan, and ledger together.
-

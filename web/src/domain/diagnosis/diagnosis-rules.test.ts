@@ -162,12 +162,11 @@ describe("diagnosis selection", () => {
       selections.push(selection);
       answers.push(answerFor(selection, false));
     }
-
     expect(selections[0]).toMatchObject({ targetDifficulty: 2, difficulty: 2, reason: "part_anchor" });
     expect(selections.map((selection) => selection.targetDifficulty))
-      .toEqual([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2]);
+      .toEqual([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
     expect(selections.map((selection) => selection.difficulty))
-      .toEqual([2, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3]);
+      .toEqual([2, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3]);
     expect(selections.slice(1).every((selection) => selection.reason === "lower_after_error"))
       .toBe(true);
   });
@@ -181,13 +180,12 @@ describe("diagnosis selection", () => {
         catalog, answers, runSeed: "all-correct", partNumber: 1, completedInPart: slot,
       })!;
       selections.push(selection);
-    answers.push(answerFor(selection, true));
-  }
-
+      answers.push(answerFor(selection, true));
+    }
     expect(selections.map((selection) => selection.targetDifficulty))
-      .toEqual([2, 2, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 3]);
+      .toEqual([2, 2, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3]);
     expect(selections.map((selection) => selection.difficulty))
-      .toEqual([2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2]);
+      .toEqual([2, 2, 3, 4, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2]);
     expect(selections.slice(2).every((selection) => selection.reason === "raise_after_two"))
       .toBe(true);
   });
