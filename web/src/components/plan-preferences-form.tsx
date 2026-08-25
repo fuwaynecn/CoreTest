@@ -1,0 +1,9 @@
+"use client";
+import { useState } from "react";
+type Props = { initial: { trainingWeekdays: number[]; targetMinutes: number; specialistFocus: "none" | "computation" | "equation" | "reading" } };
+const days = ["一", "二", "三", "四", "五", "六", "日"];
+export function PlanPreferencesForm({ initial }: Props) {
+  const [weekdays, setWeekdays] = useState(initial.trainingWeekdays); const [minutes, setMinutes] = useState(initial.targetMinutes); const [focus, setFocus] = useState(initial.specialistFocus); const [error, setError] = useState("");
+  async function submit(event: React.FormEvent) { event.preventDefault(); if (weekdays.length !== 5) return setError("请选择恰好 5 个训练日"); if (minutes < 20 || minutes > 40) return setError("单次训练时长需在 20 到 40 分钟之间"); setError(""); const response = await fetch("/api/parent/preferences", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ trainingWeekdays: weekdays, targetMinutes: minutes, specialistFocus: focus }) }); if (!response.ok) setError("保存失败，请刷新后重试"); else window.location.reload(); }
+  return <form className="planPreferences" onSubmit={submit}><fieldset><legend>每周训练日（选 5 天）</legend><div>{days.map((day, index) => <label key={day}><input type="checkbox" checked={weekdays.includes(index + 1)} onChange={() => setWeekdays((value) => value.includes(index + 1) ? value.filter((item) => item !== index + 1) : [...value, index + 1])} />周{day}</label>)}</div></fieldset><label>单次训练分钟<input type="number" min="20" max="40" value={minutes} onChange={(event) => setMinutes(Number(event.target.value))} /></label><label>重点方向<select value={focus} onChange={(event) => setFocus(event.target.value as Props["initial"]["specialistFocus"])}><option value="none">均衡</option><option value="computation">计算</option><option value="equation">方程</option><option value="reading">读题</option></select></label><button type="submit">保存并更新计划</button>{error && <p role="alert">{error}</p>}</form>;
+}

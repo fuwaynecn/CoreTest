@@ -134,6 +134,14 @@ button, input { min-height: 48px; }
 .evidenceTable th:nth-child(5) { width: 17%; }
 .evidenceTable tbody tr:last-child td { border-bottom: 0; }
 .parentEmpty { display: grid; place-content: center; }
+.planCalendar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .5rem; padding: 0; list-style: none; }
+.planCalendar li, .planPreferences, .weeklyReport { padding: 1rem; border: 1px solid var(--sand); border-radius: .75rem; background: white; }
+.planCalendar li { display: grid; gap: .35rem; } .planCalendar li[data-kind="rest"] { background: #f2eee5; }
+.planCalendar time, .planCalendar span { color: #57635f; font-size: .8rem; }
+.planPreferences { display: grid; gap: .75rem; margin-top: 1rem; } .planPreferences fieldset { border: 0; padding: 0; } .planPreferences fieldset div { display: flex; flex-wrap: wrap; gap: .5rem 1rem; }
+.planPreferences label { display: grid; gap: .35rem; font-weight: 700; } .planPreferences fieldset label { display: inline-flex; align-items: center; gap: .3rem; } .planPreferences input, .planPreferences select { padding: .55rem .7rem; border: 1px solid #9ca7a3; border-radius: .65rem; background: white; }
+.planPreferences button { width: fit-content; padding: .7rem 1rem; border: 0; border-radius: .65rem; background: var(--brand); color: white; font-weight: 700; cursor: pointer; } .planPreferences p[role="alert"] { margin: 0; color: #9b2424; font-weight: 700; }
+.weeklyReport { margin: 2rem 0; } .weeklyReport h2 { margin-top: 0; }
 .learningStateSection { margin: 2.5rem 0; min-width: 0; }
 .learningStateSection .sectionHeading > div { min-width: 0; }
 .learningStateSection .sectionHeading .eyebrow { margin: 0 0 .2rem; }
@@ -233,6 +241,7 @@ button, input { min-height: 48px; }
 }
 @media (max-width: 48rem) {
   .parentHeader, .evidenceSummary { grid-template-columns: 1fr; }
+  .planCalendar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .skillEvidenceList { grid-template-columns: 1fr; }
   .diagnosisDomainGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sectionHeading { display: block; }

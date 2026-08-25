@@ -82,11 +82,15 @@ export function createInitialPlan(db: AppDatabase, childId: string, now: Date | 
 }
 
 export function reviseActivePlan(
-  db: AppDatabase, childId: string, preferences: { specialistFocus: SpecialistFocus }, now = Date.now(),
+  db: AppDatabase, childId: string, preferences: { specialistFocus: SpecialistFocus; trainingWeekdays?: number[]; targetMinutes?: number }, now = Date.now(),
 ) {
   return db.transaction((tx) => {
     const active = activePlan(tx, childId);
     if (!active) throw new LearningPlanStateError("No active learning plan exists");
+    if (preferences.trainingWeekdays && preferences.targetMinutes) tx.insert(parentPreferences).values({
+      childId, trainingWeekdays: JSON.stringify(preferences.trainingWeekdays), targetMinutes: preferences.targetMinutes,
+      specialistFocus: preferences.specialistFocus, updatedAt: now,
+    }).onConflictDoUpdate({ target: parentPreferences.childId, set: { trainingWeekdays: JSON.stringify(preferences.trainingWeekdays), targetMinutes: preferences.targetMinutes, specialistFocus: preferences.specialistFocus, updatedAt: now } }).run();
     tx.update(learningPlans).set({ status: "superseded" }).where(eq(learningPlans.id, active.id)).run();
     const draft = draftFor(tx, childId, active.startsOn, preferences.specialistFocus);
     return insertPlan(tx, childId, active.diagnosisRunId, active.version, active.revision + 1, draft, now);

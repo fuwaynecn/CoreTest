@@ -3,11 +3,15 @@ import { AbilityMap } from "@/components/ability-map";
 import { DosageSummary } from "@/components/dosage-summary";
 import { ErrorSummary } from "@/components/error-summary";
 import { ParentRetestButton } from "@/components/parent-retest-button";
+import { PlanCalendar } from "@/components/plan-calendar";
+import { PlanPreferencesForm } from "@/components/plan-preferences-form";
+import { WeeklyReport } from "@/components/weekly-report";
 import { getDatabase } from "@/db/client";
 import { attempts, diagnosticRuns, sessionItems, trainingSessions, users } from "@/db/schema";
 import type { InitialDiagnosisReport } from "@/domain/diagnosis/types";
 import { requireRole } from "@/lib/auth/current-user";
 import { getLearningState } from "@/services/parent/get-learning-state";
+import { getPlanDashboard } from "@/services/parent/get-plan-dashboard";
 import { getParentEvidence } from "@/services/training/get-parent-evidence";
 
 const statusLabels = {
@@ -95,6 +99,7 @@ export default async function ParentPage() {
 
   const evidence = getParentEvidence(db, child.id);
   const learningState = getLearningState(db, child.id);
+  const planDashboard = getPlanDashboard(db, child.id);
   const diagnosisHistory = db.select().from(diagnosticRuns)
     .where(eq(diagnosticRuns.childId, child.id))
     .orderBy(desc(diagnosticRuns.version))
@@ -255,6 +260,13 @@ export default async function ParentPage() {
       )}
 
       <AbilityMap abilities={learningState.abilityMap} />
+
+      <section className="parentSection" aria-labelledby="plan-heading">
+        <div className="sectionHeading"><h2 id="plan-heading">六周训练计划</h2><p>{planDashboard.plan ? `第 ${planDashboard.plan.version} 版 · 修订 ${planDashboard.plan.revision} · 第 ${planDashboard.plan.currentWeek} 周` : "完成诊断后生成"}</p></div>
+        <PlanCalendar days={planDashboard.nextSevenDays} />
+        <PlanPreferencesForm initial={planDashboard.preferences} />
+      </section>
+      <WeeklyReport report={planDashboard.weeklyReport} />
 
       <DosageSummary dosage={learningState.dosage} dueReviews={learningState.dueReviews} />
 

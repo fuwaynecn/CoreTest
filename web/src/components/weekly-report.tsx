@@ -1,0 +1,2 @@
+import type { PlanDashboard } from "@/services/parent/get-plan-dashboard";
+export function WeeklyReport({ report }: { report: PlanDashboard["weeklyReport"] }) { return <section className="weeklyReport" aria-labelledby="weekly-report-heading"><h2 id="weekly-report-heading">本周学习报告</h2><p>首答 {report.firstCorrect}/{report.firstAnswered}；订正 {report.corrected}；提示 {report.hinted}；到期复习 {report.dueReview}</p><p>错误归因：知识 {report.errors.knowledge}，习惯 {report.errors.habit}，待确认 {report.errors.unknown}</p></section>; }
