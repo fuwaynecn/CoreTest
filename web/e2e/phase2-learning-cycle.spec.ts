@@ -1,14 +1,48 @@
 import { DatabaseSync } from "node:sqlite";
-import { execFileSync } from "node:child_process";
 import { expect, test, type Page } from "@playwright/test";
 
 test.setTimeout(180_000);
 
-function seedFixture(script: string) {
-  execFileSync(process.execPath, ["node_modules/tsx/dist/cli.mjs", script], {
-    cwd: process.cwd(),
-    env: { ...process.env, DB_FILE_NAME: ".tmp/e2e.sqlite", PARENT_PASSWORD: "parent-test-1234", CHILD_PIN: "2468" },
-  });
+function resetCleanFixture() {
+  const database = new DatabaseSync(".tmp/e2e.sqlite");
+  try {
+    database.exec(`
+      DELETE FROM error_observations WHERE child_id = 'child';
+      DELETE FROM hint_requests WHERE child_id = 'child';
+      DELETE FROM hint_events WHERE child_id = 'child';
+      DELETE FROM mastery_evidence WHERE child_id = 'child';
+      DELETE FROM attempts WHERE session_item_id IN (SELECT id FROM session_items WHERE session_id IN (SELECT id FROM training_sessions WHERE child_id = 'child'));
+      DELETE FROM session_items WHERE session_id IN (SELECT id FROM training_sessions WHERE child_id = 'child');
+      DELETE FROM training_sessions WHERE child_id = 'child';
+      DELETE FROM plan_targets WHERE plan_id IN (SELECT id FROM learning_plans WHERE child_id = 'child');
+      DELETE FROM learning_plans WHERE child_id = 'child';
+      DELETE FROM diagnostic_parts WHERE run_id IN (SELECT id FROM diagnostic_runs WHERE child_id = 'child');
+      DELETE FROM diagnostic_runs WHERE child_id = 'child';
+      DELETE FROM parent_preferences WHERE child_id = 'child';
+      DELETE FROM mastery_states WHERE child_id = 'child';
+      DELETE FROM review_schedules WHERE child_id = 'child';
+      DELETE FROM dosage_states WHERE child_id = 'child';
+      DELETE FROM auth_sessions;
+    `);
+  } finally { database.close(); }
+}
+
+function prepareMigratedLegacyPresentation() {
+  const database = new DatabaseSync(".tmp/e2e.sqlite");
+  try {
+    database.exec(`
+      INSERT OR IGNORE INTO skills (id, code, name, domain) VALUES ('legacy-skill', 'legacy-skill', '旧计算', 'number_operations');
+      INSERT OR IGNORE INTO question_templates (id, skill_id, domain, content_tier, structure_tag, estimated_seconds, reading_load, answer_mode, variant_spec, hint_ladder, stem, answer_spec, explanation, difficulty, active)
+        VALUES ('legacy-question', 'legacy-skill', 'number_operations', 'core', 'legacy', 60, 'short', 'written', '{}', '[]', '9 + 3 = ?', '{"kind":"number","value":12,"tolerance":0,"unit":null}', '先算 9 加 3。', 2, 1);
+      INSERT INTO training_sessions (id, child_id, session_date, status, started_at, completed_at, kind, rule_version, composition_snapshot)
+        VALUES ('legacy-session', 'child', '2026-08-19', 'completed', 1, 2, 'daily', 'phase1', '{}');
+      INSERT INTO session_items (id, session_id, question_template_id, position, stem_snapshot, answer_spec_snapshot, explanation_snapshot, skill_id_snapshot, skill_name_snapshot, difficulty_snapshot, content_tier_snapshot, structure_tag_snapshot, variant_seed, selection_reason_snapshot)
+        VALUES ('legacy-item', 'legacy-session', 'legacy-question', 0, '9 + 3 = ?', '{"kind":"number","value":12,"tolerance":0,"unit":null}', '先算 9 加 3。', 'legacy-skill', '旧计算', 2, 'core', 'legacy', 'phase1', '{}');
+      INSERT INTO attempts (id, session_item_id, client_submission_id, answer_text, is_correct, normalized_answer, explanation, session_completed, correction_number, submitted_at)
+        VALUES ('legacy-first', 'legacy-item', 'legacy-first-submission', '11', 0, '11', '先算 9 加 3。', 0, 0, 1),
+               ('legacy-correction', 'legacy-item', 'legacy-correction-submission', '12', 1, '12', '先算 9 加 3。', 1, 1, 2);
+    `);
+  } finally { database.close(); }
 }
 
 function currentDiagnosisAnswer() {
@@ -71,7 +105,12 @@ function answerText(answerSpec: string, omitUnit = false) {
 }
 
 async function completeReadingCard(page: Page) {
-  for (const input of await page.locator(".readingCard input").all()) await input.fill("已填写");
+  await expect(page.getByRole("button", { name: "提交答案" })).toBeEnabled();
+  for (const label of ["题目要我求什么", "已知了什么", "单位是什么", "哪些信息有用", "数量之间有什么关系", "答案大约在哪个范围"]) {
+    const input = page.getByLabel(label);
+    await input.fill("已填写");
+    await expect(input).toHaveValue("已填写");
+  }
 }
 
 async function answerDiagnosis(page: Page) {
@@ -85,7 +124,7 @@ async function answerDiagnosis(page: Page) {
 }
 
 test("@tablet @parent @full-diagnosis phase 2 creates a plan after a resumed 45-slot diagnosis", async ({ page }) => {
-  seedFixture("scripts/seed-e2e.ts");
+  resetCleanFixture();
   await page.goto("/login");
   await page.getByRole("button", { name: /我是孩子/ }).click();
   await page.getByLabel("PIN").fill("2468");
@@ -121,8 +160,8 @@ test("@tablet @parent @full-diagnosis phase 2 creates a plan after a resumed 45-
 
   const scheduled = new DatabaseSync(".tmp/e2e.sqlite", { readOnly: true });
   try {
-    const session = scheduled.prepare("SELECT composition_snapshot AS composition, target_seconds AS target FROM training_sessions WHERE child_id = 'child' AND session_date = $date").get({ date: todayInShanghai() }) as { composition: string; target: number };
-    const items = scheduled.prepare("SELECT question_template_id AS template, structure_tag_snapshot AS structure, selection_reason_snapshot AS reason FROM session_items WHERE session_id = (SELECT id FROM training_sessions WHERE child_id = 'child' AND session_date = $date)").all({ date: todayInShanghai() }) as Array<{ template: string; structure: string; reason: string }>;
+    const session = scheduled.prepare("SELECT composition_snapshot AS composition, target_seconds AS target FROM training_sessions WHERE child_id = 'child' AND session_date = $date AND kind = 'daily'").get({ date: todayInShanghai() }) as { composition: string; target: number };
+    const items = scheduled.prepare("SELECT question_template_id AS template, structure_tag_snapshot AS structure, selection_reason_snapshot AS reason FROM session_items WHERE session_id = (SELECT id FROM training_sessions WHERE child_id = 'child' AND session_date = $date AND kind = 'daily')").all({ date: todayInShanghai() }) as Array<{ template: string; structure: string; reason: string }>;
     const composition = JSON.parse(session.composition);
     expect(composition.composition).toEqual({ review: 3, weakness: 6, reading: 3, extension: 1 });
     expect(items.every(({ reason }) => "selectionReason" in JSON.parse(reason))).toBe(true);
@@ -171,14 +210,15 @@ test("@tablet @parent @full-diagnosis phase 2 creates a plan after a resumed 45-
   await page.getByRole("button", { name: "保存并更新计划" }).click();
   await expect(page.getByText(/第 1 版 · 修订 2/)).toBeVisible();
   const historical = new DatabaseSync(".tmp/e2e.sqlite", { readOnly: true });
-  try { expect(historical.prepare("SELECT plan_revision AS revision FROM training_sessions WHERE child_id = 'child' AND session_date = $date").get({ date: todayInShanghai() })).toEqual({ revision: 1 }); } finally { historical.close(); }
+  try { expect(historical.prepare("SELECT plan_revision AS revision FROM training_sessions WHERE child_id = 'child' AND session_date = $date AND kind = 'daily'").get({ date: todayInShanghai() })).toEqual({ revision: 1 }); } finally { historical.close(); }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.setViewportSize({ width: 1180, height: 820 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
 test("@parent migrated Phase 1 correction remains visible and child starts diagnosis", async ({ page, context }) => {
-  seedFixture("scripts/seed-phase1-migration-fixture.ts");
+  resetCleanFixture();
+  prepareMigratedLegacyPresentation();
   await page.goto("/login");
   await page.getByRole("button", { name: /我是孩子/ }).click();
   await page.getByLabel("PIN").fill("2468");
@@ -190,13 +230,13 @@ test("@parent migrated Phase 1 correction remains visible and child starts diagn
   await page.getByLabel("家长密码").fill("parent-test-1234");
   await page.getByRole("button", { name: "登录", exact: true }).click();
   const evidence = page.getByRole("region", { name: "最近作答" });
-  await expect(evidence.getByText("9 + 3 = ?")).toBeVisible();
+  await expect(evidence.getByText("9 + 3 = ?").first()).toBeVisible();
   await expect(evidence.getByText("11", { exact: true })).toBeVisible();
   await expect(evidence.getByText("12", { exact: true })).toBeVisible();
 });
 
 test("@tablet @parent adaptive child route creates a scheduler snapshot", async ({ page }) => {
-  seedFixture("scripts/seed-e2e.ts");
+  resetCleanFixture();
   const database = new DatabaseSync(".tmp/e2e.sqlite");
   try {
     database.exec(`

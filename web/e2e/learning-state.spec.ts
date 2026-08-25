@@ -50,6 +50,9 @@ function prepareIndependentScenario() {
       select si.id from session_items si join training_sessions ts on ts.id = si.session_id
       where ts.child_id = 'child' and ts.kind = 'daily' and ts.session_date = '${today}')`);
     db.run(`delete from training_sessions where child_id = 'child' and kind = 'daily' and session_date = '${today}'`);
+    db.run("delete from plan_targets where plan_id in (select id from learning_plans where child_id = 'child')");
+    db.run("delete from learning_plans where child_id = 'child'");
+    db.run("delete from parent_preferences where child_id = 'child'");
     db.run("delete from mastery_states where child_id = 'child'");
     db.run("delete from review_schedules where child_id = 'child'");
     db.run("delete from dosage_states where child_id = 'child'");
@@ -74,6 +77,12 @@ test("@tablet @parent missing unit becomes traceable evidence and a parent corre
 
   const readingQuestion = "每盒彩笔 7.5 元，买 1 盒需要付多少钱？请写单位。";
   await expect(page.getByRole("heading", { name: readingQuestion })).toBeVisible();
+  await expect(page.getByRole("button", { name: "提交答案" })).toBeEnabled();
+  for (const label of ["题目要我求什么", "已知了什么", "单位是什么", "哪些信息有用", "数量之间有什么关系", "答案大约在哪个范围"]) {
+    const input = page.getByLabel(label);
+    await input.fill("已填写");
+    await expect(input).toHaveValue("已填写");
+  }
   await page.getByLabel("你的答案").fill("7.5");
   await page.getByRole("button", { name: "提交答案" }).click();
   await expect(page.getByText(/必须带单位/)).toBeVisible();
