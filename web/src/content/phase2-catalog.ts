@@ -546,7 +546,7 @@ const catalogInputs: TemplateInput[] = [
   },
   {
     id: "geo-angle-03", skillCode: "angle", domain: "geometry_space",
-    difficulty: 1, structureTag: "angle-supplement", answerMode: "written",
+    difficulty: 2, structureTag: "angle-supplement", answerMode: "written",
     stemPattern: "一个平角被分成两个角，其中一个是 {{known}} 度，另一个是多少度？",
     answerSpecPattern: numberAnswer("度"),
     explanationPattern: "平角是 180 度，用 180 - {{known}}，得到 {{answer}} 度。",

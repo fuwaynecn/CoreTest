@@ -56,9 +56,10 @@ const transitionIds = [
   "habit-estimate-02", "habit-check-01", "habit-check-02",
 ];
 
-function countBy<K extends "contentTier" | "domain">(key: K) {
+function countBy<K extends "contentTier" | "domain" | "difficulty">(key: K) {
   return phase2Catalog.reduce<Record<string, number>>((counts, template) => {
-    counts[template[key]] = (counts[template[key]] ?? 0) + 1;
+    const bucket = String(template[key]);
+    counts[bucket] = (counts[bucket] ?? 0) + 1;
     return counts;
   }, {});
 }
@@ -75,6 +76,7 @@ test("contains the approved exact 120-template blueprint", () => {
     application_modeling: 23,
     thinking_habits: 16,
   });
+  expect(countBy("difficulty")).toEqual({ 1: 16, 2: 40, 3: 43, 4: 21 });
   expect(phase2Catalog.filter(({ contentTier }) => contentTier === "regional")
     .map(({ id }) => id)).toEqual(regionalIds);
   expect(phase2Catalog.filter(({ contentTier }) => contentTier === "transition")
