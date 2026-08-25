@@ -192,6 +192,19 @@ export const attempts = sqliteTable("attempts", {
   check("attempts_correction_number_nonnegative", sql`${table.correctionNumber} IS NULL OR ${table.correctionNumber} >= 0`),
 ]);
 
+export const rewardEvents = sqliteTable("reward_events", {
+  id: text("id").primaryKey(),
+  childId: text("child_id").notNull().references(() => users.id),
+  sourceKey: text("source_key").notNull().unique(),
+  kind: text("kind", { enum: ["points", "badge"] }).notNull(),
+  code: text("code").notNull(),
+  points: integer("points").notNull().default(0),
+  sessionId: text("session_id").references(() => trainingSessions.id),
+  attemptId: text("attempt_id").references(() => attempts.id),
+  occurredAt: integer("occurred_at").notNull(),
+  metadata: text("metadata").notNull().default("{}"),
+});
+
 export const hintEvents = sqliteTable("hint_events", {
   id: text("id").primaryKey(),
   childId: text("child_id").notNull().references(() => users.id),
