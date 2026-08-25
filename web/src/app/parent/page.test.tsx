@@ -161,6 +161,15 @@ test("exposes the parent dashboard flow as a named region", async () => {
   expect(flow).toBeInTheDocument();
   expect(Array.from(flow.querySelectorAll("h2")).slice(0, 3).map((heading) => heading.textContent))
     .toEqual(["本周学习报告", "首次作答证据", "六周训练计划"]);
+  expect(Array.from(flow.children).map((child) => child.className)).toEqual([
+    "weeklyReport",
+    "evidenceSummary parentSignalSection",
+    "parentSection parentPlanSection",
+    "learningStateSection dosageSection",
+    "learningStateSection errorSection",
+    "parentSection recentEvidenceSection",
+    "learningStateSection abilityMap",
+  ]);
 });
 
 function seedThreePartDifficultyPath(db: ReturnType<typeof createTestDatabase>, runId: string) {

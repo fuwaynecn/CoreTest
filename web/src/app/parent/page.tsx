@@ -274,7 +274,7 @@ export default async function ParentPage() {
 
       <ErrorSummary summary={learningState.errorSummary} errors={learningState.errors} />
 
-      <section className="parentSection" aria-labelledby="recent-heading">
+      <section className="parentSection recentEvidenceSection" aria-labelledby="recent-heading">
         <div className="sectionHeading">
           <h2 id="recent-heading">最近作答</h2>
           <p>按提交时间倒序，最多显示 20 条。</p>

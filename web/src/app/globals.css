@@ -248,10 +248,10 @@ button, input { min-height: 48px; }
   .parentDashboardFlow > .parentSignalSection { order: 2; }
   .parentDashboardFlow > .parentPlanSection { order: 3; }
   .parentDashboardFlow > .dosageSection { order: 4; }
-  .parentDashboardFlow > .errorSection,
-  .parentDashboardFlow > .parentSection[aria-labelledby="recent-heading"] { order: 5; }
-  .parentDashboardFlow > .parentHistoricalSection { order: 6; }
-  .parentDashboardFlow > .abilityMap { order: 7; }
+  .parentDashboardFlow > .errorSection { order: 5; }
+  .parentDashboardFlow > .recentEvidenceSection { order: 6; }
+  .parentDashboardFlow > .parentHistoricalSection { order: 7; }
+  .parentDashboardFlow > .abilityMap { order: 8; }
   .parentHeader, .evidenceSummary { grid-template-columns: 1fr; }
   .planCalendar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .skillEvidenceList { grid-template-columns: 1fr; }

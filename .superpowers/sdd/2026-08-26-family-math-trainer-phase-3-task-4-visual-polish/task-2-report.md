@@ -25,3 +25,8 @@
 - Reordered the flow markup to weekly report, signal metrics, plan, dosage, error summary, recent evidence, diagnosis history, then ability map; mobile order assertions now cover the first three landmarks.
 - Focused suite after fixes: 5 files, 13 tests passed.
 
+## Round 2 fixes
+
+- Added an explicit mobile `order` for every direct dashboard-flow child: weekly 1, signal 2, plan 3, dosage 4, errors 5, recent evidence 6, diagnosis history 7, and ability map 8.
+- Added the `recentEvidenceSection` hook and asserted the complete direct-child sequence in the parent page test.
+- Focused suite: 5 files, 13 tests passed; `npm run verify`: passed all 375 tests and the production build.
