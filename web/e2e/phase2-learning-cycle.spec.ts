@@ -1,5 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 import { expect, test, type Page } from "@playwright/test";
+import { addShanghaiDays } from "@/domain/time/shanghai-calendar";
 
 test.setTimeout(180_000);
 
@@ -181,7 +182,16 @@ test("@tablet @parent @full-diagnosis phase 2 creates a plan after a resumed 45-
       await expect(page.getByText("提示 1：")).toBeVisible();
       await page.getByLabel("你的答案").fill(answerText(item.answer_spec, true));
       await page.getByRole("button", { name: "提交答案" }).click();
-      await expect(page.getByText(/必须带单位/)).toBeVisible();
+      await expect(page.getByRole("heading", { name: "再看一步" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: /全长是多少米？请写单位。/ })).toBeVisible();
+      await expect(page.getByText(/先把厘米信息换算成米，再相加；单位统一后的数量关系得到/)).toBeVisible();
+      const errors = new DatabaseSync(".tmp/e2e.sqlite", { readOnly: true });
+      try {
+        expect(errors.prepare(`SELECT system_candidate AS candidate FROM error_observations
+          WHERE session_item_id = (SELECT si.id FROM session_items si JOIN training_sessions ts ON ts.id = si.session_id
+            WHERE si.question_template_id = $template AND ts.child_id = 'child' AND ts.kind = 'daily' LIMIT 1)
+          ORDER BY observed_at DESC LIMIT 1`).get({ template: item.template })).toEqual({ candidate: "missing_unit" });
+      } finally { errors.close(); }
       await page.getByRole("button", { name: "修改答案" }).click();
       if (metadata.readingCard) await completeReadingCard(page);
       await page.getByLabel("你的答案").fill(answerText(item.answer_spec));
@@ -198,7 +208,7 @@ test("@tablet @parent @full-diagnosis phase 2 creates a plan after a resumed 45-
     }
     await page.getByRole("button", { name: "下一题" }).click();
   }
-  expect(usedHint).toBe(true); expect(reflected).toBe(true); expect(usedReadingCard).toBe(true); expect(equationDue).toBe(todayInShanghai());
+  expect(usedHint).toBe(true); expect(reflected).toBe(true); expect(usedReadingCard).toBe(true); expect(equationDue).toBe(addShanghaiDays(todayInShanghai(), 7));
   await page.context().clearCookies();
   await page.goto("/login");
   await page.getByRole("button", { name: /我是家长/ }).click();
