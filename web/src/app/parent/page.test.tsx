@@ -154,7 +154,16 @@ test("labels first-attempt periods and bases the recommendation on this week", a
   expect(screen.queryByText(/能力诊断|最终诊断/)).not.toBeInTheDocument();
 });
 
-test("exposes the parent dashboard flow as a named region", async () => {
+test("exposes the parent dashboard flow and complete mobile order", async () => {
+  (state.db as ReturnType<typeof createTestDatabase>).insert(diagnosticRuns).values({
+    id: "order-history",
+    childId: "child-1",
+    version: 1,
+    status: "in_progress",
+    currentPart: 1,
+    seed: "order-history",
+    startedAt: 1,
+  }).run();
   render(await ParentPage());
 
   const flow = screen.getByRole("region", { name: "家长训练概览" });
@@ -168,6 +177,7 @@ test("exposes the parent dashboard flow as a named region", async () => {
     "learningStateSection dosageSection",
     "learningStateSection errorSection",
     "parentSection recentEvidenceSection",
+    "diagnosisHistory parentHistoricalSection",
     "learningStateSection abilityMap",
   ]);
 });
