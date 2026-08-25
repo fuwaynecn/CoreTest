@@ -157,7 +157,10 @@ test("labels first-attempt periods and bases the recommendation on this week", a
 test("exposes the parent dashboard flow as a named region", async () => {
   render(await ParentPage());
 
-  expect(screen.getByRole("region", { name: "家长训练概览" })).toBeInTheDocument();
+  const flow = screen.getByRole("region", { name: "家长训练概览" });
+  expect(flow).toBeInTheDocument();
+  expect(Array.from(flow.querySelectorAll("h2")).slice(0, 3).map((heading) => heading.textContent))
+    .toEqual(["本周学习报告", "首次作答证据", "六周训练计划"]);
 });
 
 function seedThreePartDifficultyPath(db: ReturnType<typeof createTestDatabase>, runId: string) {

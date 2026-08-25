@@ -242,35 +242,8 @@ export default async function ParentPage() {
         </section>
       )}
 
-      {diagnosisHistory.length > 0 && (
-        <section className="diagnosisHistory" aria-labelledby="diagnosis-history-heading">
-          <div className="sectionHeading">
-            <h2 id="diagnosis-history-heading">诊断版本记录</h2>
-            <p>新版本不会覆盖旧报告。</p>
-          </div>
-          <ul>
-            {diagnosisHistory.map((run) => (
-              <li key={run.id}>
-                <strong>第 {run.version} 版 · {run.status === "completed" ? "已完成" : "进行中"}</strong>
-                <span>{run.status === "completed" ? "报告已保留" : `当前第 ${run.currentPart} 部分`}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      <AbilityMap abilities={learningState.abilityMap} />
-
       <section className="parentDashboardFlow" aria-label="家长训练概览">
-      <section className="parentSection parentPlanSection" aria-labelledby="plan-heading">
-        <div className="sectionHeading"><h2 id="plan-heading">六周训练计划</h2><p>{planDashboard.plan ? `第 ${planDashboard.plan.version} 版 · 修订 ${planDashboard.plan.revision} · 第 ${planDashboard.plan.currentWeek} 周` : "完成诊断后生成"}</p></div>
-        {planDashboard.plan && <p className="planWeeks">六周目标：{planDashboard.plan.weeks.map((item) => `第${item.week}周 ${item.targets} 项${item.assessment ? "（评估）" : ""}${item.replanAfter ? "（复盘）" : ""}`).join("；")}</p>}
-        <PlanCalendar days={planDashboard.nextSevenDays} />
-        <PlanPreferencesForm initial={planDashboard.preferences} />
-      </section>
       <WeeklyReport report={planDashboard.weeklyReport} />
-
-      <DosageSummary dosage={learningState.dosage} dueReviews={learningState.dueReviews} />
 
       <section className="evidenceSummary parentSignalSection" aria-labelledby="summary-heading">
         <div className="summaryIntro">
@@ -290,6 +263,14 @@ export default async function ParentPage() {
           ))}
         </dl>
       </section>
+
+      <section className="parentSection parentPlanSection" aria-labelledby="plan-heading">
+        <div className="sectionHeading"><h2 id="plan-heading">六周训练计划</h2><p>{planDashboard.plan ? `第 ${planDashboard.plan.version} 版 · 修订 ${planDashboard.plan.revision} · 第 ${planDashboard.plan.currentWeek} 周` : "完成诊断后生成"}</p></div>
+        {planDashboard.plan && <p className="planWeeks">六周目标：{planDashboard.plan.weeks.map((item) => `第${item.week}周 ${item.targets} 项${item.assessment ? "（评估）" : ""}${item.replanAfter ? "（复盘）" : ""}`).join("；")}</p>}
+        <PlanCalendar days={planDashboard.nextSevenDays} />
+        <PlanPreferencesForm initial={planDashboard.preferences} />
+      </section>
+      <DosageSummary dosage={learningState.dosage} dueReviews={learningState.dueReviews} />
 
       <ErrorSummary summary={learningState.errorSummary} errors={learningState.errors} />
 
@@ -331,6 +312,25 @@ export default async function ParentPage() {
           </div>
         )}
       </section>
+
+      {diagnosisHistory.length > 0 && (
+        <section className="diagnosisHistory parentHistoricalSection" aria-labelledby="diagnosis-history-heading">
+          <div className="sectionHeading">
+            <h2 id="diagnosis-history-heading">诊断版本记录</h2>
+            <p>新版本不会覆盖旧报告。</p>
+          </div>
+          <ul>
+            {diagnosisHistory.map((run) => (
+              <li key={run.id}>
+                <strong>第 {run.version} 版 · {run.status === "completed" ? "已完成" : "进行中"}</strong>
+                <span>{run.status === "completed" ? "报告已保留" : `当前第 ${run.currentPart} 部分`}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <AbilityMap abilities={learningState.abilityMap} />
       </section>
     </main>
   );
