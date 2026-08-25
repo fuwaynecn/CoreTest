@@ -31,6 +31,7 @@ import type { ReviewedTemplate } from "@/domain/questions/template-schema";
 import { scoreAnswer } from "@/domain/questions/score-answer";
 import { normalizeTelemetry } from "@/domain/training/attempt-telemetry";
 import { shanghaiDateKey } from "@/domain/time/shanghai-calendar";
+import { createInitialPlan } from "@/services/planning/learning-plan-service";
 import { recordSystemErrorObservation } from "@/services/training/error-observation-service";
 import { recordLearningEvidence } from "@/services/training/record-learning-evidence";
 
@@ -535,7 +536,7 @@ export function submitDiagnosticAttempt(
   if (command.answerText.trim().length === 0) throw new InvalidDiagnosisAnswerError("Answer is required");
   if (command.answerText.length > 128) throw new InvalidDiagnosisAnswerError();
 
-  return db.transaction((tx) => {
+  const result = db.transaction((tx) => {
     const replay = tx.select({
       childId: trainingSessions.childId,
       sessionKind: trainingSessions.kind,
@@ -692,6 +693,8 @@ export function submitDiagnosticAttempt(
       diagnosis: viewForRun(tx, command.childId, item.runId),
     };
   }, { behavior: "immediate" });
+  if (result.diagnosis.status === "completed") createInitialPlan(db, command.childId, now, now);
+  return result;
 }
 
 export function startDiagnosisRetest(

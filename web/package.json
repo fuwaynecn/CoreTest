@@ -13,6 +13,8 @@
     "db:generate": "drizzle-kit generate",
     "db:seed": "tsx src/db/seed.ts",
     "e2e:seed": "cross-env DB_FILE_NAME=.tmp/e2e.sqlite PARENT_PASSWORD=parent-test-1234 CHILD_PIN=2468 tsx scripts/seed-e2e.ts",
+    "e2e:seed:phase2": "npm run e2e:seed",
+    "e2e:seed:migrated": "cross-env DB_FILE_NAME=.tmp/e2e.sqlite PARENT_PASSWORD=parent-test-1234 CHILD_PIN=2468 tsx scripts/seed-phase1-migration-fixture.ts",
     "test:e2e:webkit": "playwright test --project=parent-mobile",
     "test:e2e:chromium": "playwright test --project=tablet-chromium",
     "test:e2e": "npm run test:e2e:webkit && npm run test:e2e:chromium",
