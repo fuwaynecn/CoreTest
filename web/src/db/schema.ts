@@ -184,6 +184,7 @@ export const attempts = sqliteTable("attempts", {
   hintCount: integer("hint_count"),
   correctionNumber: integer("correction_number"),
   readingCardResponse: text("reading_card_response"),
+  rewardSummary: text("reward_summary"),
   submittedAt: integer("submitted_at").notNull(),
 }, (table) => [
   check("attempts_active_duration_nonnegative", sql`${table.activeDurationMs} IS NULL OR ${table.activeDurationMs} >= 0`),

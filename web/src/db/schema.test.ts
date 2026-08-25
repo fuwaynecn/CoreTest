@@ -187,6 +187,7 @@ test("migrates and stably replays an existing attempt", () => {
       hintCount: null,
       correctionNumber: null,
       readingCardResponse: null,
+      rewardSummary: null,
       submittedAt: 2,
     });
     const foreignKeys = db.$client.prepare("PRAGMA foreign_key_list('attempts')").all() as unknown as Array<{
@@ -730,7 +731,7 @@ test("adds Phase 2B learning state without inventing legacy telemetry or losing 
     migrateDatabase(db, resolve(process.cwd(), "drizzle"));
 
     expect(columns(sqlite, "attempts")).toEqual(expect.arrayContaining([
-      "active_duration_ms", "hint_level", "hint_count", "correction_number",
+      "active_duration_ms", "hint_level", "hint_count", "correction_number", "reward_summary",
     ]));
     const rewardTableInfo = sqlite.prepare("PRAGMA table_info('reward_events')").all() as Array<{
       name: string;

@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { attempts, questionTemplates, reviewSchedules, sessionItems, skills, trainingSessions, users } from "@/db/schema";
+import { attempts, questionTemplates, reviewSchedules, rewardEvents, sessionItems, skills, trainingSessions, users } from "@/db/schema";
 import { createTestDatabase } from "@/test/test-db";
 
 const testState = vi.hoisted(() => ({ db: undefined as unknown, getCurrentUser: vi.fn() }));
@@ -24,11 +24,17 @@ test("marks a session completed early without clearing unanswered due reviews", 
   db.insert(reviewSchedules).values({ childId: "child-1", skillId: "skill-1", level: 1, dueOn: "2026-08-25", lastResult: "incorrect", updatedAt: 1 }).run();
 
   const response = await POST(new Request("http://localhost/api/child/sessions/session-1/stop", { method: "POST" }), { params: Promise.resolve({ id: "session-1" }) });
+  const replay = await POST(new Request("http://localhost/api/child/sessions/session-1/stop", { method: "POST" }), { params: Promise.resolve({ id: "session-1" }) });
 
   expect(response.status).toBe(200);
+  expect(await replay.json()).toEqual({ status: "completed_early" });
   expect(db.select({ status: trainingSessions.status }).from(trainingSessions).where(eq(trainingSessions.id, "session-1")).get()).toEqual({ status: "completed_early" });
   expect(db.select().from(attempts).all()).toHaveLength(1);
   expect(db.select({ dueOn: reviewSchedules.dueOn }).from(reviewSchedules).get()).toEqual({ dueOn: "2026-08-25" });
+  expect(db.select({ sourceKey: rewardEvents.sourceKey, code: rewardEvents.code, points: rewardEvents.points, attemptId: rewardEvents.attemptId })
+    .from(rewardEvents).all()).toEqual([{
+    sourceKey: "session-completed:session-1", code: "session-completed", points: 5, attemptId: null,
+  }]);
 });
 
 test("does not overwrite an already completed session", async () => {

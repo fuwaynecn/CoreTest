@@ -3,6 +3,10 @@ import { createTestDatabase } from "@/test/test-db";
 import { attempts, questionTemplates, rewardEvents, sessionItems, skills, trainingSessions, users } from "@/db/schema";
 import { submitAttempt } from "./submit-attempt";
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 function database() {
   const db = createTestDatabase();
   db.insert(users).values({ id: "child", role: "child", displayName: "孩子", credentialHash: "hash", createdAt: 1 }).run();
@@ -76,4 +80,41 @@ test("crossing the reading-card threshold inserts one badge and replays it", () 
   ]);
   expect(response("item-3", "9").rewards).toEqual(result.rewards);
   expect(db.select().from(rewardEvents).where(eq(rewardEvents.code, "reading-detective")).all()).toHaveLength(1);
+});
+
+test("replays the exact reward summary after a later rewarded attempt in the same millisecond", () => {
+  vi.spyOn(Date, "now").mockReturnValue(100);
+  const db = database();
+  const item = db.select().from(sessionItems).where(eq(sessionItems.id, "item")).get()!;
+  db.insert(sessionItems).values({ ...item, id: "item-2", position: 1 }).run();
+  const readingCardResponse = { target: "目标", givens: "已知", units: "元", usefulFacts: "事实", relationship: "关系", estimateRange: "5-5" };
+  const firstCommand = {
+    childId: "child", sessionItemId: "item", clientSubmissionId: "21111111-1111-4111-8111-111111111111", answerText: "4", readingCardResponse,
+  };
+
+  const first = submitAttempt(db, firstCommand);
+  submitAttempt(db, {
+    childId: "child", sessionItemId: "item-2", clientSubmissionId: "21111111-1111-4111-8111-111111111112", answerText: "4", readingCardResponse,
+  });
+
+  expect(first.rewards).toEqual({ pointsEarned: 3, totalPoints: 3, newBadges: [] });
+  expect(submitAttempt(db, firstCommand).rewards).toEqual(first.rewards);
+});
+
+test.each([
+  ["equation", "equation-balanced", "correct-equation", "equation-balancer", "方程平衡师"],
+  ["estimate", "estimate-range", "correct-estimate", "estimate-expert", "估算能手"],
+] as const)("counts a corrected %s item once toward its badge", (_name, structureTag, eventCode, badgeCode, badgeLabel) => {
+  const db = database();
+  db.update(sessionItems).set({ structureTagSnapshot: structureTag, selectionReasonSnapshot: "{}" }).where(eq(sessionItems.id, "item")).run();
+  db.insert(rewardEvents).values(Array.from({ length: 4 }, (_, index) => ({
+    id: `${eventCode}-${index}`, childId: "child", sourceKey: `${eventCode}:seed-${index}`,
+    kind: "points" as const, code: eventCode, points: 0, occurredAt: index,
+  }))).run();
+
+  submitAttempt(db, { childId: "child", sessionItemId: "item", clientSubmissionId: "31111111-1111-4111-8111-111111111111", answerText: "4" });
+  const corrected = submitAttempt(db, { childId: "child", sessionItemId: "item", clientSubmissionId: "31111111-1111-4111-8111-111111111112", answerText: "5" });
+
+  expect(corrected.rewards.newBadges).toContainEqual({ code: badgeCode, label: badgeLabel });
+  expect(db.select().from(rewardEvents).where(eq(rewardEvents.code, eventCode)).all()).toHaveLength(5);
 });

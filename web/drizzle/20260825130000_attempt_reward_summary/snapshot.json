@@ -1,9 +1,9 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "de72cfc5-6f79-44e0-b034-bbc1700c83df",
+  "id": "5a184150-0770-47ac-9ad1-a64fb87c45df",
   "prevIds": [
-    "56d753c2-3009-4f64-aa42-63f40a1a5f25"
+    "de72cfc5-6f79-44e0-b034-bbc1700c83df"
   ],
   "ddl": [
     {
@@ -213,6 +213,16 @@
       "default": null,
       "generated": null,
       "name": "reading_card_response",
+      "entityType": "columns",
+      "table": "attempts"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "reward_summary",
       "entityType": "columns",
       "table": "attempts"
     },

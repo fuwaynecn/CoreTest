@@ -117,6 +117,7 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
       normalizedAnswer: attempts.normalizedAnswer,
       explanation: attempts.explanation,
       sessionCompleted: attempts.sessionCompleted,
+      rewardSummary: attempts.rewardSummary,
     }).from(attempts)
       .innerJoin(sessionItems, eq(attempts.sessionItemId, sessionItems.id))
       .innerJoin(trainingSessions, eq(sessionItems.sessionId, trainingSessions.id))
@@ -136,7 +137,7 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
         normalizedAnswer: existing.normalizedAnswer,
         explanation: existing.explanation,
         sessionCompleted: existing.sessionCompleted,
-        rewards: rewardSummaryForAttempt(tx, command.childId, command.clientSubmissionId),
+        rewards: parseRewardSummary(existing.rewardSummary) ?? rewardSummaryForAttempt(tx, command.childId, command.clientSubmissionId),
       };
     }
 
@@ -275,6 +276,7 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
       readingCardResponse: command.readingCardResponse,
       occurredAt: now,
     });
+    tx.update(attempts).set({ rewardSummary: JSON.stringify(rewards) }).where(eq(attempts.id, attemptId)).run();
 
     return {
       ...score,
@@ -283,6 +285,15 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
       rewards,
     };
   }, { behavior: "immediate" });
+}
+
+function parseRewardSummary(raw: string | null): RewardSummary | null {
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(raw) as Partial<RewardSummary>;
+    if (typeof value.pointsEarned === "number" && typeof value.totalPoints === "number" && Array.isArray(value.newBadges)) return value as RewardSummary;
+  } catch { /* Fall back for attempts persisted before reward snapshots. */ }
+  return null;
 }
 
 function rewardSummaryForAttempt(tx: Parameters<Parameters<AppDatabase["transaction"]>[0]>[0], childId: string, submissionId: string): RewardSummary {

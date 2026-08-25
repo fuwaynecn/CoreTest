@@ -1,0 +1,1 @@
+ALTER TABLE `attempts` ADD `reward_summary` text;

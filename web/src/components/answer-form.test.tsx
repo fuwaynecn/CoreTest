@@ -198,6 +198,39 @@ test("shows earned points and new badges after a rewarded answer", async () => {
   expect(screen.getByText("新徽章：审题侦探")).toBeInTheDocument();
 });
 
+test("shows earned process rewards after an incorrect answer", async () => {
+  const submit = vi.fn().mockResolvedValue({
+    correct: false,
+    normalizedAnswer: "5",
+    explanation: "把十分位对齐后再相加。",
+    sessionCompleted: false,
+    rewards: { pointsEarned: 3, totalPoints: 12, newBadges: [] },
+  });
+
+  render(<AnswerForm sessionItemId="item-1" submitAnswer={submit} />);
+  await userEvent.type(screen.getByLabelText("你的答案"), "5");
+  await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
+
+  expect(await screen.findByText("获得 3 分，累计 12 分。")).toBeInTheDocument();
+});
+
+test("suppresses an empty reward summary", async () => {
+  const submit = vi.fn().mockResolvedValue({
+    correct: true,
+    normalizedAnswer: "6",
+    explanation: "把十分位对齐后再相加。",
+    sessionCompleted: false,
+    rewards: { pointsEarned: 0, totalPoints: 12, newBadges: [] },
+  });
+
+  render(<AnswerForm sessionItemId="item-1" submitAnswer={submit} />);
+  await userEvent.type(screen.getByLabelText("你的答案"), "6");
+  await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
+  await screen.findByText("做对了，别忘了检查题目问的是什么。");
+
+  expect(screen.queryByText("获得 0 分，累计 12 分。")).not.toBeInTheDocument();
+});
+
 test("retries an interrupted submission with the same id", async () => {
   const submit = vi.fn()
     .mockRejectedValueOnce(new Error("offline"))

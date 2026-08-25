@@ -188,6 +188,9 @@ export function AnswerForm({
   }
 
   const answerLocked = !hydrated || submitting || submissionId !== null || result !== null;
+  const earnedRewards = result?.rewards && (result.rewards.pointsEarned > 0 || result.rewards.newBadges.length > 0)
+    ? result.rewards
+    : null;
 
   async function handleHint() {
     const requestId = hintRequestIdRef.current ?? crypto.randomUUID();
@@ -261,14 +264,6 @@ export function AnswerForm({
       {result?.correct && (
         <section className="answerFeedback answerFeedbackCorrect" aria-live="polite">
           <p><span aria-hidden="true">✓</span> 做对了，别忘了检查题目问的是什么。</p>
-          {result.rewards && (
-            <div className="answerRewards">
-              <p>获得 {result.rewards.pointsEarned} 分，累计 {result.rewards.totalPoints} 分。</p>
-              {result.rewards.newBadges.length > 0 && (
-                <p>新徽章：{result.rewards.newBadges.map((badge) => badge.label).join("、")}</p>
-              )}
-            </div>
-          )}
           {hadIncorrectAnswer && !reflectionComplete ? (
             <div className="errorReflection">
               <p>刚才主要卡在哪里？</p>
@@ -286,6 +281,14 @@ export function AnswerForm({
             <button type="button" onClick={goToNextQuestion}>下一题</button>
           )}
         </section>
+      )}
+      {earnedRewards && (
+        <div className="answerRewards" aria-live="polite">
+          {earnedRewards.pointsEarned > 0 && <p>获得 {earnedRewards.pointsEarned} 分，累计 {earnedRewards.totalPoints} 分。</p>}
+          {earnedRewards.newBadges.length > 0 && (
+            <p>新徽章：{earnedRewards.newBadges.map((badge) => badge.label).join("、")}</p>
+          )}
+        </div>
       )}
     </form>
   );

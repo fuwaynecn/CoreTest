@@ -67,6 +67,10 @@
       "entityType": "tables"
     },
     {
+      "name": "reward_events",
+      "entityType": "tables"
+    },
+    {
       "name": "session_items",
       "entityType": "tables"
     },
@@ -1500,6 +1504,106 @@
       "generated": null,
       "name": "id",
       "entityType": "columns",
+      "table": "reward_events"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "child_id",
+      "entityType": "columns",
+      "table": "reward_events"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "source_key",
+      "entityType": "columns",
+      "table": "reward_events"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "kind",
+      "entityType": "columns",
+      "table": "reward_events"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "code",
+      "entityType": "columns",
+      "table": "reward_events"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "name": "points",
+      "entityType": "columns",
+      "table": "reward_events"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "session_id",
+      "entityType": "columns",
+      "table": "reward_events"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "attempt_id",
+      "entityType": "columns",
+      "table": "reward_events"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "occurred_at",
+      "entityType": "columns",
+      "table": "reward_events"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'{}'",
+      "generated": null,
+      "name": "metadata",
+      "entityType": "columns",
+      "table": "reward_events"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "id",
+      "entityType": "columns",
       "table": "session_items"
     },
     {
@@ -2299,6 +2403,51 @@
     },
     {
       "columns": [
+        "child_id"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_reward_events_child_id_users_id_fk",
+      "entityType": "fks",
+      "table": "reward_events"
+    },
+    {
+      "columns": [
+        "session_id"
+      ],
+      "tableTo": "training_sessions",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_reward_events_session_id_training_sessions_id_fk",
+      "entityType": "fks",
+      "table": "reward_events"
+    },
+    {
+      "columns": [
+        "attempt_id"
+      ],
+      "tableTo": "attempts",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "nameExplicit": false,
+      "name": "fk_reward_events_attempt_id_attempts_id_fk",
+      "entityType": "fks",
+      "table": "reward_events"
+    },
+    {
+      "columns": [
         "session_id"
       ],
       "tableTo": "training_sessions",
@@ -2533,6 +2682,15 @@
         "id"
       ],
       "nameExplicit": false,
+      "name": "reward_events_pk",
+      "table": "reward_events",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
       "name": "session_items_pk",
       "table": "session_items",
       "entityType": "pks"
@@ -2694,6 +2852,15 @@
       "name": "attempts_client_submission_id_unique",
       "entityType": "uniques",
       "table": "attempts"
+    },
+    {
+      "columns": [
+        "source_key"
+      ],
+      "nameExplicit": false,
+      "name": "reward_events_source_key_unique",
+      "entityType": "uniques",
+      "table": "reward_events"
     },
     {
       "columns": [
@@ -2901,6 +3068,12 @@
       "name": "review_schedules_last_result",
       "entityType": "checks",
       "table": "review_schedules"
+    },
+    {
+      "value": "\"kind\" IN ('points', 'badge')",
+      "name": "reward_events_kind",
+      "entityType": "checks",
+      "table": "reward_events"
     }
   ],
   "renames": []
