@@ -123,6 +123,14 @@ describe("learning plan service", () => {
     expect(db.select().from(learningPlans).where(eq(learningPlans.status, "active")).all()).toHaveLength(1);
   });
 
+  it("treats the same training weekdays in a different order as unchanged", () => {
+    const db = seed();
+    const initial = createInitialPlan(db, "child-1", new Date("2026-08-23T16:00:00Z"), 3);
+    const result = reviseActivePlan(db, "child-1", { trainingWeekdays: [2, 1, 3, 4, 5], targetMinutes: 30, specialistFocus: "none" }, 4);
+    expect(result.id).toBe(initial.id);
+    expect(db.select().from(learningPlans).where(eq(learningPlans.status, "active")).all()).toHaveLength(1);
+  });
+
   it("completes week six and starts the next Monday as version two", () => {
     const db = seed();
     const initial = createInitialPlan(db, "child-1", new Date("2026-08-23T16:00:00Z"), 3);

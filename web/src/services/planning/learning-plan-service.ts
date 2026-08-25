@@ -25,6 +25,10 @@ function activePlan(tx: AppTransaction, childId: string) {
   )).orderBy(desc(learningPlans.version), desc(learningPlans.revision)).limit(1).get();
 }
 
+function normalizedWeekdays(days: number[]) {
+  return JSON.stringify([...days].sort((left, right) => left - right));
+}
+
 function latestCompletedDiagnosis(tx: AppTransaction, childId: string) {
   return tx.select().from(diagnosticRuns).where(and(
     eq(diagnosticRuns.childId, childId), eq(diagnosticRuns.status, "completed"),
@@ -88,14 +92,15 @@ export function reviseActivePlan(
     const active = activePlan(tx, childId);
     if (!active) throw new LearningPlanStateError("No active learning plan exists");
     const current = tx.select().from(parentPreferences).where(eq(parentPreferences.childId, childId)).get();
-    if (preferences.trainingWeekdays && preferences.targetMinutes && current
-      && current.trainingWeekdays === JSON.stringify(preferences.trainingWeekdays)
+    const trainingWeekdays = preferences.trainingWeekdays && normalizedWeekdays(preferences.trainingWeekdays);
+    if (trainingWeekdays && preferences.targetMinutes && current
+      && current.trainingWeekdays === trainingWeekdays
       && current.targetMinutes === preferences.targetMinutes
       && current.specialistFocus === preferences.specialistFocus) return active;
-    if (preferences.trainingWeekdays && preferences.targetMinutes) tx.insert(parentPreferences).values({
-      childId, trainingWeekdays: JSON.stringify(preferences.trainingWeekdays), targetMinutes: preferences.targetMinutes,
+    if (trainingWeekdays && preferences.targetMinutes) tx.insert(parentPreferences).values({
+      childId, trainingWeekdays, targetMinutes: preferences.targetMinutes,
       specialistFocus: preferences.specialistFocus, updatedAt: now,
-    }).onConflictDoUpdate({ target: parentPreferences.childId, set: { trainingWeekdays: JSON.stringify(preferences.trainingWeekdays), targetMinutes: preferences.targetMinutes, specialistFocus: preferences.specialistFocus, updatedAt: now } }).run();
+    }).onConflictDoUpdate({ target: parentPreferences.childId, set: { trainingWeekdays, targetMinutes: preferences.targetMinutes, specialistFocus: preferences.specialistFocus, updatedAt: now } }).run();
     tx.update(learningPlans).set({ status: "superseded" }).where(eq(learningPlans.id, active.id)).run();
     const draft = draftFor(tx, childId, active.startsOn, preferences.specialistFocus);
     return insertPlan(tx, childId, active.diagnosisRunId, active.version, active.revision + 1, draft, now);

@@ -13,3 +13,11 @@ test("blocks four training days before submitting", async () => {
   expect(screen.getByRole("alert")).toHaveTextContent("恰好 5 个训练日");
   expect(fetchMock).not.toHaveBeenCalled();
 });
+
+test("shows Chinese guidance when saving preferences loses the network", async () => {
+  const user = userEvent.setup();
+  vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+  render(<PlanPreferencesForm initial={{ trainingWeekdays: [1, 2, 3, 4, 5], targetMinutes: 30, specialistFocus: "equation" }} />);
+  await user.click(screen.getByRole("button", { name: "保存并更新计划" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("网络连接失败");
+});
