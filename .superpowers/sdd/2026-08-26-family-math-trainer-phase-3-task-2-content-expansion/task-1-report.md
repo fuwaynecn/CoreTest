@@ -4,6 +4,8 @@
 
 - `web/src/content/phase2-catalog.ts`: added 48 original deterministic templates.
 - `web/src/content/phase2-catalog.test.ts`: updated canonical variant-count assertions for the 120-template catalog.
+- `web/src/db/seed.test.ts`: updated seed baseline from 75 to 123 persisted templates.
+- `web/src/domain/diagnosis/diagnosis-rules.test.ts`: updated catalog-sensitive difficulty fallback expectations after the domain expansion.
 
 ## Exact counts
 
@@ -17,10 +19,11 @@
 ## Verification
 
 - `npm run test:run -- src/content/phase2-catalog.test.ts`: passed, 19 tests.
+- `npm run test:run -- src/domain/diagnosis/diagnosis-rules.test.ts src/db/seed.test.ts`: passed, 23 tests.
 - `npm run typecheck`: passed.
 - `git diff --check`: passed; only line-ending normalization warnings.
-- `npm run verify`: lint/typecheck passed; focused catalog and most suite tests passed, but existing seed and diagnosis-selection tests still assert the previous 72-template catalog behavior. These are recorded concerns rather than changed here because the task brief limits the production change to catalog expansion.
+- `npm run verify`: passed, 50 test files / 359 tests and production build succeeded.
 
-## Concerns
+## Notes
 
-The full suite's legacy expectations should be updated in a follow-up task if the repository requires a completely green `npm run verify` after catalog growth. No validator, scheduler, database, runtime, dependency, or deployment code was changed.
+The only follow-up needed after the catalog expansion was aligning three stale tests whose expectations were tied to the old 72-template catalog. No validator, scheduler, database runtime logic, dependency, or deployment code changed.

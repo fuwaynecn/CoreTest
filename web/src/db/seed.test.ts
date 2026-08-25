@@ -42,7 +42,7 @@ test.each([
   }
 });
 
-test("seeds 72 reviewed templates plus the stable three-question Phase 1 daily pool idempotently", () => {
+test("seeds 120 reviewed templates plus the stable three-question Phase 1 daily pool idempotently", () => {
   const directory = mkdtempSync(join(tmpdir(), "math-trainer-valid-seed-"));
   const filename = join(directory, "seed.sqlite");
   const env = {
@@ -70,7 +70,7 @@ test("seeds 72 reviewed templates plus the stable three-question Phase 1 daily p
     const sqlite = new DatabaseSync(filename);
     try {
       expect(sqlite.prepare("SELECT COUNT(*) AS count FROM question_templates").get())
-        .toEqual({ count: 75 });
+        .toEqual({ count: 123 });
       expect(sqlite.prepare("SELECT COUNT(*) AS count FROM skills").get())
         .toEqual({ count: 39 });
       expect(sqlite.prepare("SELECT name, domain FROM skills WHERE id = 'skill-decimal'").get())

@@ -16,5 +16,6 @@ Task 1: complete.
 - Added 48 catalog templates; final total is 120.
 - Domain totals: number 23, equation 25, geometry 18, data 15, application 23, thinking 16.
 - Content tiers remain core 95, regional 18, transition 7.
-- Focused catalog test and typecheck passed; `git diff --check` passed.
-- Full verification is documented in `task-1-report.md`; legacy seed/diagnosis expectations still target the previous catalog size.
+- Focused catalog test, stale seed/diagnosis expectations, and `npm run verify` now all pass against the 120-template catalog.
+- `git diff --check` passed; Git only reports LF-to-CRLF normalization warnings for the touched test files.
+- Final verification details are documented in `task-1-report.md`.
