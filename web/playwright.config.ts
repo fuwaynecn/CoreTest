@@ -15,18 +15,31 @@ export default defineConfig({
     {
       name: "tablet-webkit",
       grep: /@tablet/,
+      grepInvert: /@phase2/,
       use: { ...devices["iPad (gen 7) landscape"], browserName: "webkit" },
     },
     {
       name: "tablet-chromium",
       grep: /@tablet(?!.*@full-diagnosis)/,
+      grepInvert: /@phase2/,
       use: { ...devices["iPad (gen 7) landscape"], browserName: "chromium", channel: "chrome" },
     },
     {
       name: "parent-mobile",
       grep: /@parent/,
+      grepInvert: /@phase2/,
       dependencies: ["tablet-webkit"],
       use: { ...devices["iPhone 13"], browserName: "webkit" },
+    },
+    {
+      name: "phase2-webkit",
+      grep: /@phase2/,
+      use: { ...devices["iPad (gen 7) landscape"], browserName: "webkit" },
+    },
+    {
+      name: "phase2-chromium",
+      grep: /@phase2(?!.*@full-diagnosis)/,
+      use: { ...devices["iPad (gen 7) landscape"], browserName: "chromium", channel: "chrome" },
     },
   ],
 });

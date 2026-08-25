@@ -1,5 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { addShanghaiDays } from "@/domain/time/shanghai-calendar";
 
 test.setTimeout(180_000);
@@ -124,7 +124,10 @@ async function answerDiagnosis(page: Page) {
   await expect(page.getByRole("heading", { name: "这题已记录" })).toBeHidden();
 }
 
-test("@tablet @parent @full-diagnosis phase 2 creates a plan after a resumed 45-slot diagnosis", async ({ page }) => {
+test("@tablet @parent @phase2 adaptive child route creates a scheduler snapshot", async ({ page }) => runAdaptiveChildRouteScenario(page));
+test("@parent @phase2 migrated Phase 1 correction remains visible and child starts diagnosis", async ({ page, context }) => runMigratedPhase1Scenario(page, context));
+
+test("@tablet @parent @phase2 @full-diagnosis phase 2 creates a plan after a resumed 45-slot diagnosis", async ({ page }) => {
   resetCleanFixture();
   await page.goto("/login");
   await page.getByRole("button", { name: /我是孩子/ }).click();
@@ -226,7 +229,7 @@ test("@tablet @parent @full-diagnosis phase 2 creates a plan after a resumed 45-
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
-test("@parent migrated Phase 1 correction remains visible and child starts diagnosis", async ({ page, context }) => {
+async function runMigratedPhase1Scenario(page: Page, context: BrowserContext) {
   resetCleanFixture();
   prepareMigratedLegacyPresentation();
   await page.goto("/login");
@@ -243,9 +246,9 @@ test("@parent migrated Phase 1 correction remains visible and child starts diagn
   await expect(evidence.getByText("9 + 3 = ?").first()).toBeVisible();
   await expect(evidence.getByText("11", { exact: true })).toBeVisible();
   await expect(evidence.getByText("12", { exact: true })).toBeVisible();
-});
+}
 
-test("@tablet @parent adaptive child route creates a scheduler snapshot", async ({ page }) => {
+async function runAdaptiveChildRouteScenario(page: Page) {
   resetCleanFixture();
   const database = new DatabaseSync(".tmp/e2e.sqlite");
   try {
@@ -271,4 +274,4 @@ test("@tablet @parent adaptive child route creates a scheduler snapshot", async 
     expect(reasons.length).toBeGreaterThan(0);
     expect(reasons.every(({ reason }) => "selectionReason" in JSON.parse(reason))).toBe(true);
   } finally { snapshot.close(); }
-});
+}
