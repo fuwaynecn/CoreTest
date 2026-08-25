@@ -11,6 +11,11 @@ export type AttemptResult = {
   normalizedAnswer: string;
   explanation: string;
   sessionCompleted: boolean;
+  rewards?: {
+    pointsEarned: number;
+    totalPoints: number;
+    newBadges: Array<{ code: string; label: string }>;
+  };
 };
 
 type AnswerFormProps = {
@@ -53,7 +58,25 @@ function isAttemptResult(data: unknown): data is AttemptResult {
     && "explanation" in data
     && typeof data.explanation === "string"
     && "sessionCompleted" in data
-    && typeof data.sessionCompleted === "boolean";
+    && typeof data.sessionCompleted === "boolean"
+    && (!("rewards" in data) || (
+      typeof data.rewards === "object"
+      && data.rewards !== null
+      && "pointsEarned" in data.rewards
+      && typeof data.rewards.pointsEarned === "number"
+      && "totalPoints" in data.rewards
+      && typeof data.rewards.totalPoints === "number"
+      && "newBadges" in data.rewards
+      && Array.isArray(data.rewards.newBadges)
+      && data.rewards.newBadges.every((badge) => (
+        typeof badge === "object"
+        && badge !== null
+        && "code" in badge
+        && typeof badge.code === "string"
+        && "label" in badge
+        && typeof badge.label === "string"
+      ))
+    ));
 }
 
 async function postAttempt(payload: {
@@ -238,6 +261,14 @@ export function AnswerForm({
       {result?.correct && (
         <section className="answerFeedback answerFeedbackCorrect" aria-live="polite">
           <p><span aria-hidden="true">✓</span> 做对了，别忘了检查题目问的是什么。</p>
+          {result.rewards && (
+            <div className="answerRewards">
+              <p>获得 {result.rewards.pointsEarned} 分，累计 {result.rewards.totalPoints} 分。</p>
+              {result.rewards.newBadges.length > 0 && (
+                <p>新徽章：{result.rewards.newBadges.map((badge) => badge.label).join("、")}</p>
+              )}
+            </div>
+          )}
           {hadIncorrectAnswer && !reflectionComplete ? (
             <div className="errorReflection">
               <p>刚才主要卡在哪里？</p>

@@ -176,6 +176,28 @@ test("offers a navigation action after a correct answer", async () => {
   expect(screen.getByRole("button", { name: "下一题" })).toBeInTheDocument();
 });
 
+test("shows earned points and new badges after a rewarded answer", async () => {
+  const submit = vi.fn().mockResolvedValue({
+    correct: true,
+    normalizedAnswer: "6",
+    explanation: "把十分位对齐后再相加。",
+    sessionCompleted: false,
+    rewards: {
+      pointsEarned: 2,
+      totalPoints: 12,
+      newBadges: [{ code: "reading-detective", label: "审题侦探" }],
+    },
+  });
+
+  render(<AnswerForm sessionItemId="item-1" submitAnswer={submit} />);
+
+  await userEvent.type(screen.getByLabelText("你的答案"), "6");
+  await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
+
+  expect(await screen.findByText("获得 2 分，累计 12 分。")).toBeInTheDocument();
+  expect(screen.getByText("新徽章：审题侦探")).toBeInTheDocument();
+});
+
 test("retries an interrupted submission with the same id", async () => {
   const submit = vi.fn()
     .mockRejectedValueOnce(new Error("offline"))
