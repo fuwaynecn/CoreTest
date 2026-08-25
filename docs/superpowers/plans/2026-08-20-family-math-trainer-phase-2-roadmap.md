@@ -102,10 +102,11 @@ export type ErrorCause =
 
 ### 2026-08-25 Phase 2C acceptance evidence
 
-- `npm run test:run`: 50 test files, 358 tests passed.
-- `e2e/phase2-learning-cycle.spec.ts --project=parent-mobile --no-deps`: 2 WebKit mobile scenarios passed: clean 45-slot diagnosis/reload/plan/daily/parent revision flow, and populated Phase 1 migration history routed to diagnosis.
-- The full-diagnosis scenario is explicitly WebKit-only; stable Chrome (`channel: "chrome"`) lists and passes the separate `@tablet` adaptive child-route scenario, while excluding only `@full-diagnosis`.
-- `npm run e2e:seed:migrated`: passed, preserving the corrected Phase 1 session before Phase 2 migrations.
+- `npm ci` passed. `npm run verify` passed: lint, typecheck, 50 Vitest files / 359 tests, and production build. `npm run db:generate` and `git diff --check` passed.
+- `npm run test:e2e` passed as four isolated serial browser phases: `parent-mobile`, `phase2-webkit` (3 Phase 2 scenarios), `tablet-chromium`, and `phase2-chromium` (2 Phase 2 scenarios).
+- The full 45-slot diagnosis/reload/plan/daily/parent-revision scenario runs only in `phase2-webkit`. Stable Chrome (`channel: "chrome"`) actually ran the adaptive daily/parent scenario and the migrated Phase 1 history scenario in `phase2-chromium`.
+- `npm run e2e:seed:migrated` passed: it starts at the final Phase 1 migration lineage, preserves legacy wrong answer `11` and correction `12`, then applies all Phase 2 migrations and routes the child to diagnosis.
+- Browser fixtures reset child-scoped rows in the open E2E SQLite database to avoid Windows file locking; seed scripts retain the guarded `.tmp` deletion boundary.
 
 After every increment:
 
@@ -116,7 +117,7 @@ npm run test:e2e
 git diff --check master...HEAD
 ```
 
-Expected: lint, typecheck, all Vitest files, production build, two WebKit scenarios, and the stable-Chrome tablet scenario exit `0`; the diff check prints no errors.
+Expected: lint, typecheck, all Vitest files, production build, both WebKit phases, and both stable-Chrome phases exit `0`; the diff check prints no errors.
 
 Before declaring all of Phase 2 complete, also run the Phase 1 browser flow unchanged and the new cross-increment six-week flow from a newly seeded database and from a migrated populated Phase 1 database.
 

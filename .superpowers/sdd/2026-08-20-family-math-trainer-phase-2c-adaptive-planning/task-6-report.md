@@ -7,17 +7,22 @@
 
 ## Verification
 
-- `npm run typecheck` passed.
-- `npm run test:run` passed: 50 files, 358 tests.
-- `npm run e2e:seed:migrated` passed.
-- `npx playwright test e2e/phase2-learning-cycle.spec.ts --project=parent-mobile --no-deps` passed: 2 scenarios.
-- `git diff --check` passed.
+- `npm ci` passed.
+- `npm run verify` passed: lint, typecheck, 50 test files / 359 tests, and production build.
+- `npm run test:e2e` passed with four isolated serial phases: `parent-mobile`, `phase2-webkit` (3 scenarios), `tablet-chromium`, and `phase2-chromium` (2 scenarios).
+- `npm run e2e:seed:migrated` passed from the Phase 1 migration lineage through all Phase 2 migrations.
+- `npm run db:generate` and `git diff --check` passed.
 
 ## Browser scope
 
-WebKit and stable Chrome were available. `npx playwright test e2e/phase2-learning-cycle.spec.ts --project=tablet-chromium --list` listed the non-diagnosis adaptive child-route scenario, and the project passed it. `npm run test:e2e` then completed the WebKit parent-mobile/dependency suite and stable-Chrome tablet suite without an error artifact. Full 45-slot diagnosis remains explicitly WebKit-only; adaptive child-route coverage runs in both engines.
+WebKit and stable Chrome were available. The isolated `phase2-webkit` project ran all three Phase 2 scenarios, including the 45-slot diagnosis. The `phase2-chromium` project uses stable Chrome (`channel: "chrome"`) and ran both the adaptive daily/parent flow and migrated-history scenario. Full diagnosis remains WebKit-only; it is the only scenario carrying `@full-diagnosis`.
+
+## Fixture isolation and migration evidence
+
+- The browser harness keeps its long-lived SQLite file open, so clean Phase 2 fixtures use a child-scoped in-database reset rather than deleting `.tmp/e2e.sqlite`; the guarded `.tmp` deletion boundary remains in the seed scripts.
+- The migrated path begins with the final Phase 1 migrations, persists legacy wrong answer `11` and corrected answer `12`, then applies Phase 2 migrations. The parent browser evidence asserts both values remain visible and the child is routed to initial diagnosis.
 
 ## Follow-up review fix
 
 - The initial plan is now inserted through `createInitialPlanInTransaction` inside the final diagnosis transaction. A trigger-forced plan insertion failure leaves 44 attempts, no plan, and an in-progress diagnosis; focused diagnosis/planning tests: 26 passed.
-- `npm ci` was not rerun in this follow-up. The prior full `npm run verify` did not have a captured completion result, so this report does not claim that gate passed.
+- The final clean-install and verification evidence is recorded above; no browser or gate result is inferred from an unexecuted command.
