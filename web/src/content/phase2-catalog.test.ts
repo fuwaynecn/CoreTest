@@ -11,23 +11,36 @@ const expectedIds = [
   "num-law-01", "num-law-02",
   "num-estimate-01", "num-estimate-02",
   "num-reverse-check-01", "num-reverse-check-02",
+  "num-int-mental-03", "num-decimal-04", "num-fraction-04", "num-mixed-03",
+  "num-law-03", "num-estimate-03", "num-reverse-check-03",
   "eq-l1-balance-01", "eq-l1-balance-02", "eq-l1-balance-03",
   "eq-l2-add-sub-01", "eq-l2-add-sub-02", "eq-l2-add-sub-03",
   "eq-l3-mul-div-01", "eq-l3-mul-div-02", "eq-l3-mul-div-03",
   "eq-l4-two-step-01", "eq-l4-two-step-02", "eq-l4-two-step-03",
   "eq-l5-complex-01", "eq-l5-complex-02", "eq-l5-complex-03",
   "eq-l6-model-01", "eq-l6-model-02", "eq-l6-model-03",
+  "eq-l1-balance-04", "eq-l2-add-sub-04", "eq-l3-mul-div-04",
+  "eq-l4-two-step-04", "eq-l5-complex-04", "eq-l6-model-04", "eq-l6-model-05",
   "geo-angle-01", "geo-perimeter-01", "geo-perimeter-02",
   "geo-area-01", "geo-area-02", "geo-volume-01", "geo-composite-01", "geo-spatial-01",
+  "geo-angle-02", "geo-angle-03", "geo-perimeter-03", "geo-perimeter-04",
+  "geo-area-03", "geo-area-04", "geo-volume-02", "geo-volume-03",
+  "geo-composite-02", "geo-spatial-02",
   "data-table-01", "data-bar-01", "data-line-01", "data-average-01",
   "data-compare-01", "data-possibility-01",
+  "data-table-02", "data-table-03", "data-bar-02", "data-bar-03", "data-line-02",
+  "data-average-02", "data-average-03", "data-compare-02", "data-possibility-02",
   "app-price-01", "app-price-02", "app-distance-01", "app-distance-02",
   "app-work-01", "app-work-02", "app-ratio-01", "app-ratio-02",
   "app-percent-01", "app-percent-02", "app-multi-step-01", "app-multi-step-02",
   "app-extra-info-01", "app-extra-info-02",
+  "app-price-03", "app-distance-03", "app-work-03", "app-ratio-03", "app-percent-03",
+  "app-multi-step-03", "app-multi-step-04", "app-extra-info-03", "app-extra-info-04",
   "habit-question-01", "habit-question-02", "habit-condition-01", "habit-condition-02",
   "habit-unit-01", "habit-unit-02", "habit-estimate-01", "habit-estimate-02",
   "habit-check-01", "habit-check-02",
+  "habit-question-03", "habit-condition-03", "habit-unit-03", "habit-estimate-03",
+  "habit-estimate-04", "habit-check-03",
 ];
 
 const regionalIds = [
@@ -50,16 +63,16 @@ function countBy<K extends "contentTier" | "domain">(key: K) {
   }, {});
 }
 
-test("contains the approved exact 72-template blueprint", () => {
+test("contains the approved exact 120-template blueprint", () => {
   expect(phase2Catalog.map((template) => template.id)).toEqual(expectedIds);
-  expect(countBy("contentTier")).toEqual({ core: 47, regional: 18, transition: 7 });
+  expect(countBy("contentTier")).toEqual({ core: 95, regional: 18, transition: 7 });
   expect(countBy("domain")).toEqual({
-    number_operations: 16,
-    equation_algebra: 18,
-    geometry_space: 8,
-    data_statistics: 6,
-    application_modeling: 14,
-    thinking_habits: 10,
+    number_operations: 23,
+    equation_algebra: 25,
+    geometry_space: 18,
+    data_statistics: 15,
+    application_modeling: 23,
+    thinking_habits: 16,
   });
   expect(phase2Catalog.filter(({ contentTier }) => contentTier === "regional")
     .map(({ id }) => id)).toEqual(regionalIds);
@@ -103,9 +116,10 @@ test("every reviewed template produces deterministic scoreable variants", () => 
 test("each equation level covers solving, step reasoning, and modeling or checking", () => {
   for (let level = 1; level <= 6; level += 1) {
     const templates = phase2Catalog.filter(({ id }) => id.startsWith(`eq-l${level}-`));
-    expect(templates.map(({ structureTag }) => structureTag)).toEqual([
+    expect(templates.length).toBeGreaterThanOrEqual(3);
+    expect(templates.map(({ structureTag }) => structureTag)).toEqual(expect.arrayContaining([
       "equation-direct", "equation-step", "equation-model-check",
-    ]);
+    ]));
   }
 });
 
@@ -159,7 +173,7 @@ test("rejects a wrong answer label for every canonical choice template", () => {
   const nextLabel = { A: "B", B: "C", C: "D", D: "A" } as const;
   const choiceTemplates = phase2Catalog.filter(({ answerMode }) => answerMode === "choice");
 
-  expect(choiceTemplates).toHaveLength(23);
+  expect(choiceTemplates).toHaveLength(36);
   for (const template of choiceTemplates) {
     const answer = template.answerSpecPattern as { kind: "choice"; value: keyof typeof nextLabel };
     const mutated = {
@@ -181,7 +195,7 @@ test("rejects a wrong generated answer for every supported numeric template", ()
     && (template.answerSpecPattern as { kind?: string }).kind === "number"
   ));
 
-  expect(numberTemplates).toHaveLength(38);
+  expect(numberTemplates).toHaveLength(69);
   for (const template of numberTemplates) {
     const answers = template.variantSpec.variables.answer;
     const mutated = {
@@ -208,7 +222,7 @@ test("rejects a wrong solution for every canonical equation after metadata renam
     && (template.answerSpecPattern as { kind?: string }).kind === "number"
   ));
 
-  expect(equationTemplates).toHaveLength(11);
+  expect(equationTemplates).toHaveLength(15);
   for (const template of equationTemplates) {
     const answers = template.variantSpec.variables.answer;
     const mutated = {
@@ -234,7 +248,7 @@ test("rejects a wrong unit for every canonical numeric target without metadata d
     (template.answerSpecPattern as { kind?: string }).kind === "number"
   ));
 
-  expect(numericTemplates).toHaveLength(49);
+  expect(numericTemplates).toHaveLength(84);
   for (const template of numericTemplates) {
     const answer = template.answerSpecPattern as {
       kind: "number"; value: unknown; tolerance: number; unit: string | null;
