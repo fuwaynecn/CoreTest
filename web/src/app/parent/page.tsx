@@ -261,7 +261,8 @@ export default async function ParentPage() {
 
       <AbilityMap abilities={learningState.abilityMap} />
 
-      <section className="parentSection" aria-labelledby="plan-heading">
+      <section className="parentDashboardFlow" aria-label="家长训练概览">
+      <section className="parentSection parentPlanSection" aria-labelledby="plan-heading">
         <div className="sectionHeading"><h2 id="plan-heading">六周训练计划</h2><p>{planDashboard.plan ? `第 ${planDashboard.plan.version} 版 · 修订 ${planDashboard.plan.revision} · 第 ${planDashboard.plan.currentWeek} 周` : "完成诊断后生成"}</p></div>
         {planDashboard.plan && <p className="planWeeks">六周目标：{planDashboard.plan.weeks.map((item) => `第${item.week}周 ${item.targets} 项${item.assessment ? "（评估）" : ""}${item.replanAfter ? "（复盘）" : ""}`).join("；")}</p>}
         <PlanCalendar days={planDashboard.nextSevenDays} />
@@ -271,7 +272,7 @@ export default async function ParentPage() {
 
       <DosageSummary dosage={learningState.dosage} dueReviews={learningState.dueReviews} />
 
-      <section className="evidenceSummary" aria-labelledby="summary-heading">
+      <section className="evidenceSummary parentSignalSection" aria-labelledby="summary-heading">
         <div className="summaryIntro">
           <p className="eyebrow">今日 / 本周 / 累计</p>
           <h2 id="summary-heading">首次作答证据</h2>
@@ -329,6 +330,7 @@ export default async function ParentPage() {
             </table>
           </div>
         )}
+      </section>
       </section>
     </main>
   );

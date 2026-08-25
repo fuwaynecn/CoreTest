@@ -154,6 +154,12 @@ test("labels first-attempt periods and bases the recommendation on this week", a
   expect(screen.queryByText(/能力诊断|最终诊断/)).not.toBeInTheDocument();
 });
 
+test("exposes the parent dashboard flow as a named region", async () => {
+  render(await ParentPage());
+
+  expect(screen.getByRole("region", { name: "家长训练概览" })).toBeInTheDocument();
+});
+
 function seedThreePartDifficultyPath(db: ReturnType<typeof createTestDatabase>, runId: string) {
   db.insert(skills).values({ id: "path-skill", code: "path", name: "路径技能", domain: "数与运算" }).run();
   db.insert(questionTemplates).values({

@@ -136,6 +136,7 @@ button, input { min-height: 48px; }
 .evidenceTable th:nth-child(5) { width: 17%; }
 .evidenceTable tbody tr:last-child td { border-bottom: 0; }
 .parentEmpty { display: grid; place-content: center; }
+.parentDashboardFlow { display: contents; }
 .planCalendar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .5rem; padding: 0; list-style: none; }
 .planCalendar li, .planPreferences, .weeklyReport { padding: 1rem; border: 1px solid var(--sand); border-radius: .75rem; background: white; }
 .planCalendar li { display: grid; gap: .35rem; } .planCalendar li[data-kind="rest"] { background: #f2eee5; }
@@ -242,6 +243,13 @@ button, input { min-height: 48px; }
   .reviewDoseGrid { grid-template-columns: 1fr; }
 }
 @media (max-width: 48rem) {
+  .parentDashboardFlow { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .parentDashboardFlow > .weeklyReport { order: 1; }
+  .parentDashboardFlow > .parentSignalSection { order: 2; }
+  .parentDashboardFlow > .parentPlanSection { order: 3; }
+  .parentDashboardFlow > .dosageSection { order: 4; }
+  .parentDashboardFlow > .errorSection,
+  .parentDashboardFlow > .parentSection[aria-labelledby="recent-heading"] { order: 5; }
   .parentHeader, .evidenceSummary { grid-template-columns: 1fr; }
   .planCalendar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .skillEvidenceList { grid-template-columns: 1fr; }
