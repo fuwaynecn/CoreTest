@@ -42,12 +42,21 @@ export async function seedMigratedE2eDatabase() {
       INSERT INTO session_items (id, session_id, question_template_id, position, stem_snapshot, answer_spec_snapshot, explanation_snapshot, skill_id_snapshot, skill_name_snapshot)
         VALUES ('phase1-corrected-item', 'phase1-corrected-session', 'phase1-question', 0, '9 + 3 = ?', '{"kind":"number","value":12,"tolerance":0,"unit":null}', '先算 9 加 3。', 'phase1-skill', '旧计算');
       INSERT INTO attempts (id, session_item_id, client_submission_id, answer_text, is_correct, normalized_answer, explanation, session_completed, submitted_at)
-        VALUES ('phase1-first-attempt', 'phase1-corrected-item', 'phase1-first-submission', '11', 0, '11', '先算 9 加 3。', 1, 1);
+        VALUES ('phase1-first-attempt', 'phase1-corrected-item', 'phase1-first-submission', '11', 0, '11', '先算 9 加 3。', 0, 1),
+               ('phase1-correction', 'phase1-corrected-item', 'phase1-correction-submission', '12', 1, '12', '先算 9 加 3。', 1, 2);
     `);
     migrateDatabase(db, path.join(workingDirectory, "drizzle"));
-    db.$client.prepare(`INSERT INTO attempts (id, session_item_id, client_submission_id, answer_text, is_correct, normalized_answer, explanation, session_completed, correction_number, submitted_at)
-      VALUES ('phase1-correction', 'phase1-corrected-item', 'phase1-correction-submission', '12', 1, '12', '先算 9 加 3。', 1, 1, 2)`).run();
+    db.$client.prepare(`UPDATE attempts
+      SET correction_number = CASE id WHEN 'phase1-first-attempt' THEN 0 WHEN 'phase1-correction' THEN 1 END
+      WHERE id IN ('phase1-first-attempt', 'phase1-correction')`).run();
     await seedDatabase({ parentPassword, childPin, openDatabase: () => db });
+    const legacyAttempts = db.$client.prepare(`SELECT id, answer_text AS answerText, correction_number AS correctionNumber
+      FROM attempts WHERE id IN ('phase1-first-attempt', 'phase1-correction') ORDER BY submitted_at`).all();
+    const expectedAttempts = [
+      { id: "phase1-first-attempt", answerText: "11", correctionNumber: 0 },
+      { id: "phase1-correction", answerText: "12", correctionNumber: 1 },
+    ];
+    if (JSON.stringify(legacyAttempts) !== JSON.stringify(expectedAttempts)) throw new Error("Phase 1 correction attempts did not survive migration");
   } finally {
     db.$client.close();
     rmSync(legacyDirectory, { recursive: true, force: true });

@@ -20,7 +20,8 @@ WebKit and stable Chrome were available. The isolated `phase2-webkit` project ra
 ## Fixture isolation and migration evidence
 
 - The browser harness keeps its long-lived SQLite file open, so clean Phase 2 fixtures use a child-scoped in-database reset rather than deleting `.tmp/e2e.sqlite`; the guarded `.tmp` deletion boundary remains in the seed scripts.
-- The migrated path begins with the final Phase 1 migrations, persists legacy wrong answer `11` and corrected answer `12`, then applies Phase 2 migrations. The parent browser evidence asserts both values remain visible and the child is routed to initial diagnosis.
+- The CLI migrated seed begins with the final Phase 1 migrations, persists legacy wrong answer `11` and corrected answer `12` before Phase 2 exists, then applies Phase 2 migrations. It only updates the newly available correction number and asserts both original rows survive.
+- The browser uses a same-file presentation fixture because its web server holds SQLite open on Windows. It independently verifies that parent evidence renders `11` and `12` and the child is routed to initial diagnosis; cross-migration preservation is the CLI seed's responsibility.
 
 ## Follow-up review fix
 
