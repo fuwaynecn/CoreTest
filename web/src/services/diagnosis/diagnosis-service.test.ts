@@ -11,6 +11,7 @@ import {
   diagnosticRuns,
   errorObservations,
   hintEvents,
+  learningPlans,
   masteryEvidence,
   masteryStates,
   questionTemplates,
@@ -537,6 +538,19 @@ describe("diagnosis service", () => {
     expect(db.select().from(attempts).all()).toHaveLength(44);
     expect(db.select().from(masteryEvidence).all()).toHaveLength(0);
     expect(db.select().from(masteryStates).all()).toHaveLength(0);
+    expect(getDiagnosisView(db, "child-1")).toMatchObject({ status: "in_progress", completedSlots: 44 });
+  });
+
+  it("rolls back the final diagnosis when initial-plan creation fails", () => {
+    const db = seedDiagnosisDatabase();
+    getOrCreateDiagnosis(db, "child-1", 1);
+    for (let index = 1; index <= 44; index += 1) submitCurrent(db, "child-1", index);
+    db.$client.exec(`CREATE TRIGGER fail_initial_plan BEFORE INSERT ON learning_plans
+      BEGIN SELECT RAISE(ABORT, 'forced plan failure'); END;`);
+
+    expect(() => submitCurrent(db, "child-1", 45)).toThrow("Failed query");
+    expect(db.select().from(attempts).all()).toHaveLength(44);
+    expect(db.select().from(learningPlans).all()).toHaveLength(0);
     expect(getDiagnosisView(db, "child-1")).toMatchObject({ status: "in_progress", completedSlots: 44 });
   });
 

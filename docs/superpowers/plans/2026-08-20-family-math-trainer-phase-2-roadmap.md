@@ -104,7 +104,7 @@ export type ErrorCause =
 
 - `npm run test:run`: 50 test files, 358 tests passed.
 - `e2e/phase2-learning-cycle.spec.ts --project=parent-mobile --no-deps`: 2 WebKit mobile scenarios passed: clean 45-slot diagnosis/reload/plan/daily/parent revision flow, and populated Phase 1 migration history routed to diagnosis.
-- The full-diagnosis scenario is explicitly WebKit-only; `tablet-chromium` retains stable Chrome (`channel: "chrome"`) coverage for `@tablet` adaptive daily scenarios and excludes only `@full-diagnosis`.
+- The full-diagnosis scenario is explicitly WebKit-only; stable Chrome (`channel: "chrome"`) lists and passes the separate `@tablet` adaptive child-route scenario, while excluding only `@full-diagnosis`.
 - `npm run e2e:seed:migrated`: passed, preserving the corrected Phase 1 session before Phase 2 migrations.
 
 After every increment:

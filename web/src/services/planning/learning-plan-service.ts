@@ -74,15 +74,16 @@ function insertPlan(
   return tx.select().from(learningPlans).where(eq(learningPlans.id, id)).get()!;
 }
 
+export function createInitialPlanInTransaction(tx: AppTransaction, childId: string, now: Date | number = Date.now(), createdAt = Date.now()) {
+  const existing = activePlan(tx, childId);
+  if (existing) return existing;
+  const diagnosis = latestCompletedDiagnosis(tx, childId);
+  if (!diagnosis) throw new LearningPlanStateError("A completed diagnosis is required");
+  return insertPlan(tx, childId, diagnosis.id, 1, 1, draftFor(tx, childId, shanghaiWeekKey(now)), createdAt);
+}
+
 export function createInitialPlan(db: AppDatabase, childId: string, now: Date | number = Date.now(), createdAt = Date.now()) {
-  return db.transaction((tx) => {
-    const existing = activePlan(tx, childId);
-    if (existing) return existing;
-    const diagnosis = latestCompletedDiagnosis(tx, childId);
-    if (!diagnosis) throw new LearningPlanStateError("A completed diagnosis is required");
-    const draft = draftFor(tx, childId, shanghaiWeekKey(now));
-    return insertPlan(tx, childId, diagnosis.id, 1, 1, draft, createdAt);
-  }, { behavior: "immediate" });
+  return db.transaction((tx) => createInitialPlanInTransaction(tx, childId, now, createdAt), { behavior: "immediate" });
 }
 
 export function reviseActivePlan(

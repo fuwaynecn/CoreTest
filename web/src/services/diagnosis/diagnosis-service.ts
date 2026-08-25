@@ -31,7 +31,7 @@ import type { ReviewedTemplate } from "@/domain/questions/template-schema";
 import { scoreAnswer } from "@/domain/questions/score-answer";
 import { normalizeTelemetry } from "@/domain/training/attempt-telemetry";
 import { shanghaiDateKey } from "@/domain/time/shanghai-calendar";
-import { createInitialPlan } from "@/services/planning/learning-plan-service";
+import { createInitialPlanInTransaction } from "@/services/planning/learning-plan-service";
 import { recordSystemErrorObservation } from "@/services/training/error-observation-service";
 import { recordLearningEvidence } from "@/services/training/record-learning-evidence";
 
@@ -684,6 +684,7 @@ export function submitDiagnosticAttempt(
           completedAt: now,
           reportSnapshot: JSON.stringify(report),
         }).where(eq(diagnosticRuns.id, item.runId)).run();
+        createInitialPlanInTransaction(tx, command.childId, now, now);
       }
     }
 
@@ -693,7 +694,6 @@ export function submitDiagnosticAttempt(
       diagnosis: viewForRun(tx, command.childId, item.runId),
     };
   }, { behavior: "immediate" });
-  if (result.diagnosis.status === "completed") createInitialPlan(db, command.childId, now, now);
   return result;
 }
 

@@ -164,5 +164,36 @@ test("@parent migrated Phase 1 correction remains visible and child starts diagn
   await page.getByRole("button", { name: /我是家长/ }).click();
   await page.getByLabel("家长密码").fill("parent-test-1234");
   await page.getByRole("button", { name: "登录", exact: true }).click();
-  await expect(page.getByRole("region", { name: "最近作答" }).getByText("9 + 3 = ?")).toBeVisible();
+  const evidence = page.getByRole("region", { name: "最近作答" });
+  await expect(evidence.getByText("9 + 3 = ?")).toBeVisible();
+  await expect(evidence.getByText("11", { exact: true })).toBeVisible();
+  await expect(evidence.getByText("12", { exact: true })).toBeVisible();
+});
+
+test("@tablet @parent adaptive child route creates a scheduler snapshot", async ({ page }) => {
+  seedFixture("scripts/seed-e2e.ts");
+  const database = new DatabaseSync(".tmp/e2e.sqlite");
+  try {
+    database.exec(`
+      INSERT INTO diagnostic_runs (id, child_id, version, status, current_part, seed, report_snapshot, started_at, completed_at)
+        VALUES ('adaptive-diagnosis', 'child', 1, 'completed', 3, 'adaptive', '{}', 1, 2);
+      INSERT INTO learning_plans (id, child_id, diagnosis_run_id, version, revision, status, starts_on, ends_on, reason_snapshot, created_at)
+        VALUES ('adaptive-plan', 'child', 'adaptive-diagnosis', 1, 1, 'active', '2026-08-24', '2026-10-04', '{}', 2);
+      INSERT INTO parent_preferences VALUES ('child', '[1,2,3,4,5]', 20, 'equation', 2);
+    `);
+  } finally { database.close(); }
+  await page.goto("/login");
+  await page.getByRole("button", { name: /我是孩子/ }).click();
+  await page.getByLabel("PIN").fill("2468");
+  await page.getByRole("button", { name: "登录", exact: true }).click();
+  await page.getByRole("link", { name: /开始今天的训练/ }).click();
+  const snapshot = new DatabaseSync(".tmp/e2e.sqlite", { readOnly: true });
+  try {
+    const session = snapshot.prepare("SELECT composition_snapshot AS composition, rule_version AS ruleVersion FROM training_sessions WHERE child_id = 'child' ORDER BY started_at DESC LIMIT 1").get() as { composition: string; ruleVersion: string };
+    const reasons = snapshot.prepare("SELECT selection_reason_snapshot AS reason FROM session_items WHERE session_id = (SELECT id FROM training_sessions WHERE child_id = 'child' ORDER BY started_at DESC LIMIT 1)").all() as Array<{ reason: string }>;
+    expect(session.ruleVersion).toBe("phase2c-v1");
+    expect(JSON.parse(session.composition)).toMatchObject({ composition: expect.any(Object), shortages: expect.any(Object) });
+    expect(reasons.length).toBeGreaterThan(0);
+    expect(reasons.every(({ reason }) => "selectionReason" in JSON.parse(reason))).toBe(true);
+  } finally { snapshot.close(); }
 });
