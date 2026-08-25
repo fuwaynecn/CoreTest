@@ -38,35 +38,40 @@ function todayInShanghai() {
   return `${part("year")}-${part("month")}-${part("day")}`;
 }
 
-function prepareAdaptiveDailyFixture() {
+function prepareSchedulerInputs() {
   const database = new DatabaseSync(".tmp/e2e.sqlite");
-  const sessionId = "phase2-cycle-session";
   try {
     const plan = database.prepare("SELECT id FROM learning_plans WHERE child_id = 'child' AND status = 'active'").get() as { id: string } | undefined;
     if (!plan) throw new Error("The completed diagnosis did not create an active plan");
-    database.prepare(`INSERT INTO training_sessions (id, child_id, session_date, status, started_at, kind, rule_version, target_seconds, composition_snapshot, learning_plan_id, plan_revision)
-      VALUES ($id, 'child', $date, 'in_progress', 1, 'daily', 'phase2c-v1', 1200, '{"warmup":1,"core":1,"reading":1,"correction":1}', $plan, 1)`).run({ id: sessionId, date: todayInShanghai(), plan: plan.id });
-    for (const [position, id, template, category] of [
-      [0, "cycle-review", "q-decimal-1", "review"], [1, "cycle-unit", "q-reading-1", "weakness"],
-      [2, "cycle-equation", "q-equation-1", "reading"], [3, "cycle-correction", "q-decimal-1", "correction"],
-    ] as const) {
-      database.prepare(`INSERT INTO session_items (id, session_id, question_template_id, position, stem_snapshot, answer_spec_snapshot, explanation_snapshot, skill_id_snapshot, skill_name_snapshot, difficulty_snapshot, content_tier_snapshot, structure_tag_snapshot, variant_seed, selection_reason_snapshot)
-        SELECT $id, $session, q.id, $position, q.stem, q.answer_spec, q.explanation, q.skill_id, s.name, q.difficulty, q.content_tier, q.structure_tag, 'phase2-cycle', $metadata
-        FROM question_templates q JOIN skills s ON s.id = q.skill_id WHERE q.id = $template`).run({ id, session: sessionId, position, template, metadata: JSON.stringify({ category, selectionReason: "acceptance", estimatedSeconds: 60, hintLadder: ["先看单位"], readingCard: false, reviewIntervalDays: 1 }) });
-    }
+    const equation = database.prepare("SELECT skill_id AS skillId FROM question_templates WHERE id = 'eq-l1-balance-01'").get() as { skillId: string };
+    const unit = database.prepare("SELECT skill_id AS skillId FROM question_templates WHERE id = 'habit-unit-02'").get() as { skillId: string };
+    database.prepare(`INSERT INTO plan_targets (plan_id, week_number, target_key, skill_id, track, category, minimum, target, maximum, reason_code)
+      VALUES ($plan, 1, 'acceptance-equation', $equation, 'equation', 'weakness', 1, 2, 3, 'acceptance')`).run({ plan: plan.id, equation: equation.skillId });
+    database.prepare(`INSERT INTO review_schedules (child_id, skill_id, level, due_on, last_result, updated_at)
+      VALUES ('child', $skill, 0, '2026-08-24', NULL, 1)
+      ON CONFLICT(child_id, skill_id) DO UPDATE SET due_on = excluded.due_on, level = excluded.level, updated_at = excluded.updated_at`).run({ skill: unit.skillId });
   } finally {
     database.close();
   }
 }
 
-function currentDailyAnswer() {
+function currentDailyItem() {
   const database = new DatabaseSync(".tmp/e2e.sqlite", { readOnly: true });
   try {
-    const row = database.prepare(`SELECT answer_spec_snapshot AS answer_spec FROM session_items WHERE session_id = 'phase2-cycle-session'
-      AND NOT EXISTS (SELECT 1 FROM attempts WHERE session_item_id = session_items.id) ORDER BY position LIMIT 1`).get() as { answer_spec: string };
-    const answer = JSON.parse(row.answer_spec) as { kind: "number"; value: number; unit: string | null };
-    return `${answer.value}${answer.unit ?? ""}`;
+    return database.prepare(`SELECT si.question_template_id AS template, si.answer_spec_snapshot AS answer_spec, si.selection_reason_snapshot AS metadata
+      FROM session_items si JOIN training_sessions ts ON ts.id = si.session_id
+      WHERE ts.child_id = 'child' AND ts.session_date = $date
+      AND NOT EXISTS (SELECT 1 FROM attempts WHERE session_item_id = si.id) ORDER BY si.position LIMIT 1`).get({ date: todayInShanghai() }) as { template: string; answer_spec: string; metadata: string } | undefined;
   } finally { database.close(); }
+}
+
+function answerText(answerSpec: string, omitUnit = false) {
+  const answer = JSON.parse(answerSpec) as { kind: "choice"; value: string } | { kind: "number"; value: number; unit: string | null };
+  return answer.kind === "choice" ? answer.value : `${answer.value}${omitUnit ? "" : answer.unit ?? ""}`;
+}
+
+async function completeReadingCard(page: Page) {
+  for (const input of await page.locator(".readingCard input").all()) await input.fill("已填写");
 }
 
 async function answerDiagnosis(page: Page) {
@@ -106,7 +111,7 @@ test("@tablet @parent @full-diagnosis phase 2 creates a plan after a resumed 45-
     database.close();
   }
 
-  prepareAdaptiveDailyFixture();
+  prepareSchedulerInputs();
   await page.goto("/child");
   await page.getByRole("link", { name: /开始今天的训练/ }).click();
   await expect(page.getByRole("navigation", { name: "今天的训练进度" }).getByText("旧知识唤醒")).toBeVisible();
@@ -114,27 +119,47 @@ test("@tablet @parent @full-diagnosis phase 2 creates a plan after a resumed 45-
   await expect(page.getByRole("navigation", { name: "今天的训练进度" }).getByText("审题专项")).toBeVisible();
   await expect(page.getByRole("navigation", { name: "今天的训练进度" }).getByText("订正回看")).toBeVisible();
 
-  await page.getByLabel("你的答案").fill(currentDailyAnswer());
-  await page.getByRole("button", { name: "提交答案" }).click();
-  await page.getByRole("button", { name: "下一题" }).click();
-  await page.getByRole("button", { name: "查看提示" }).click();
-  await expect(page.getByText("提示 1：")).toBeVisible();
-  await page.getByLabel("你的答案").fill("7.5");
-  await page.getByRole("button", { name: "提交答案" }).click();
-  await expect(page.getByText(/必须带单位/)).toBeVisible();
-  await page.getByRole("button", { name: "修改答案" }).click();
-  await page.getByLabel("你的答案").fill(currentDailyAnswer());
-  await page.getByRole("button", { name: "提交答案" }).click();
-  await page.getByRole("button", { name: "漏了条件或单位" }).click();
-  await page.getByRole("button", { name: "下一题" }).click();
-  await page.getByLabel("你的答案").fill(currentDailyAnswer());
-  await page.getByRole("button", { name: "提交答案" }).click();
-  await page.getByRole("button", { name: "下一题" }).click();
-  const review = new DatabaseSync(".tmp/e2e.sqlite", { readOnly: true });
-  try { expect(review.prepare("SELECT due_on AS dueOn FROM review_schedules WHERE child_id = 'child' AND skill_id = 'skill-equation'").get()).toMatchObject({ dueOn: expect.stringMatching(/^\\d{4}-\\d{2}-\\d{2}$/) }); } finally { review.close(); }
-  await page.getByLabel("你的答案").fill(currentDailyAnswer());
-  await page.getByRole("button", { name: "提交答案" }).click();
-  await page.getByRole("button", { name: "下一题" }).click();
+  const scheduled = new DatabaseSync(".tmp/e2e.sqlite", { readOnly: true });
+  try {
+    const session = scheduled.prepare("SELECT composition_snapshot AS composition, target_seconds AS target FROM training_sessions WHERE child_id = 'child' AND session_date = $date").get({ date: todayInShanghai() }) as { composition: string; target: number };
+    const items = scheduled.prepare("SELECT question_template_id AS template, structure_tag_snapshot AS structure, selection_reason_snapshot AS reason FROM session_items WHERE session_id = (SELECT id FROM training_sessions WHERE child_id = 'child' AND session_date = $date)").all({ date: todayInShanghai() }) as Array<{ template: string; structure: string; reason: string }>;
+    const composition = JSON.parse(session.composition);
+    expect(composition.composition).toEqual({ review: 3, weakness: 6, reading: 3, extension: 1 });
+    expect(items.every(({ reason }) => "selectionReason" in JSON.parse(reason))).toBe(true);
+    expect(new Set(items.map(({ template }) => template)).size).toBe(items.length);
+    const structureCounts = items.reduce<Record<string, number>>((counts, { structure }) => ({ ...counts, [structure]: (counts[structure] ?? 0) + 1 }), {});
+    expect(Math.max(...Object.values(structureCounts))).toBeLessThanOrEqual(6);
+    expect(session.target).toBe(1200);
+  } finally { scheduled.close(); }
+  let usedHint = false; let reflected = false; let equationDue: string | null = null; let usedReadingCard = false;
+  while (currentDailyItem()) {
+    const item = currentDailyItem()!;
+    const metadata = JSON.parse(item.metadata) as { readingCard?: boolean };
+    if (metadata.readingCard) { await completeReadingCard(page); usedReadingCard = true; }
+    const isUnit = item.template === "habit-unit-02";
+    if (isUnit && !usedHint) {
+      await page.getByRole("button", { name: "查看提示" }).click();
+      await expect(page.getByText("提示 1：")).toBeVisible();
+      await page.getByLabel("你的答案").fill(answerText(item.answer_spec, true));
+      await page.getByRole("button", { name: "提交答案" }).click();
+      await expect(page.getByText(/必须带单位/)).toBeVisible();
+      await page.getByRole("button", { name: "修改答案" }).click();
+      if (metadata.readingCard) await completeReadingCard(page);
+      await page.getByLabel("你的答案").fill(answerText(item.answer_spec));
+      await page.getByRole("button", { name: "提交答案" }).click();
+      await page.getByRole("button", { name: "漏了条件或单位" }).click();
+      reflected = true; usedHint = true;
+    } else {
+      await page.getByLabel("你的答案").fill(answerText(item.answer_spec));
+      await page.getByRole("button", { name: "提交答案" }).click();
+    }
+    if (item.template.startsWith("eq-")) {
+      const review = new DatabaseSync(".tmp/e2e.sqlite", { readOnly: true });
+      try { equationDue = (review.prepare("SELECT due_on AS dueOn FROM review_schedules WHERE child_id = 'child' AND skill_id = (SELECT skill_id_snapshot FROM session_items WHERE question_template_id = $template LIMIT 1)").get({ template: item.template }) as { dueOn: string }).dueOn; } finally { review.close(); }
+    }
+    await page.getByRole("button", { name: "下一题" }).click();
+  }
+  expect(usedHint).toBe(true); expect(reflected).toBe(true); expect(usedReadingCard).toBe(true); expect(equationDue).toBe(todayInShanghai());
   await page.context().clearCookies();
   await page.goto("/login");
   await page.getByRole("button", { name: /我是家长/ }).click();
@@ -146,7 +171,7 @@ test("@tablet @parent @full-diagnosis phase 2 creates a plan after a resumed 45-
   await page.getByRole("button", { name: "保存并更新计划" }).click();
   await expect(page.getByText(/第 1 版 · 修订 2/)).toBeVisible();
   const historical = new DatabaseSync(".tmp/e2e.sqlite", { readOnly: true });
-  try { expect(historical.prepare("SELECT plan_revision AS revision FROM training_sessions WHERE id = 'phase2-cycle-session'").get()).toEqual({ revision: 1 }); } finally { historical.close(); }
+  try { expect(historical.prepare("SELECT plan_revision AS revision FROM training_sessions WHERE child_id = 'child' AND session_date = $date").get({ date: todayInShanghai() })).toEqual({ revision: 1 }); } finally { historical.close(); }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.setViewportSize({ width: 1180, height: 820 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
