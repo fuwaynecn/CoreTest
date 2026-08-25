@@ -1,4 +1,4 @@
-:root { color-scheme: light; --ink: #24312f; --paper: #fbfaf6; --brand: #236b62; --sand: #e6dccb; }
+:root { color-scheme: light; --ink: #24312f; --paper: #fbfaf6; --brand: #236b62; --sand: #e6dccb; --surface: #ffffff; --muted: #57635f; --focus: #b8d8d1; }
 * { box-sizing: border-box; }
 html { background: var(--paper); color: var(--ink); }
 body { margin: 0; font-family: Arial, "Microsoft YaHei", sans-serif; }
@@ -24,7 +24,7 @@ button, input { min-height: 48px; }
 .loginError { margin: 0; color: #9b2424; font-weight: 700; }
 .loginSubmit { border: 0; cursor: pointer; }
 .loginSubmit:disabled { cursor: wait; opacity: .65; }
-.trainingPage { width: min(100%, 960px); min-height: 100dvh; margin: 0 auto; padding: clamp(1.5rem, 5vw, 4rem); }
+.trainingPage { width: min(100%, 960px); min-height: 100dvh; margin: 0 auto; padding: clamp(1.25rem, 5vw, 4rem); overflow-x: clip; }
 .trainingPage h1 { margin: .25rem 0 1rem; font-size: clamp(2rem, 6vw, 3.5rem); }
 .trainingStart { margin-top: 1rem; }
 .diagnosisHomeCount { width: fit-content; margin: 1.5rem 0 .25rem; padding: .65rem .9rem; border-left: .35rem solid var(--brand); background: #edf5f2; font-weight: 700; }
@@ -33,13 +33,15 @@ button, input { min-height: 48px; }
 .activeRetest a { display: inline-flex; min-height: 48px; align-items: center; padding: .55rem .8rem; border: 1px solid var(--brand); border-radius: .65rem; color: var(--brand); font-weight: 700; text-decoration: none; }
 .sessionProgress { margin: 0 0 1rem; color: #57635f; font-weight: 700; }
 .trainingSegments { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .5rem; margin-bottom: 1.25rem; }
-.trainingSegments span { display: grid; gap: .2rem; padding: .65rem .75rem; border-bottom: .25rem solid var(--sand); color: #57635f; font-size: .82rem; font-weight: 700; }
-.trainingSegments span[aria-current="step"] { border-color: var(--brand); color: var(--ink); background: #edf5f2; }
+.trainingSegments span { display: grid; min-width: 0; gap: .2rem; padding: .75rem .8rem; border: 1px solid var(--sand); border-bottom: .3rem solid var(--sand); border-radius: .65rem; color: var(--muted); font-size: .85rem; font-weight: 700; line-height: 1.3; }
+.trainingSegments span[data-state="complete"] { border-bottom-color: #83b9ad; color: var(--brand); background: #f3f8f6; }
+.trainingSegments span[aria-current="step"] { border-color: var(--brand); border-bottom-color: var(--brand); color: var(--ink); background: #edf5f2; box-shadow: 0 0 0 2px var(--focus); }
+.trainingSegments span[data-state="disabled"] { color: #8a918e; background: #f2eee5; }
 .trainingSegments small { color: inherit; font: inherit; opacity: .75; }
-.readingCard, .scratchpad { display: grid; gap: .7rem; padding: 1rem; border: 1px solid var(--sand); border-radius: .75rem; background: white; }
+.readingCard, .scratchpad { display: grid; gap: .7rem; padding: clamp(1rem, 3vw, 1.35rem); border: 1px solid var(--sand); border-radius: .85rem; background: var(--surface); }
 .readingCard legend { padding: 0 .25rem; color: var(--brand); font-weight: 700; }
 .readingCard label, .scratchpad { font-weight: 700; }
-.readingCard input, .scratchpad textarea { width: 100%; min-height: 48px; padding: .65rem .8rem; border: 1px solid #9ca7a3; border-radius: .6rem; background: white; color: var(--ink); }
+.readingCard input, .scratchpad textarea { width: 100%; min-height: 52px; padding: .7rem .8rem; border: 1px solid #9ca7a3; border-radius: .6rem; background: var(--surface); color: var(--ink); }
 .scratchpad { margin-top: 1.25rem; }
 .scratchpad textarea { min-height: 7rem; resize: vertical; }
 .stopSession { width: fit-content; min-height: 48px; margin-top: 1.5rem; padding: .7rem 1rem; border: 1px solid var(--brand); border-radius: .75rem; background: white; color: var(--brand); cursor: pointer; font-weight: 700; }
@@ -51,19 +53,19 @@ button, input { min-height: 48px; }
 .diagnosisRailSegment, .parentDiagnosisRail > span { height: .72rem; overflow: hidden; border-radius: 999px; background: var(--sand); }
 .diagnosisRailSegment > span, .parentDiagnosisRail > span > span { display: block; height: 100%; border-radius: inherit; background: var(--brand); }
 .diagnosisNote { margin: 0 0 1rem; color: #57635f; }
-.questionCard { padding: clamp(1.25rem, 4vw, 2.5rem); border: 2px solid var(--sand); border-radius: 1rem; background: white; }
-.questionCard h1 { font-size: clamp(2rem, 7vw, 4rem); line-height: 1.2; }
+.questionCard { padding: clamp(1.35rem, 5vw, 3rem); border: 2px solid var(--sand); border-radius: 1rem; background: var(--surface); box-shadow: 0 .75rem 2rem rgb(36 49 47 / .06); }
+.questionCard h1 { max-width: 24ch; margin-bottom: 0; font-size: clamp(2.15rem, 7vw, 4rem); line-height: 1.2; overflow-wrap: anywhere; }
 .answerForm { display: grid; gap: 1rem; margin-top: 1.5rem; }
-.answerLabel { font-weight: 700; }
-.answerForm input { width: min(100%, 28rem); padding: .75rem 1rem; border: 2px solid #9ca7a3; border-radius: .75rem; background: white; }
-.answerForm button { width: fit-content; min-width: 10rem; padding: .75rem 1.25rem; border: 0; border-radius: .75rem; background: var(--brand); color: white; cursor: pointer; font-weight: 700; }
+.answerLabel { font-size: 1.1rem; font-weight: 700; }
+.answerForm input { width: min(100%, 28rem); min-height: 56px; padding: .75rem 1rem; border: 2px solid #9ca7a3; border-radius: .75rem; background: var(--surface); font-size: 1.25rem; }
+.answerForm button { width: fit-content; min-width: 10rem; min-height: 52px; padding: .75rem 1.25rem; border: 0; border-radius: .75rem; background: var(--brand); color: white; cursor: pointer; font-weight: 700; }
 .answerForm button:disabled { cursor: wait; opacity: .65; }
 .diagnosisChoices { min-width: 0; margin: 0; padding: 0; border: 0; }
 .diagnosisChoices legend { margin-bottom: .65rem; }
 .diagnosisChoices > div { display: grid; gap: .7rem; }
 .answerForm .diagnosisChoices button { width: 100%; min-height: 48px; text-align: left; }
 .answerForm .diagnosisChoices button[aria-pressed="true"] { background: #164e48; box-shadow: 0 0 0 3px #b8d8d1; }
-.answerFeedback { padding: 1rem 1.25rem; border: 2px solid currentColor; border-radius: .75rem; font-weight: 700; }
+.answerFeedback { display: grid; gap: .65rem; padding: 1.15rem 1.25rem; border: 2px solid currentColor; border-radius: .85rem; font-weight: 700; }
 .answerFeedback h2, .answerFeedback p { margin-top: 0; }
 .answerFeedbackIncorrect { color: #8a3918; background: #fff3e9; }
 .answerFeedbackCorrect { color: #155d43; background: #eaf7ef; }

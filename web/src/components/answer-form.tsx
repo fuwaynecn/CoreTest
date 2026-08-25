@@ -255,14 +255,14 @@ export function AnswerForm({
       <button type="submit" disabled={!hydrated || submitting || result !== null}>{submitting ? "正在提交" : submissionId ? "重试提交" : "提交答案"}</button>
       {error && <p className="answerError" role="alert">{error}</p>}
       {result && !result.correct && (
-        <section className="answerFeedback answerFeedbackIncorrect" aria-live="polite">
+        <section className="answerFeedback answerFeedbackIncorrect" aria-label="订正反馈" aria-live="polite">
           <h2><span aria-hidden="true">↻</span> 再看一步</h2>
           <p>{result.explanation}</p>
           <button type="button" onClick={() => setResult(null)}>修改答案</button>
         </section>
       )}
       {result?.correct && (
-        <section className="answerFeedback answerFeedbackCorrect" aria-live="polite">
+        <section className="answerFeedback answerFeedbackCorrect" aria-label="答对反馈" aria-live="polite">
           <p><span aria-hidden="true">✓</span> 做对了，别忘了检查题目问的是什么。</p>
           {hadIncorrectAnswer && !reflectionComplete ? (
             <div className="errorReflection">

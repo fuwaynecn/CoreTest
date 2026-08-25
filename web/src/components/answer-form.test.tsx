@@ -150,6 +150,7 @@ test("shows correction feedback returned by the server", async () => {
   await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
 
   expect(await screen.findByText("再看一步")).toBeInTheDocument();
+  expect(screen.getByRole("region", { name: "订正反馈" })).toBeInTheDocument();
   expect(screen.getByText("把十分位对齐后再相加。")).toBeInTheDocument();
 });
 
@@ -253,6 +254,7 @@ test("retries an interrupted submission with the same id", async () => {
   await userEvent.click(screen.getByRole("button", { name: "重试提交" }));
 
   expect(await screen.findByText("做对了，别忘了检查题目问的是什么。")).toBeInTheDocument();
+  expect(screen.getByRole("region", { name: "答对反馈" })).toBeInTheDocument();
   expect(submit.mock.calls[1][0].clientSubmissionId).toBe(submit.mock.calls[0][0].clientSubmissionId);
   expect(submit.mock.calls[1][0]).toMatchObject({
     activeDurationMs: submit.mock.calls[0][0].activeDurationMs,

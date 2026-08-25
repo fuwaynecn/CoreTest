@@ -14,7 +14,7 @@ const segments: Array<{ id: TrainingSegment; label: string }> = [
 
 export function TrainingSegments({ current, composition }: { current: TrainingSegment; composition: Record<TrainingSegment, number> }) {
   return <nav className="trainingSegments" aria-label="今天的训练进度">{segments.map((segment) => (
-    <span key={segment.id} aria-current={segment.id === current ? "step" : "false"}>
+    <span key={segment.id} data-state={segment.id === current ? "active" : segments.findIndex((item) => item.id === segment.id) < segments.findIndex((item) => item.id === current) ? "complete" : composition[segment.id] === 0 ? "disabled" : "upcoming"} aria-current={segment.id === current ? "step" : "false"}>
       {segment.label}<small>{composition[segment.id]}</small>
     </span>
   ))}</nav>;
