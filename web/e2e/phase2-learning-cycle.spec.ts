@@ -85,6 +85,9 @@ function prepareSchedulerInputs() {
     database.prepare(`INSERT INTO review_schedules (child_id, skill_id, level, due_on, last_result, updated_at)
       VALUES ('child', $skill, 0, '2026-08-24', NULL, 1)
       ON CONFLICT(child_id, skill_id) DO UPDATE SET due_on = excluded.due_on, level = excluded.level, updated_at = excluded.updated_at`).run({ skill: unit.skillId });
+    database.prepare(`INSERT INTO review_schedules (child_id, skill_id, level, due_on, last_result, updated_at)
+      VALUES ('child', $skill, 0, '2026-08-24', NULL, 1)
+      ON CONFLICT(child_id, skill_id) DO UPDATE SET due_on = excluded.due_on, level = excluded.level, updated_at = excluded.updated_at`).run({ skill: equation.skillId });
   } finally {
     database.close();
   }
@@ -174,10 +177,10 @@ test("@tablet @parent @phase2 @full-diagnosis phase 2 creates a plan after a res
     expect(Math.max(...Object.values(structureCounts))).toBeLessThanOrEqual(6);
     expect(session.target).toBe(1200);
   } finally { scheduled.close(); }
-  let usedHint = false; let reflected = false; let equationDue: string | null = null; let usedReadingCard = false;
+  let usedHint = false; let reflected = false; let equationDue: string | null = null; let equationReviewed = false; let usedReadingCard = false;
   while (currentDailyItem()) {
     const item = currentDailyItem()!;
-    const metadata = JSON.parse(item.metadata) as { readingCard?: boolean };
+    const metadata = JSON.parse(item.metadata) as { readingCard?: boolean; selectionReason?: string };
     if (metadata.readingCard) { await completeReadingCard(page); usedReadingCard = true; }
     const isUnit = item.template === "habit-unit-02";
     if (isUnit && !usedHint) {
@@ -205,13 +208,14 @@ test("@tablet @parent @phase2 @full-diagnosis phase 2 creates a plan after a res
       await page.getByLabel("你的答案").fill(answerText(item.answer_spec));
       await page.getByRole("button", { name: "提交答案" }).click();
     }
-    if (item.template.startsWith("eq-")) {
+    if (item.template === "eq-l1-balance-01" && ["due_review", "overdue_review"].includes(metadata.selectionReason ?? "")) {
       const review = new DatabaseSync(".tmp/e2e.sqlite", { readOnly: true });
       try { equationDue = (review.prepare("SELECT due_on AS dueOn FROM review_schedules WHERE child_id = 'child' AND skill_id = (SELECT skill_id_snapshot FROM session_items WHERE question_template_id = $template LIMIT 1)").get({ template: item.template }) as { dueOn: string }).dueOn; } finally { review.close(); }
+      equationReviewed = true;
     }
     await page.getByRole("button", { name: "下一题" }).click();
   }
-  expect(usedHint).toBe(true); expect(reflected).toBe(true); expect(usedReadingCard).toBe(true); expect(equationDue).toBe(addShanghaiDays(todayInShanghai(), 7));
+  expect(usedHint).toBe(true); expect(reflected).toBe(true); expect(usedReadingCard).toBe(true); expect(equationReviewed).toBe(true); expect(equationDue).toBe(addShanghaiDays(todayInShanghai(), 3));
   await page.context().clearCookies();
   await page.goto("/login");
   await page.getByRole("button", { name: /我是家长/ }).click();
