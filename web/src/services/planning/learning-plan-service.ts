@@ -87,6 +87,11 @@ export function reviseActivePlan(
   return db.transaction((tx) => {
     const active = activePlan(tx, childId);
     if (!active) throw new LearningPlanStateError("No active learning plan exists");
+    const current = tx.select().from(parentPreferences).where(eq(parentPreferences.childId, childId)).get();
+    if (preferences.trainingWeekdays && preferences.targetMinutes && current
+      && current.trainingWeekdays === JSON.stringify(preferences.trainingWeekdays)
+      && current.targetMinutes === preferences.targetMinutes
+      && current.specialistFocus === preferences.specialistFocus) return active;
     if (preferences.trainingWeekdays && preferences.targetMinutes) tx.insert(parentPreferences).values({
       childId, trainingWeekdays: JSON.stringify(preferences.trainingWeekdays), targetMinutes: preferences.targetMinutes,
       specialistFocus: preferences.specialistFocus, updatedAt: now,

@@ -263,6 +263,7 @@ export default async function ParentPage() {
 
       <section className="parentSection" aria-labelledby="plan-heading">
         <div className="sectionHeading"><h2 id="plan-heading">六周训练计划</h2><p>{planDashboard.plan ? `第 ${planDashboard.plan.version} 版 · 修订 ${planDashboard.plan.revision} · 第 ${planDashboard.plan.currentWeek} 周` : "完成诊断后生成"}</p></div>
+        {planDashboard.plan && <p className="planWeeks">六周目标：{planDashboard.plan.weeks.map((item) => `第${item.week}周 ${item.targets} 项${item.assessment ? "（评估）" : ""}${item.replanAfter ? "（复盘）" : ""}`).join("；")}</p>}
         <PlanCalendar days={planDashboard.nextSevenDays} />
         <PlanPreferencesForm initial={planDashboard.preferences} />
       </section>

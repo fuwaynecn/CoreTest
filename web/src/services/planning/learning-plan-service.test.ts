@@ -112,6 +112,17 @@ describe("learning plan service", () => {
       .toMatchObject({ learningPlanId: initial.id, planRevision: 1 });
   });
 
+  it("returns the active revision when identical preferences are repeated", () => {
+    const db = seed();
+    const initial = createInitialPlan(db, "child-1", new Date("2026-08-23T16:00:00Z"), 3);
+    const input = { trainingWeekdays: [1, 2, 3, 4, 5], targetMinutes: 30, specialistFocus: "none" as const };
+    const first = reviseActivePlan(db, "child-1", input, 4);
+    const repeated = reviseActivePlan(db, "child-1", input, 5);
+    expect(first.id).toBe(initial.id);
+    expect(repeated.id).toBe(initial.id);
+    expect(db.select().from(learningPlans).where(eq(learningPlans.status, "active")).all()).toHaveLength(1);
+  });
+
   it("completes week six and starts the next Monday as version two", () => {
     const db = seed();
     const initial = createInitialPlan(db, "child-1", new Date("2026-08-23T16:00:00Z"), 3);
