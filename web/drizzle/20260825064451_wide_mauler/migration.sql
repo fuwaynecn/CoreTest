@@ -11,5 +11,6 @@ CREATE TABLE `reward_events` (
 	`metadata` text DEFAULT '{}' NOT NULL,
 	CONSTRAINT `fk_reward_events_child_id_users_id_fk` FOREIGN KEY (`child_id`) REFERENCES `users`(`id`),
 	CONSTRAINT `fk_reward_events_session_id_training_sessions_id_fk` FOREIGN KEY (`session_id`) REFERENCES `training_sessions`(`id`),
-	CONSTRAINT `fk_reward_events_attempt_id_attempts_id_fk` FOREIGN KEY (`attempt_id`) REFERENCES `attempts`(`id`)
+	CONSTRAINT `fk_reward_events_attempt_id_attempts_id_fk` FOREIGN KEY (`attempt_id`) REFERENCES `attempts`(`id`),
+	CONSTRAINT "reward_events_kind" CHECK("kind" IN ('points', 'badge'))
 );

@@ -731,6 +731,35 @@ test("adds Phase 2B learning state without inventing legacy telemetry or losing 
     expect(columns(sqlite, "attempts")).toEqual(expect.arrayContaining([
       "active_duration_ms", "hint_level", "hint_count", "correction_number",
     ]));
+    const rewardTableInfo = sqlite.prepare("PRAGMA table_info('reward_events')").all() as Array<{
+      name: string;
+      dflt_value: string | null;
+    }>;
+    expect(rewardTableInfo.map((column) => column.name)).toEqual([
+      "id", "child_id", "source_key", "kind", "code", "points",
+      "session_id", "attempt_id", "occurred_at", "metadata",
+    ]);
+    expect(rewardTableInfo.find((column) => column.name === "points")?.dflt_value).toBe("0");
+    expect(rewardTableInfo.find((column) => column.name === "metadata")?.dflt_value).toBe("'{}'");
+    expect(foreignKeyTargets(sqlite, "reward_events")).toEqual(expect.arrayContaining([
+      { from: "child_id", table: "users", to: "id", onDelete: "NO ACTION" },
+      { from: "session_id", table: "training_sessions", to: "id", onDelete: "NO ACTION" },
+      { from: "attempt_id", table: "attempts", to: "id", onDelete: "NO ACTION" },
+    ]));
+    sqlite.prepare(`
+      INSERT INTO reward_events (id, child_id, source_key, kind, code, session_id, attempt_id, occurred_at)
+      VALUES ('reward-event-1', 'phase2b-child', 'attempt:phase2b-attempt-1', 'points', 'reading-card', 'phase2b-session', 'phase2b-attempt-1', 70)
+    `).run();
+    expect(() => sqlite.prepare(`
+      INSERT INTO reward_events (id, child_id, source_key, kind, code, occurred_at)
+      VALUES ('reward-event-duplicate', 'phase2b-child', 'attempt:phase2b-attempt-1', 'points', 'reading-card', 71)
+    `).run()).toThrow();
+    expect(() => sqlite.prepare(`
+      INSERT INTO reward_events (id, child_id, source_key, kind, code, occurred_at)
+      VALUES ('reward-event-invalid-kind', 'phase2b-child', 'invalid-kind', 'invalid', 'reading-card', 72)
+    `).run()).toThrow();
+    expect(sqlite.prepare("SELECT points, metadata FROM reward_events WHERE id = 'reward-event-1'").get())
+      .toEqual({ points: 0, metadata: "{}" });
     expect(primaryKeyColumns(sqlite, "mastery_evidence")).toEqual(["id"]);
     expect(columns(sqlite, "mastery_evidence")).toEqual(expect.arrayContaining([
       "template_id", "hint_level", "diagnostic_run_id", "diagnostic_completed_on",

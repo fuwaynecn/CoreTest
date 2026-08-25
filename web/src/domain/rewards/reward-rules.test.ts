@@ -24,7 +24,12 @@ describe("reward rules", () => {
       nonEmptyUnitChecks: 3,
       correctEquationItems: 5,
       correctEstimateItems: 5,
-    })).toEqual(badgeDefinitions);
+    })).toEqual([
+      { code: "reading-detective", label: "审题侦探", threshold: 3, count: "readingCards" },
+      { code: "unit-inspector", label: "单位检查员", threshold: 3, count: "nonEmptyUnitChecks" },
+      { code: "equation-balancer", label: "方程平衡师", threshold: 5, count: "correctEquationItems" },
+      { code: "estimate-expert", label: "估算能手", threshold: 5, count: "correctEstimateItems" },
+    ]);
     expect(earnedBadges({ readingCards: 2, nonEmptyUnitChecks: 3, correctEquationItems: 4, correctEstimateItems: 5 }))
       .toEqual([badgeDefinitions[1], badgeDefinitions[3]]);
   });

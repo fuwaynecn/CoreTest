@@ -203,7 +203,9 @@ export const rewardEvents = sqliteTable("reward_events", {
   attemptId: text("attempt_id").references(() => attempts.id),
   occurredAt: integer("occurred_at").notNull(),
   metadata: text("metadata").notNull().default("{}"),
-});
+}, (table) => [
+  check("reward_events_kind", sql`${table.kind} IN ('points', 'badge')`),
+]);
 
 export const hintEvents = sqliteTable("hint_events", {
   id: text("id").primaryKey(),
