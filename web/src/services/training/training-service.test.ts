@@ -329,6 +329,7 @@ test("replays the original result after later completion and template edits", ()
     normalizedAnswer: "6",
     explanation: "对齐十分位。",
     sessionCompleted: false,
+    rewards: { pointsEarned: 0, totalPoints: 0, newBadges: [] },
   });
   expect(submitAttempt(db, command)).toEqual(original);
 });

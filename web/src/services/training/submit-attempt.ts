@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { AppDatabase } from "@/db/client";
 import {
   attempts,
   hintEvents,
   masteryEvidence,
+  rewardEvents,
   sessionItems,
   trainingSessions,
 } from "@/db/schema";
@@ -16,6 +17,7 @@ import { shanghaiDateKey } from "@/domain/time/shanghai-calendar";
 import { recordSystemErrorObservation } from "./error-observation-service";
 import { recordLearningEvidence } from "./record-learning-evidence";
 import { updateLearningState } from "./update-learning-state";
+import { awardRewards, type RewardSummary } from "./award-rewards";
 
 export type SubmitAttemptCommand = {
   childId: string;
@@ -33,6 +35,7 @@ export type AttemptResult = {
   normalizedAnswer: string;
   explanation: string;
   sessionCompleted: boolean;
+  rewards: RewardSummary;
 };
 
 export class TrainingAccessError extends Error {
@@ -133,6 +136,7 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
         normalizedAnswer: existing.normalizedAnswer,
         explanation: existing.explanation,
         sessionCompleted: existing.sessionCompleted,
+        rewards: rewardSummaryForAttempt(tx, command.childId, command.clientSubmissionId),
       };
     }
 
@@ -179,6 +183,8 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
     const now = Date.now();
     const priorAttemptCount = tx.select({ id: attempts.id }).from(attempts)
       .where(eq(attempts.sessionItemId, command.sessionItemId)).all().length;
+    const hadIncorrectPrior = tx.select({ id: attempts.id }).from(attempts)
+      .where(and(eq(attempts.sessionItemId, command.sessionItemId), eq(attempts.isCorrect, false))).get() !== undefined;
     const allItems = tx.select({ id: sessionItems.id })
       .from(sessionItems)
       .where(eq(sessionItems.sessionId, item.sessionId))
@@ -254,10 +260,39 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
       });
     }
 
+    const rewards = awardRewards(tx, {
+      childId: command.childId,
+      sessionId: item.sessionId,
+      sessionKind: item.sessionKind,
+      sessionItemId: command.sessionItemId,
+      attemptId,
+      priorAttemptCount,
+      hadIncorrectPrior,
+      correct: score.correct,
+      sessionCompleted,
+      metadataSnapshot: item.metadataSnapshot,
+      readingCardResponse: command.readingCardResponse,
+      occurredAt: now,
+    });
+
     return {
       ...score,
       explanation: item.explanation,
       sessionCompleted,
+      rewards,
     };
   }, { behavior: "immediate" });
+}
+
+function rewardSummaryForAttempt(tx: Parameters<Parameters<AppDatabase["transaction"]>[0]>[0], childId: string, submissionId: string): RewardSummary {
+  const events = tx.select({ kind: rewardEvents.kind, code: rewardEvents.code, points: rewardEvents.points, attemptId: rewardEvents.attemptId, metadata: rewardEvents.metadata })
+    .from(rewardEvents).where(eq(rewardEvents.childId, childId)).all();
+  const attempt = tx.select({ id: attempts.id, submittedAt: attempts.submittedAt }).from(attempts).where(eq(attempts.clientSubmissionId, submissionId)).get();
+  const owned = events.filter((event) => event.kind === "points" && event.points > 0 && event.attemptId === attempt?.id);
+  const priorAttemptIds = new Set(tx.select({ id: attempts.id }).from(attempts)
+    .where(sql`${attempts.submittedAt} <= ${attempt!.submittedAt}`).all().map((row) => row.id));
+  const totalPoints = events.filter((event) => event.attemptId !== null && priorAttemptIds.has(event.attemptId)).reduce((sum, event) => sum + event.points, 0);
+  const newBadges = events.filter((event) => event.kind === "badge" && event.attemptId === attempt?.id)
+    .map((event) => ({ code: event.code, label: (JSON.parse(event.metadata) as { label?: string }).label ?? event.code }));
+  return { pointsEarned: owned.reduce((sum, event) => sum + event.points, 0), totalPoints, newBadges };
 }

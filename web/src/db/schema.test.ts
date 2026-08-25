@@ -231,6 +231,7 @@ test("migrates and stably replays an existing attempt", () => {
       normalizedAnswer: "06",
       explanation: "旧题目的当前解析。",
       sessionCompleted: true,
+      rewards: { pointsEarned: 0, totalPoints: 0, newBadges: [] },
     };
     expect(submitAttempt(db, command)).toEqual(legacyResult);
 

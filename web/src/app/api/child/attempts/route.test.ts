@@ -186,6 +186,7 @@ test("requires the child role and returns the scored attempt", async () => {
     normalizedAnswer: "6",
     explanation: "把十分位对齐相加，结果是 6。",
     sessionCompleted: false,
+    rewards: { pointsEarned: 0, totalPoints: 0, newBadges: [] },
   });
 });
 
