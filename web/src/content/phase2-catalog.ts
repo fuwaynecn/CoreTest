@@ -852,7 +852,7 @@ const catalogInputs: TemplateInput[] = [
   },
   {
     id: "app-price-03", skillCode: "price-model", domain: "application_modeling",
-    difficulty: 2, structureTag: "unit-price", answerMode: "written", readingCard: true,
+    difficulty: 1, structureTag: "unit-price", answerMode: "written", readingCard: true,
     stemPattern: "每本练习册 {{price}} 元，买 {{count}} 本一共需要多少元？",
     answerSpecPattern: numberAnswer("元"),
     explanationPattern: "总价等于单价乘数量，{{price}} × {{count}} = {{answer}} 元。",

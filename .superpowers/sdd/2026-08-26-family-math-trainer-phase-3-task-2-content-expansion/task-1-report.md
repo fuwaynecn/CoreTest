@@ -38,3 +38,5 @@ The only follow-up needed after the catalog expansion was aligning three stale t
 - Focused verification: 3 files, 42 tests passed.
 - Full `npm run verify`: lint, typecheck, 50 files/359 tests, and production build passed.
 - `git diff --check 11daa0b..HEAD` was rerun; the historical plan commit still reports its EOF blank-line finding until that earlier commit is rewritten.
+
+Follow-up correction: `app-price-03` is now L1, making the exact addition distribution L1=6, L2=12, L3=18, L4=12.

@@ -21,3 +21,5 @@ Task 1: complete (commits 360dd72..e7bf983, review clean).
 - Final verification details are documented in `task-1-report.md`.
 
 Repair round 1: complete. Coverage and whole-package allocation findings resolved; focused and full verification pass.
+
+Repair round 1 follow-up: corrected `app-price-03` to difficulty L1, completing the L1 application scaffold and exact L1/L2 allocation of 6/12.
