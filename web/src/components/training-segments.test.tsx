@@ -10,6 +10,18 @@ test("marks the current four-part training segment", () => {
   expect(screen.getByText("审题专项")).toHaveAttribute("aria-current", "step");
 });
 
+test("maps rail state to current, prior, future, and zero-composition segments", () => {
+  const { rerender } = render(<TrainingSegments current="reading" composition={{ warmup: 4, core: 8, reading: 4, correction: 2 }} />);
+
+  expect(screen.getByText("旧知识唤醒")).toHaveAttribute("data-state", "complete");
+  expect(screen.getByText("核心练习")).toHaveAttribute("data-state", "complete");
+  expect(screen.getByText("审题专项")).toHaveAttribute("data-state", "active");
+  expect(screen.getByText("订正回看")).toHaveAttribute("data-state", "upcoming");
+
+  rerender(<TrainingSegments current="reading" composition={{ warmup: 4, core: 8, reading: 4, correction: 0 }} />);
+  expect(screen.getByText("订正回看")).toHaveAttribute("data-state", "disabled");
+});
+
 test("shows the target-time stop prompt when the session reaches its target", () => {
   vi.useFakeTimers();
   vi.setSystemTime(0);

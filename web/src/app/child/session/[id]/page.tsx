@@ -54,8 +54,8 @@ export default async function ChildSessionPage({ params }: { params: Promise<{ i
     <main className="trainingPage">
       <TrainingSegments current={categoryToSegment(metadataById.get(question.id)?.category, metadataById.get(question.id)?.selectionReason)} composition={(["warmup", "core", "reading", "correction"] as TrainingSegment[]).reduce((counts, segment) => ({ ...counts, [segment]: session.questions.filter((item) => categoryToSegment(metadataById.get(item.id)?.category, metadataById.get(item.id)?.selectionReason) === segment).length }), { warmup: 0, core: 0, reading: 0, correction: 0 })} />
       <QuestionCard stem={question.stem} />
-      <Scratchpad sessionItemId={question.id} />
       <AnswerForm sessionItemId={question.id} sessionItemIds={session.questions.map((item) => item.id)} readingCard={metadataById.get(question.id)?.readingCard === true} nextHref={`/child/session/${session.id}`} />
+      <Scratchpad sessionItemId={question.id} />
       <StopSessionButton sessionId={session.id} sessionItemIds={session.questions.map((item) => item.id)} targetAt={timing?.targetSeconds ? timing.startedAt + timing.targetSeconds * 1_000 : undefined} />
     </main>
   );

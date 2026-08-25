@@ -22,3 +22,11 @@ Tests:
 Viewport checks: the available tablet Chromium project passed at its configured iPad landscape viewport. The CSS uses responsive two-column rail behavior below 560px and overflow clipping on the training page; no dedicated 1024x768/768x1024 screenshot runner was available in this task.
 
 Concerns: full verification remains blocked only by the existing seed test timeout; no failure was associated with the child visual changes.
+
+## Review round 1 fix
+
+- Reordered the session composition to question -> `AnswerForm` -> `Scratchpad` -> stop action, keeping all props and behavior unchanged.
+- Added exact `data-state` regression assertions for active/current, complete/prior, upcoming/future, and disabled/zero-composition rail segments.
+- Focused tests: 40 passed.
+- Seed test rerun separately: 5 passed.
+- `npm run verify`: passed — 53 files, 374 tests, and production build completed.
