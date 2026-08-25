@@ -46,6 +46,9 @@ function prepareIndependentScenario() {
     db.run(`delete from mastery_evidence where session_item_id in (
       select si.id from session_items si join training_sessions ts on ts.id = si.session_id
       where ts.child_id = 'child' and ts.kind = 'daily' and ts.session_date = '${today}')`);
+    db.run(`delete from reward_events where session_id in (
+      select id from training_sessions
+      where child_id = 'child' and kind = 'daily' and session_date = '${today}')`);
     db.run(`delete from attempts where session_item_id in (
       select si.id from session_items si join training_sessions ts on ts.id = si.session_id
       where ts.child_id = 'child' and ts.kind = 'daily' and ts.session_date = '${today}')`);
