@@ -11,7 +11,7 @@
 |---|---|
 | Task 1 | Test counts and implementation allocation both target 48 additions and 120 total templates. |
 
-Task 1: complete (commits 360dd72..e7bf983, review clean).
+Task 1: complete (commits 360dd72..275d481, review clean after fix round 1).
 
 - Added 48 catalog templates; final total is 120.
 - Domain totals: number 23, equation 25, geometry 18, data 15, application 23, thinking 16.
