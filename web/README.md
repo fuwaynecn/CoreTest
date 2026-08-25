@@ -95,7 +95,7 @@ git diff --check
 
 `npm run verify` 依次运行 ESLint、TypeScript、全部 Vitest 测试和生产构建。`npm run test:e2e` 使用与生产相同的 seed 和选题规则，在 WebKit 和稳定版 Chrome 中完成三段诊断、刷新恢复、选择题与数值题提交、家长页面发起第 2 版、孩子继续复测和旧报告保留。学习状态文件只在经路径校验的 `.tmp/e2e.sqlite` 中运行：它会清理测试孩子的 mastery、review、dosage 状态和当天训练数据，并在没有已完成诊断时建立明确的验收前置；这些清理不涉及生产数据库。因此它可独立完成漏单位首答、正确订正、孩子自评、家长错因修正、证据下钻、到期日期和剂量展示，同时检查平板和 390px 宽度没有水平溢出。
 
-完整 45 题诊断和迁移路径仅在 WebKit 流程运行；稳定版 Chrome 仍运行日常自适应、家长与平板溢出验收，不重复耗时诊断。所有诊断、排程和判分均为确定性本地规则，不调用 AI，也不需要 OpenAI、DeepSeek 或其他模型 API key。
+完整 45 题诊断仅在 WebKit 流程运行；真实 Phase 1 → Phase 2 迁移由 `npm run e2e:seed:migrated` CLI 验证。稳定版 Chrome 运行日常自适应和迁移历史 UI 验收（以及家长与平板溢出），不重复耗时诊断。所有诊断、排程和判分均为确定性本地规则，不调用 AI，也不需要 OpenAI、DeepSeek 或其他模型 API key。
 
 也可以分别运行浏览器项目：
 
