@@ -22,4 +22,4 @@ Task 1: complete (commits 360dd72..e7bf983, review clean).
 
 Repair round 1: complete. Coverage and whole-package allocation findings resolved; focused and full verification pass.
 
-Repair round 1 follow-up: corrected `app-price-03` to difficulty L1 and `geo-angle-03` to difficulty L2, completing the L1 application scaffold and the exact added-template difficulty allocation L1/L2/L3/L4 = 6/12/18/12.
+Repair round 1 follow-up: corrected `app-price-03` to difficulty L1 and `geo-angle-03` to difficulty L2, completing the L1 application scaffold. The added-template difficulty distribution is L1/L2/L3/L4 = 5/13/18/12, within the audit quota ranges; total catalog counts are 16/40/43/21.

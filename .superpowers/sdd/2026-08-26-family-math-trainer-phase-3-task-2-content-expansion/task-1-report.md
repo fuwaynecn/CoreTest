@@ -30,7 +30,7 @@ The only follow-up needed after the catalog expansion was aligning three stale t
 
 ## Repair round 1
 
-- Rebalanced the 48 additions to L1=6, L2=12, L3=18, L4=12.
+- Rebalanced the 48 additions to L1=5, L2=13, L3=18, L4=12; all remain within the audit quota ranges.
 - Added a level-4 number check, geometry length conversion, L1 application scaffold, and two `equation-verification` entries.
 - Replaced the fractional package allocation with whole-package variants.
 - Registered the new `length-conversion` skill; updated skill/catalog and diagnosis/seed baselines.
@@ -39,4 +39,4 @@ The only follow-up needed after the catalog expansion was aligning three stale t
 - Full `npm run verify`: lint, typecheck, 50 files/359 tests, and production build passed.
 - `git diff --check 11daa0b..HEAD` was rerun; the historical plan commit still reports its EOF blank-line finding until that earlier commit is rewritten.
 
-Follow-up correction: `app-price-03` is now L1 and `geo-angle-03` is now L2, making the exact addition distribution L1=6, L2=12, L3=18, L4=12 and the total catalog difficulty counts 16/40/43/21.
+Follow-up correction: `app-price-03` is now L1 and `geo-angle-03` is now L2, making the addition distribution L1=5, L2=13, L3=18, L4=12, with total catalog difficulty counts 16/40/43/21. The audit quota ranges are satisfied.
