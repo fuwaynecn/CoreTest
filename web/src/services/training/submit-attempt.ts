@@ -268,6 +268,7 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
       attemptId,
       priorAttemptCount,
       hadIncorrectPrior,
+      structureTagSnapshot: item.structureTag,
       correct: score.correct,
       sessionCompleted,
       metadataSnapshot: item.metadataSnapshot,

@@ -33,3 +33,47 @@ test("submitAttempt awards reading-card points once and returns lifetime total",
   expect(db.select().from(rewardEvents).where(eq(rewardEvents.childId, "child")).all()).toHaveLength(4);
   expect(db.select().from(attempts).all()).toHaveLength(1);
 });
+
+test("awards one correction reward across repeated wrong and correct submissions", () => {
+  const db = database();
+  db.update(sessionItems).set({ selectionReasonSnapshot: "{}" }).where(eq(sessionItems.id, "item")).run();
+  db.insert(sessionItems).values({ ...db.select().from(sessionItems).where(eq(sessionItems.id, "item")).get()!, id: "other", position: 1 }).run();
+  const submit = (id: string, answerText: string) => submitAttempt(db, { childId: "child", sessionItemId: "item", clientSubmissionId: id, answerText });
+  submit("11111111-1111-4111-8111-111111111112", "4");
+  const firstCorrect = submit("11111111-1111-4111-8111-111111111113", "5");
+  submit("11111111-1111-4111-8111-111111111114", "4");
+  const secondCorrect = submit("11111111-1111-4111-8111-111111111115", "5");
+  expect(firstCorrect.rewards.pointsEarned).toBe(3);
+  expect(secondCorrect.rewards.pointsEarned).toBe(0);
+  expect(db.select().from(rewardEvents).where(eq(rewardEvents.code, "correction")).all()).toHaveLength(1);
+});
+
+test("awards review recall and planned completion points", () => {
+  const db = database();
+  db.update(trainingSessions).set({ kind: "review" }).where(eq(trainingSessions.id, "session")).run();
+  db.update(sessionItems).set({ selectionReasonSnapshot: JSON.stringify({ category: "review", reviewIntervalDays: 1 }) }).where(eq(sessionItems.id, "item")).run();
+  const result = submitAttempt(db, { childId: "child", sessionItemId: "item", clientSubmissionId: "11111111-1111-4111-8111-111111111116", answerText: "5" });
+  expect(result.rewards.pointsEarned).toBe(10);
+  expect(db.select().from(rewardEvents).where(eq(rewardEvents.childId, "child")).all().filter((event) => event.kind === "points")).toHaveLength(2);
+});
+
+test("crossing the reading-card threshold inserts one badge and replays it", () => {
+  const db = database();
+  const item = db.select().from(sessionItems).where(eq(sessionItems.id, "item")).get()!;
+  db.insert(sessionItems).values([
+    { ...item, id: "item-2", position: 1 },
+    { ...item, id: "item-3", position: 2 },
+  ]).run();
+  const response = (itemId: string, suffix: string) => submitAttempt(db, {
+    childId: "child", sessionItemId: itemId, clientSubmissionId: `11111111-1111-4111-8111-11111111111${suffix}`, answerText: "5",
+    readingCardResponse: { target: "目标", givens: "已知", units: "元", usefulFacts: "事实", relationship: "关系", estimateRange: "5-5" },
+  });
+  response("item", "7"); response("item-2", "8");
+  const result = response("item-3", "9");
+  expect(result.rewards.newBadges).toEqual([
+    { code: "reading-detective", label: "审题侦探" },
+    { code: "unit-inspector", label: "单位检查员" },
+  ]);
+  expect(response("item-3", "9").rewards).toEqual(result.rewards);
+  expect(db.select().from(rewardEvents).where(eq(rewardEvents.code, "reading-detective")).all()).toHaveLength(1);
+});
