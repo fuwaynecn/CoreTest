@@ -86,8 +86,8 @@ function prepareSchedulerInputs() {
       VALUES ('child', $skill, 0, '2026-08-24', NULL, 1)
       ON CONFLICT(child_id, skill_id) DO UPDATE SET due_on = excluded.due_on, level = excluded.level, updated_at = excluded.updated_at`).run({ skill: unit.skillId });
     database.prepare(`INSERT INTO review_schedules (child_id, skill_id, level, due_on, last_result, updated_at)
-      VALUES ('child', $skill, 0, '2026-08-24', NULL, 1)
-      ON CONFLICT(child_id, skill_id) DO UPDATE SET due_on = excluded.due_on, level = excluded.level, updated_at = excluded.updated_at`).run({ skill: equation.skillId });
+      VALUES ('child', $skill, 0, $dueOn, NULL, 1)
+      ON CONFLICT(child_id, skill_id) DO UPDATE SET due_on = excluded.due_on, level = excluded.level, updated_at = excluded.updated_at`).run({ skill: equation.skillId, dueOn: todayInShanghai() });
   } finally {
     database.close();
   }
@@ -96,10 +96,10 @@ function prepareSchedulerInputs() {
 function currentDailyItem() {
   const database = new DatabaseSync(".tmp/e2e.sqlite", { readOnly: true });
   try {
-    return database.prepare(`SELECT si.question_template_id AS template, si.answer_spec_snapshot AS answer_spec, si.selection_reason_snapshot AS metadata
+    return database.prepare(`SELECT si.id, si.question_template_id AS template, si.skill_id_snapshot AS skillId, si.answer_spec_snapshot AS answer_spec, si.selection_reason_snapshot AS metadata
       FROM session_items si JOIN training_sessions ts ON ts.id = si.session_id
       WHERE ts.child_id = 'child' AND ts.session_date = $date
-      AND NOT EXISTS (SELECT 1 FROM attempts WHERE session_item_id = si.id) ORDER BY si.position LIMIT 1`).get({ date: todayInShanghai() }) as { template: string; answer_spec: string; metadata: string } | undefined;
+      AND NOT EXISTS (SELECT 1 FROM attempts WHERE session_item_id = si.id) ORDER BY si.position LIMIT 1`).get({ date: todayInShanghai() }) as { id: string; template: string; skillId: string; answer_spec: string; metadata: string } | undefined;
   } finally { database.close(); }
 }
 
@@ -208,12 +208,13 @@ test("@tablet @parent @phase2 @full-diagnosis phase 2 creates a plan after a res
       await page.getByLabel("你的答案").fill(answerText(item.answer_spec));
       await page.getByRole("button", { name: "提交答案" }).click();
     }
-    if (item.template === "eq-l1-balance-01" && ["due_review", "overdue_review"].includes(metadata.selectionReason ?? "")) {
+    const reviewedEquation = item.template === "eq-l1-balance-01" && ["due_review", "overdue_review"].includes(metadata.selectionReason ?? "");
+    await page.getByRole("button", { name: "下一题" }).click();
+    if (reviewedEquation) {
       const review = new DatabaseSync(".tmp/e2e.sqlite", { readOnly: true });
-      try { equationDue = (review.prepare("SELECT due_on AS dueOn FROM review_schedules WHERE child_id = 'child' AND skill_id = (SELECT skill_id_snapshot FROM session_items WHERE question_template_id = $template LIMIT 1)").get({ template: item.template }) as { dueOn: string }).dueOn; } finally { review.close(); }
+      try { equationDue = (review.prepare("SELECT due_on AS dueOn FROM review_schedules WHERE child_id = 'child' AND skill_id = $skill").get({ skill: item.skillId }) as { dueOn: string }).dueOn; } finally { review.close(); }
       equationReviewed = true;
     }
-    await page.getByRole("button", { name: "下一题" }).click();
   }
   expect(usedHint).toBe(true); expect(reflected).toBe(true); expect(usedReadingCard).toBe(true); expect(equationReviewed).toBe(true); expect(equationDue).toBe(addShanghaiDays(todayInShanghai(), 3));
   await page.context().clearCookies();
@@ -239,7 +240,10 @@ async function runMigratedPhase1Scenario(page: Page, context: BrowserContext) {
   await page.goto("/login");
   await page.getByRole("button", { name: /我是孩子/ }).click();
   await page.getByLabel("PIN").fill("2468");
-  await page.getByRole("button", { name: "登录", exact: true }).click();
+  await Promise.all([
+    page.waitForURL("**/child"),
+    page.getByRole("button", { name: "登录", exact: true }).click(),
+  ]);
   await expect(page.getByRole("link", { name: "继续初始诊断" })).toBeVisible();
   await context.clearCookies();
   await page.goto("/login");
