@@ -64,6 +64,7 @@ function prepareIndependentScenario() {
 test("@tablet @parent missing unit becomes traceable evidence and a parent correction", async ({ page, context }, testInfo) => {
   prepareIndependentScenario();
 
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
   await page.getByRole("link", { name: "进入系统" }).click();
   await page.getByRole("button", { name: /我是孩子/ }).click();
@@ -71,8 +72,30 @@ test("@tablet @parent missing unit becomes traceable evidence and a parent corre
   await page.getByRole("button", { name: "登录", exact: true }).click();
   await page.getByRole("link", { name: "开始今天的训练" }).click();
 
+  await expect(page.getByRole("navigation", { name: "今天的训练进度" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "仔细读题" })).toBeVisible();
+  const answerField = page.getByLabel("你的答案");
+  await page.getByRole("button", { name: "查看提示" }).press("Shift+Tab");
+  await expect(answerField).toBeFocused();
+  expect(await answerField.evaluate((element) => getComputedStyle(element).outlineStyle)).not.toBe("none");
+  const order = await page.evaluate(() => [".questionCard", ".answerForm", ".scratchpad", ".stopSession"]
+    .map((selector) => document.querySelector(selector)?.getBoundingClientRect().top ?? -1));
+  expect(order).toEqual([...order].sort((a, b) => a - b));
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  expect(await page.evaluate(() => {
+    const toMilliseconds = (value: string) => Math.max(...value.split(",").map((part) => {
+      const amount = Number.parseFloat(part);
+      return part.trim().endsWith("ms") ? amount : amount * 1_000;
+    }));
+    return Math.max(...Array.from(document.querySelectorAll("*"), (element) => {
+      const style = getComputedStyle(element);
+      return Math.max(toMilliseconds(style.transitionDuration), toMilliseconds(style.animationDuration));
+    }));
+  })).toBeLessThanOrEqual(0.01);
+
   await page.getByLabel("你的答案").fill("6");
   await page.getByRole("button", { name: "提交答案" }).click();
+  await expect(page.getByRole("region", { name: /反馈/ })).toBeVisible();
   await page.getByRole("button", { name: "下一题" }).click();
 
   const readingQuestion = "每盒彩笔 7.5 元，买 1 盒需要付多少钱？请写单位。";
@@ -117,6 +140,22 @@ test("@tablet @parent missing unit becomes traceable evidence and a parent corre
   ]);
 
   await expect(page.getByRole("heading", { name: "六领域能力地图" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "本周学习报告" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "首次作答证据" })).toBeVisible();
+  const dashboardSections = [
+    ".weeklyReport", ".parentSignalSection", ".parentPlanSection", ".dosageSection",
+    ".errorSection", ".recentEvidenceSection", ".parentHistoricalSection", ".abilityMap",
+  ].map((selector) => page.locator(selector));
+  for (const section of dashboardSections) await expect(section).toBeVisible();
+  const dashboardTopOffsets = await page.evaluate((selectors) => selectors.map((selector) => {
+    const element = document.querySelector(selector);
+    if (!element) throw new Error(`Missing dashboard section: ${selector}`);
+    return element.getBoundingClientRect().top;
+  }), [
+    ".weeklyReport", ".parentSignalSection", ".parentPlanSection", ".dosageSection",
+    ".errorSection", ".recentEvidenceSection", ".parentHistoricalSection", ".abilityMap",
+  ]);
+  expect(dashboardTopOffsets).toEqual([...dashboardTopOffsets].sort((a, b) => a - b));
   const computationState = page.locator(".masteryStateGroup")
     .filter({ has: page.getByText("小数计算", { exact: true }) });
   await computationState.locator("summary").first().click();
