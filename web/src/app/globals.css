@@ -71,6 +71,7 @@ button, input { min-height: 48px; }
 .answerFeedbackCorrect { color: #155d43; background: #eaf7ef; }
 .diagnosisRecorded { color: var(--ink); background: #edf5f2; }
 .answerError { margin: 0; color: #9b2424; font-weight: 700; }
+.offlineStatus { margin: 0; padding: .55rem 1rem; color: var(--muted); background: #f2eee5; font-size: .85rem; text-align: center; }
 .completionCard { display: grid; place-content: center; gap: .5rem; }
 .parentPage { width: min(100%, 1180px); min-height: 100dvh; margin: 0 auto; padding: clamp(1.25rem, 4vw, 3.5rem); }
 .parentHeader { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(16rem, .8fr); gap: clamp(1.5rem, 4vw, 4rem); align-items: end; padding-bottom: 2rem; border-bottom: 2px solid var(--ink); }

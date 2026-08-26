@@ -1,0 +1,11 @@
+{
+  "name": "家庭数学训练",
+  "short_name": "数学训练",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "display": "standalone",
+  "start_url": "/child",
+  "scope": "/",
+  "theme_color": "#236b62",
+  "background_color": "#fbfaf6"
+}
