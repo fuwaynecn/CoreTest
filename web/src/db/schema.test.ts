@@ -1232,3 +1232,73 @@ test("adds versioned planning tables without changing populated Phase 2B attempt
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test("adds AI provider config storage without changing populated attempts", () => {
+  const directory = mkdtempSync(join(tmpdir(), "math-trainer-ai-config-schema-"));
+  const filename = join(directory, "before-ai-config.sqlite");
+  const beforeAiConfig = join(directory, "before-ai-config");
+  mkdirSync(beforeAiConfig);
+  for (const migration of [
+    "20260819140335_last_mimic", "20260819151632_concerned_professor_monster",
+    "20260819172252_opposite_rumiko_fujikawa", "20260820035833_phase2a_diagnosis",
+    "20260820083528_phase2a_template_metadata", "20260820101400_phase2b_learning_state",
+    "20260820102921_phase2b_learning_state_constraints",
+    "20260820114223_phase2b_mastery_template_evidence",
+    "20260820120919_phase2b_mastery_timeline", "20260822055003_charming_toxin",
+    "20260825110000_phase2c_planning", "20260825120000_phase2c_plan_target_constraints",
+    "20260825130000_attempt_reward_summary",
+  ]) cpSync(resolve(process.cwd(), "drizzle", migration), join(beforeAiConfig, migration), { recursive: true });
+  const db = createDatabase(filename);
+  const sqlite = db.$client;
+  try {
+    migrateDatabase(db, beforeAiConfig);
+    sqlite.exec(`
+      INSERT INTO users VALUES ('child', 'child', '孩子', 'hash', 1);
+      INSERT INTO skills VALUES ('skill', 'skill', '能力', 'number_operations');
+      INSERT INTO question_templates (id, skill_id, stem, answer_spec, explanation, difficulty, active)
+        VALUES ('template', 'skill', '1+1=?', '{"kind":"number","value":2,"tolerance":0,"unit":null}', '2', 1, 1);
+      INSERT INTO training_sessions (id, child_id, session_date, kind, rule_version, composition_snapshot, status, started_at)
+        VALUES ('session', 'child', '2026-08-20', 'daily', 'phase2c', '{"legacy":true}', 'completed', 1);
+      INSERT INTO session_items (id, session_id, question_template_id, position, stem_snapshot,
+        answer_spec_snapshot, explanation_snapshot, skill_id_snapshot, skill_name_snapshot,
+        difficulty_snapshot, content_tier_snapshot, structure_tag_snapshot, variant_seed,
+        selection_reason_snapshot)
+        VALUES ('item', 'session', 'template', 0, '1+1=?',
+          '{"kind":"number","value":2,"tolerance":0,"unit":null}', '2', 'skill', '能力',
+          1, 'core', 'legacy', 'seed', '{}');
+      INSERT INTO attempts (id, session_item_id, client_submission_id, answer_text, is_correct,
+        normalized_answer, explanation, session_completed, reward_summary, submitted_at)
+        VALUES ('attempt', 'item', 'submission', '2', 1, '2', '2', 1, '{"pointsEarned":0}', 2);
+    `);
+    const existingAttemptCount = sqlite.prepare("SELECT count(*) AS count FROM attempts").get();
+
+    migrateDatabase(db, resolve(process.cwd(), "drizzle"));
+
+    expect(columns(sqlite, "ai_provider_configs")).toEqual(expect.arrayContaining([
+      "provider",
+      "base_url",
+      "model",
+      "encrypted_api_key",
+      "enabled",
+      "created_at",
+      "updated_at",
+    ]));
+    expect(primaryKeyColumns(sqlite, "ai_provider_configs")).toEqual(["provider"]);
+    expect(sqlite.prepare("SELECT count(*) AS count FROM attempts").get()).toEqual(existingAttemptCount);
+    expect(foreignKeyCheck(sqlite)).toEqual([]);
+
+    sqlite.prepare(`
+      INSERT INTO ai_provider_configs (
+        provider, base_url, model, encrypted_api_key, enabled, created_at, updated_at
+      ) VALUES ('openai', 'https://api.openai.com/v1', 'gpt-5-mini', 'v1.nonce.cipher.tag', 1, 10, 10)
+    `).run();
+    expect(() => sqlite.prepare(`
+      INSERT INTO ai_provider_configs (
+        provider, base_url, model, encrypted_api_key, enabled, created_at, updated_at
+      ) VALUES ('openai', 'https://api.openai.com/v1', 'gpt-5-mini', NULL, 0, 11, 11)
+    `).run()).toThrow();
+  } finally {
+    sqlite.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

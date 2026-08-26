@@ -125,6 +125,16 @@ export const parentPreferences = sqliteTable("parent_preferences", {
   updatedAt: integer("updated_at").notNull(),
 });
 
+export const aiProviderConfigs = sqliteTable("ai_provider_configs", {
+  provider: text("provider", { enum: ["openai", "deepseek"] }).primaryKey(),
+  baseUrl: text("base_url").notNull(),
+  model: text("model").notNull(),
+  encryptedApiKey: text("encrypted_api_key"),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(false),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
+
 export const trainingSessions = sqliteTable("training_sessions", {
   id: text("id").primaryKey(),
   childId: text("child_id").notNull().references(() => users.id),
