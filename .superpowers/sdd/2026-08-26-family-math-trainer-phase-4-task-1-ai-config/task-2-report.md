@@ -39,3 +39,46 @@ Commit:
 
 Concerns:
 - None.
+
+## Round 1 Fix
+
+Date: 2026-08-26
+
+Scope:
+- Updated `web/src/services/parent/ai-provider-config.ts`
+- Updated `web/src/app/api/parent/ai-config/route.test.ts`
+
+TDD record:
+1. Strengthened the route tests first to seed a real encrypted stored value and assert GET plus retain-only POST return a safe configured mask instead of anything derived from storage.
+2. Added auth assertions for the exact required 401 and 403 JSON bodies.
+3. Ran `npm test -- --run src/app/api/parent/ai-config/route.test.ts` before the code fix.
+4. Observed the expected red failure: stored-key responses were returning a mask derived from encrypted storage rather than a fixed configured marker.
+5. Changed the service view logic so stored keys use a fixed non-secret configured mask, while same-request plaintext replacements still use `maskApiKey`.
+6. Fixed the resulting nullability issue caught by typecheck and re-ran verification.
+
+Implementation summary:
+- Stored keys now render as the fixed non-secret mask `••••••已配置`.
+- The service still never decrypts for GET or retain-only POST responses.
+- Plaintext replacement keys are masked only from the current request value, not from persisted ciphertext.
+- Route tests now seed a real encrypted stored value and verify responses do not contain stored encrypted material.
+
+Verification:
+- `npm test -- --run src/app/api/parent/ai-config/route.test.ts`
+  - First run before the fix failed in 2 tests because stored-key masks were derived from encrypted storage.
+  - Re-run after the fix passed: 5 tests
+- `npm test -- --run src/app/api/parent/ai-config/route.test.ts src/domain/ai/provider-config.test.ts`
+  - Passed: 11 tests across 2 files
+- `npm run typecheck`
+  - First run failed on a `string | null` argument passed to `maskApiKey`
+  - Re-run after the nullability fix passed
+
+Self-review:
+- Confirmed no response path derives `apiKeyMasked` from persisted ciphertext.
+- Confirmed the tests check exact auth bodies as required.
+- Confirmed the patch stayed scoped to the service, route tests, and report.
+
+Commit:
+- Created after fresh tests and typecheck verification.
+
+Concerns:
+- None.

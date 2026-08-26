@@ -1,4 +1,5 @@
 import { aiProviderConfigs } from "@/db/schema";
+import { encryptApiKey } from "@/domain/ai/provider-config-crypto";
 import { createTestDatabase } from "@/test/test-db";
 
 const state = vi.hoisted(() => ({
@@ -40,11 +41,14 @@ afterEach(() => {
 });
 
 test("GET lists both providers without exposing a key", async () => {
+  const encryptedApiKey = encryptApiKey("secret-key");
+  const encryptedTail = encryptedApiKey.slice(-4);
+
   state.db!.insert(aiProviderConfigs).values({
     provider: "openai",
     baseUrl: "https://api.openai.com/v1",
     model: "gpt-5",
-    encryptedApiKey: "opaque-secret-key",
+    encryptedApiKey,
     enabled: true,
     createdAt: 1,
     updatedAt: 2,
@@ -58,9 +62,11 @@ test("GET lists both providers without exposing a key", async () => {
   expect(body.providers[0]).toMatchObject({
     provider: "openai",
     hasApiKey: true,
-    apiKeyMasked: "••••••-key",
+    apiKeyMasked: "••••••已配置",
   });
   expect(body.providers[0]).not.toHaveProperty("encryptedApiKey");
+  expect(JSON.stringify(body).includes(encryptedApiKey)).toBe(false);
+  expect(JSON.stringify(body).includes(encryptedTail)).toBe(false);
 });
 
 test("parent can create, update, retain, disable, and clear a key", async () => {
@@ -81,9 +87,22 @@ test("parent can create, update, retain, disable, and clear a key", async () => 
     enabled: false,
   }));
 
-  expect(await retain.json()).toMatchObject({
-    provider: { model: "gpt-5-mini", enabled: false, hasApiKey: true },
+  const storedEncryptedApiKey = state.db!.select({ encryptedApiKey: aiProviderConfigs.encryptedApiKey })
+    .from(aiProviderConfigs)
+    .get()!.encryptedApiKey!;
+  const storedEncryptedTail = storedEncryptedApiKey.slice(-4);
+  const retainBody = await retain.json();
+
+  expect(retainBody).toMatchObject({
+    provider: {
+      model: "gpt-5-mini",
+      enabled: false,
+      hasApiKey: true,
+      apiKeyMasked: "••••••已配置",
+    },
   });
+  expect(JSON.stringify(retainBody).includes(storedEncryptedApiKey)).toBe(false);
+  expect(JSON.stringify(retainBody).includes(storedEncryptedTail)).toBe(false);
 
   const clear = await POST(jsonRequest({
     provider: "openai",
@@ -100,10 +119,18 @@ test("parent can create, update, retain, disable, and clear a key", async () => 
 
 test("child and anonymous sessions are rejected", async () => {
   state.user = { id: "child", role: "child", displayName: "孩子" };
-  expect((await GET(new Request("http://localhost/api/parent/ai-config"))).status).toBe(403);
+  const childResponse = await GET(new Request("http://localhost/api/parent/ai-config"));
+  expect(childResponse.status).toBe(403);
+  expect(await childResponse.json()).toEqual({
+    error: { code: "parent_access_required", message: "只有家长可以配置 AI 服务" },
+  });
 
   state.user = null;
-  expect((await GET(new Request("http://localhost/api/parent/ai-config"))).status).toBe(401);
+  const anonymousResponse = await GET(new Request("http://localhost/api/parent/ai-config"));
+  expect(anonymousResponse.status).toBe(401);
+  expect(await anonymousResponse.json()).toEqual({
+    error: { code: "authentication_required", message: "请先登录家长账号" },
+  });
 });
 
 test("invalid payloads return 400 and never echo a submitted key", async () => {

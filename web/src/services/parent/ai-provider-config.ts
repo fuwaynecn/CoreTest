@@ -8,6 +8,8 @@ import {
 } from "@/domain/ai/provider-config";
 import { encryptApiKey } from "@/domain/ai/provider-config-crypto";
 
+const CONFIGURED_API_KEY_MASK = "••••••已配置";
+
 export type AiProviderConfigView = {
   provider: AiProvider;
   baseUrl: string;
@@ -38,15 +40,20 @@ function toView(
   },
   apiKeyForMask?: string | null,
 ): AiProviderConfigView {
-  const maskedSource = apiKeyForMask ?? row?.encryptedApiKey ?? "";
+  const hasApiKey = Boolean(row?.encryptedApiKey);
+  const apiKeyMasked = apiKeyForMask !== undefined
+    ? maskApiKey(apiKeyForMask ?? "")
+    : hasApiKey
+      ? CONFIGURED_API_KEY_MASK
+      : "";
 
   return {
     provider,
     baseUrl: row?.baseUrl ?? "",
     model: row?.model ?? "",
     enabled: row?.enabled ?? false,
-    hasApiKey: Boolean(row?.encryptedApiKey),
-    apiKeyMasked: maskApiKey(maskedSource),
+    hasApiKey,
+    apiKeyMasked,
     updatedAt: row?.updatedAt ?? null,
   };
 }
