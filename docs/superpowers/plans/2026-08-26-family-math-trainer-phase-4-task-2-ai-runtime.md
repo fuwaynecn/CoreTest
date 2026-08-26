@@ -36,7 +36,7 @@
 - `callAiProvider(input: { baseUrl: string; model: string; apiKey: string; messages: AiChatMessage[]; timeoutMs?: number; fetchImpl?: typeof fetch }): Promise<{ text: string }>`.
 - `generateAiEnhancement(db, input: { provider: AiProvider; messages: AiChatMessage[]; fallbackText: string; fetchImpl?: typeof fetch }): Promise<{ source: "ai" | "preset"; text: string; provider: AiProvider; model: string | null; errorCode?: "not_configured" | "disabled" | "decrypt_failed" | "timeout" | "network" | "http" | "invalid_response" }>`.
 
-- [ ] **Step 1: Write failing adapter/service tests**
+- [x] **Step 1: Write failing adapter/service tests**
 
 Cover exact cases:
 
@@ -89,15 +89,15 @@ npm test -- --run src/services/ai/provider-client.test.ts src/services/ai/genera
 
 Expected: FAIL because the service files do not exist.
 
-- [ ] **Step 2: Implement the minimal provider client**
+- [x] **Step 2: Implement the minimal provider client**
 
 Normalize trailing slashes and append `/chat/completions`; send JSON `{ model, messages, temperature: 0.2 }` with `content-type: application/json` and `Authorization: Bearer <decrypted key>`. Use a default 15,000ms `AbortController` timeout, clear the timer in `finally`, map fetch rejection/abort/HTTP/non-JSON/empty-choice failures to a typed safe error, and never include the Key in error text.
 
-- [ ] **Step 3: Implement the preset fallback service**
+- [x] **Step 3: Implement the preset fallback service**
 
 Read the selected row from `aiProviderConfigs`; missing row, disabled row, null Key, or decrypt failure returns `{ source: "preset", text: fallbackText, ... }`. Otherwise decrypt the Key server-side and call `callAiProvider`. Map every provider error to the same preset result with its safe `errorCode`; do not try another provider and do not write usage logs or limits.
 
-- [ ] **Step 4: Run focused tests, typecheck, and commit**
+- [x] **Step 4: Run focused tests, typecheck, and commit**
 
 ```powershell
 npm test -- --run src/services/ai/provider-client.test.ts src/services/ai/generate-ai-enhancement.test.ts src/domain/ai/provider-config.test.ts
@@ -121,7 +121,7 @@ Expected: focused tests and typecheck PASS; no secret appears in output or commi
 - Unauthenticated is 401 and child is 403 using the existing parent error shape; invalid provider/unknown fields are 400. No route response contains Key, ciphertext or model output.
 - The form adds `测试 OpenAI`/`测试 DeepSeek` buttons, shows safe status text, disables only the active test button while pending, and never sends the API Key from the browser.
 
-- [ ] **Step 1: Write failing route/form tests**
+- [x] **Step 1: Write failing route/form tests**
 
 Cover parent success, preset/502 failure, 401/403/400 auth and validation, and form fetch payload/status:
 
@@ -157,15 +157,15 @@ npm test -- --run src/app/api/parent/ai-test/route.test.ts src/components/ai-pro
 
 Expected: FAIL because the route and buttons do not exist.
 
-- [ ] **Step 2: Implement the parent-only test route**
+- [x] **Step 2: Implement the parent-only test route**
 
 Authenticate before parsing; validate strict provider input; call `generateAiEnhancement` with a fixed system/user pair and fallback text `连接测试未通过`. Return 200 only when `source === "ai"`; map all preset results to the safe 502 body without exposing `errorCode` details or response text.
 
-- [ ] **Step 3: Add test buttons to the existing form**
+- [x] **Step 3: Add test buttons to the existing form**
 
 Use `fetch("/api/parent/ai-test", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ provider }) })`. Keep the replacement Key input out of this request. Show `OpenAI 连接正常`/`DeepSeek 连接正常` or `连接失败，请检查配置` in a provider-local status element; keep existing save behavior unchanged.
 
-- [ ] **Step 4: Run full verification and commit**
+- [x] **Step 4: Run full verification and commit**
 
 ```powershell
 npm test -- --run src/app/api/parent/ai-test/route.test.ts src/components/ai-provider-config-form.test.tsx src/services/ai/provider-client.test.ts src/services/ai/generate-ai-enhancement.test.ts
@@ -182,9 +182,9 @@ Expected: all tests, lint, typecheck, build and diff check PASS. No quota, cross
 
 ## Completion Checklist
 
-- [ ] Specified provider calls use the stored model/base URL and server-only decrypted Key.
-- [ ] Timeout/network/HTTP/invalid-response/missing-config cases return preset content.
-- [ ] Parent can test one selected provider from the configuration form.
-- [ ] Child cannot trigger the test route.
-- [ ] No quotas, provider switching, primary/backup model, usage logs or cost accounting were added.
-- [ ] Existing core workflow and all current tests remain green.
+- [x] Specified provider calls use the stored model/base URL and server-only decrypted Key.
+- [x] Timeout/network/HTTP/invalid-response/missing-config cases return preset content.
+- [x] Parent can test one selected provider from the configuration form.
+- [x] Child cannot trigger the test route.
+- [x] No quotas, provider switching, primary/backup model, usage logs or cost accounting were added.
+- [x] Existing core workflow and all current tests remain green.
