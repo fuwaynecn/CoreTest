@@ -24,7 +24,9 @@ async function flushQueuedSubmissions() {
       if (response.ok || [400, 401, 403, 404].includes(response.status)) {
         removeSubmission(item.id);
       }
-    } catch {}
+      } catch {
+        break;
+      }
   }
   return readSubmissionQueue().length;
 }
