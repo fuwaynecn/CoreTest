@@ -34,8 +34,8 @@ function isStringRecord(value: unknown): value is Record<string, string> {
 
 function isDraftRecord(value: unknown): value is DraftRecord {
   return typeof value === "object" && value !== null && "sessionItemId" in value && typeof value.sessionItemId === "string"
-    && (!("answerText" in value) || typeof value.answerText === "string")
-    && (!("readingCardResponse" in value) || isStringRecord(value.readingCardResponse))
+    && (!("answerText" in value) || value.answerText === undefined || typeof value.answerText === "string")
+    && (!("readingCardResponse" in value) || value.readingCardResponse === undefined || isStringRecord(value.readingCardResponse))
     && "updatedAt" in value && typeof value.updatedAt === "number";
 }
 
