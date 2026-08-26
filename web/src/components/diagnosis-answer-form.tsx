@@ -1,7 +1,8 @@
 "use client";
 
-import { FormEvent, useRef, useState, useSyncExternalStore } from "react";
+import { FormEvent, startTransition, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { AttemptTelemetry } from "@/domain/training/attempt-telemetry";
+import { clearDraft, enqueueSubmission, readDraft, writeDraft } from "@/services/offline/offline-store";
 import { DefiniteHintError, postHint, type HintResult } from "./request-hint";
 import { useActiveDuration } from "./use-active-duration";
 
@@ -94,8 +95,27 @@ export function DiagnosisAnswerForm({
   const [hint, setHint] = useState<HintResult | null>(null);
   const [hintLoading, setHintLoading] = useState(false);
   const [pendingTelemetry, setPendingTelemetry] = useState<AttemptTelemetry | null>(null);
+  const [draftReady, setDraftReady] = useState(false);
   const hintRequestIdRef = useRef<string | null>(null);
   const currentActiveDuration = useActiveDuration();
+
+  useEffect(() => {
+    if (!hydrated) return;
+    startTransition(() => {
+      setAnswerText(readDraft(sessionItemId)?.answerText ?? "");
+      setDraftReady(true);
+    });
+  }, [hydrated, sessionItemId]);
+
+  useEffect(() => {
+    if (!hydrated || !draftReady) return;
+    if (!answerText.trim()) return;
+    writeDraft({
+      sessionItemId,
+      answerText,
+      updatedAt: Date.now(),
+    });
+  }, [answerText, draftReady, hydrated, sessionItemId]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -117,6 +137,7 @@ export function DiagnosisAnswerForm({
     try {
       const next = await submitAnswer({ sessionItemId, clientSubmissionId, answerText, ...telemetry });
       setResult(next);
+      clearDraft(sessionItemId);
       setSubmissionId(null);
       setPendingTelemetry(null);
     } catch (caught) {
@@ -125,16 +146,31 @@ export function DiagnosisAnswerForm({
         setPendingTelemetry(null);
         setError(caught instanceof Error ? caught.message : "答案需要修改后再提交。");
       } else {
-        setError("提交状态还不能确认，请重试。");
+        enqueueSubmission({
+          id: clientSubmissionId,
+          endpoint: "/api/child/diagnosis",
+          body: JSON.stringify({ sessionItemId, clientSubmissionId, answerText, ...telemetry }),
+          clientSubmissionId,
+          createdAt: Date.now(),
+        });
+        setSubmissionId(null);
+        setPendingTelemetry(null);
+        setError("已暂存，网络恢复后会自动提交。");
       }
     } finally {
       setSubmitting(false);
     }
   }
 
-  const uncertain = submissionId !== null && !submitting && result === null && error !== null;
-  const locked = !hydrated || submitting || uncertain || result !== null;
+  const uncertain = false;
+  const locked = !hydrated || submitting || result !== null;
   const nextHref = `/child/diagnosis/${result?.diagnosis.runId ?? runId}`;
+
+  function updateAnswerText(value: string) {
+    setAnswerText(value);
+    if (value.trim()) writeDraft({ sessionItemId, answerText: value, updatedAt: Date.now() });
+    else clearDraft(sessionItemId);
+  }
 
   async function handleHint() {
     const requestId = hintRequestIdRef.current ?? crypto.randomUUID();
@@ -183,7 +219,7 @@ export function DiagnosisAnswerForm({
           <input
             id={`answer-${sessionItemId}`}
             value={answerText}
-            onChange={(event) => setAnswerText(event.target.value)}
+            onChange={(event) => updateAnswerText(event.target.value)}
             disabled={locked}
             autoComplete="off"
             inputMode={answerKind === "number" && !requiresUnit ? "decimal" : "text"}

@@ -1,10 +1,12 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { readDraft, readSubmissionQueue } from "@/services/offline/offline-store";
 import { AnswerForm } from "./answer-form";
 
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
+  localStorage.clear();
 });
 
 test("counts active time only while the page is visible and focused", async () => {
@@ -232,15 +234,9 @@ test("suppresses an empty reward summary", async () => {
   expect(screen.queryByText("获得 0 分，累计 12 分。")).not.toBeInTheDocument();
 });
 
-test("retries an interrupted submission with the same id", async () => {
+test("queues an interrupted submission with the same id", async () => {
   const submit = vi.fn()
-    .mockRejectedValueOnce(new Error("offline"))
-    .mockResolvedValueOnce({
-      correct: true,
-      normalizedAnswer: "6",
-      explanation: "把十分位对齐后再相加。",
-      sessionCompleted: false,
-    });
+    .mockRejectedValueOnce(new Error("offline"));
 
   render(<AnswerForm sessionItemId="item-1" submitAnswer={submit} />);
 
@@ -248,15 +244,17 @@ test("retries an interrupted submission with the same id", async () => {
   await userEvent.type(answer, "6");
   await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
   const alert = await screen.findByRole("alert");
-  expect(alert).toHaveTextContent("提交没有成功，请重试。");
+  expect(alert).toHaveTextContent("已暂存，网络恢复后会自动提交。");
   expect(alert).not.toHaveTextContent("offline");
-  expect(answer).toBeDisabled();
-  await userEvent.click(screen.getByRole("button", { name: "重试提交" }));
-
-  expect(await screen.findByText("做对了，别忘了检查题目问的是什么。")).toBeInTheDocument();
-  expect(screen.getByRole("region", { name: "答对反馈" })).toBeInTheDocument();
-  expect(submit.mock.calls[1][0].clientSubmissionId).toBe(submit.mock.calls[0][0].clientSubmissionId);
-  expect(submit.mock.calls[1][0]).toMatchObject({
+  expect(answer).toHaveValue("6");
+  expect(readSubmissionQueue()).toEqual([
+    expect.objectContaining({
+      endpoint: "/api/child/attempts",
+      clientSubmissionId: submit.mock.calls[0][0].clientSubmissionId,
+    }),
+  ]);
+  expect(JSON.parse(readSubmissionQueue()[0].body)).toMatchObject({
+    clientSubmissionId: submit.mock.calls[0][0].clientSubmissionId,
     activeDurationMs: submit.mock.calls[0][0].activeDurationMs,
     hintLevel: submit.mock.calls[0][0].hintLevel,
     hintCount: submit.mock.calls[0][0].hintCount,
@@ -286,30 +284,22 @@ test("offers four large reflection choices and a skip after a correction", async
 });
 
 test.each([500, 502, 503, 504])(
-  "keeps the submission id and telemetry locked after an uncertain %s response",
+  "queues an uncertain %s response instead of local retry",
   async (status) => {
     const fetchSpy = vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(new Response(JSON.stringify({ error: "temporary" }), { status }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        correct: true,
-        normalizedAnswer: "6",
-        explanation: "解析",
-        sessionCompleted: false,
-      })));
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: "temporary" }), { status }));
     render(<AnswerForm sessionItemId="item-1" />);
 
     const answer = screen.getByLabelText("你的答案");
     await userEvent.type(answer, "6");
     await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("提交没有成功，请重试。");
-    expect(answer).toBeDisabled();
-    await userEvent.click(screen.getByRole("button", { name: "重试提交" }));
-    expect(await screen.findByText("做对了，别忘了检查题目问的是什么。")).toBeInTheDocument();
-
+    expect(await screen.findByRole("alert")).toHaveTextContent("已暂存，网络恢复后会自动提交。");
     const first = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
-    const retry = JSON.parse(fetchSpy.mock.calls[1][1]?.body as string);
-    expect(retry).toMatchObject({
+    expect(readSubmissionQueue()).toEqual([
+      expect.objectContaining({ clientSubmissionId: first.clientSubmissionId }),
+    ]);
+    expect(JSON.parse(readSubmissionQueue()[0].body)).toMatchObject({
       clientSubmissionId: first.clientSubmissionId,
       activeDurationMs: first.activeDurationMs,
       hintLevel: first.hintLevel,
@@ -437,15 +427,9 @@ test("unlocks the answer after an expired-session JSON response", async () => {
   expect(secondPayload.clientSubmissionId).not.toBe(firstPayload.clientSubmissionId);
 });
 
-test("retries an unparseable 2xx response with the same id", async () => {
+test("queues an unparseable 2xx response with the same id", async () => {
   const fetchSpy = vi.spyOn(globalThis, "fetch")
-    .mockResolvedValueOnce(new Response("not JSON"))
-    .mockResolvedValueOnce(new Response(JSON.stringify({
-      correct: true,
-      normalizedAnswer: "6",
-      explanation: "把十分位对齐后再相加。",
-      sessionCompleted: false,
-    })));
+    .mockResolvedValueOnce(new Response("not JSON"));
 
   render(<AnswerForm sessionItemId="item-1" />);
 
@@ -453,17 +437,11 @@ test("retries an unparseable 2xx response with the same id", async () => {
   await userEvent.type(answer, "6");
   await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
   const alert = await screen.findByRole("alert");
-  expect(alert).toHaveTextContent("提交没有成功，请重试。");
+  expect(alert).toHaveTextContent("已暂存，网络恢复后会自动提交。");
   expect(alert).not.toHaveTextContent("not JSON");
-  expect(answer).toBeDisabled();
-
-  await userEvent.click(screen.getByRole("button", { name: "重试提交" }));
-
-  expect(await screen.findByText("做对了，别忘了检查题目问的是什么。")).toBeInTheDocument();
   const firstPayload = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
-  const secondPayload = JSON.parse(fetchSpy.mock.calls[1][1]?.body as string);
-  expect(secondPayload.clientSubmissionId).toBe(firstPayload.clientSubmissionId);
-  expect(secondPayload).toMatchObject({
+  expect(JSON.parse(readSubmissionQueue()[0].body)).toMatchObject({
+    clientSubmissionId: firstPayload.clientSubmissionId,
     activeDurationMs: firstPayload.activeDurationMs,
     hintLevel: firstPayload.hintLevel,
     hintCount: firstPayload.hintCount,
@@ -494,28 +472,96 @@ test("clears every session scratchpad after the final answer", async () => {
   expect(localStorage.getItem("math-scratch:item-2")).toBeNull();
 });
 
-test("retries an incomplete 2xx result with the same id", async () => {
+test("restores and updates the saved draft for the current training item", async () => {
+  localStorage.setItem("math-offline:draft:item-1", JSON.stringify({
+    sessionItemId: "item-1",
+    answerText: "12",
+    updatedAt: 10,
+  }));
+
+  render(<AnswerForm sessionItemId="item-1" />);
+
+  const answer = screen.getByLabelText("你的答案");
+  expect(answer).toHaveValue("12");
+
+  await userEvent.clear(answer);
+  await userEvent.type(answer, "18");
+
+  expect(readDraft("item-1")).toMatchObject({
+    sessionItemId: "item-1",
+    answerText: "18",
+  });
+});
+
+test("queues an uncertain training submission for online retry with the original submission id", async () => {
+  const submit = vi.fn().mockRejectedValueOnce(new Error("offline"));
+  render(<AnswerForm sessionItemId="item-1" submitAnswer={submit} />);
+
+  const answer = screen.getByLabelText("你的答案");
+  await userEvent.type(answer, "6");
+  await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
+
+  expect(await screen.findByRole("alert")).toHaveTextContent("已暂存，网络恢复后会自动提交");
+  expect(answer).toHaveValue("6");
+  expect(readSubmissionQueue()).toEqual([
+    expect.objectContaining({
+      endpoint: "/api/child/attempts",
+      clientSubmissionId: submit.mock.calls[0][0].clientSubmissionId,
+    }),
+  ]);
+  expect(JSON.parse(readSubmissionQueue()[0].body)).toMatchObject({
+    sessionItemId: "item-1",
+    answerText: "6",
+    clientSubmissionId: submit.mock.calls[0][0].clientSubmissionId,
+  });
+});
+
+test("does not queue a definite training error", async () => {
+  vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({
+    error: "Training item not found",
+  }), { status: 404 }));
+
+  render(<AnswerForm sessionItemId="item-1" />);
+
+  await userEvent.type(screen.getByLabelText("你的答案"), "6");
+  await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
+
+  expect(await screen.findByRole("alert")).toHaveTextContent("Training item not found");
+  expect(readSubmissionQueue()).toEqual([]);
+});
+
+test("clears the saved draft after the session completes", async () => {
+  localStorage.setItem("math-offline:draft:item-1", JSON.stringify({
+    sessionItemId: "item-1",
+    answerText: "6",
+    updatedAt: 10,
+  }));
+  const submit = vi.fn().mockResolvedValue({
+    correct: true,
+    normalizedAnswer: "6",
+    explanation: "解析",
+    sessionCompleted: true,
+  });
+
+  render(<AnswerForm sessionItemId="item-1" submitAnswer={submit} />);
+
+  await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
+
+  expect(await screen.findByText("做对了，别忘了检查题目问的是什么。")).toBeInTheDocument();
+  expect(readDraft("item-1")).toBeNull();
+});
+
+test("queues an incomplete 2xx result with the same id", async () => {
   const fetchSpy = vi.spyOn(globalThis, "fetch")
-    .mockResolvedValueOnce(new Response(JSON.stringify({ correct: true })))
-    .mockResolvedValueOnce(new Response(JSON.stringify({
-      correct: true,
-      normalizedAnswer: "6",
-      explanation: "把十分位对齐后再相加。",
-      sessionCompleted: false,
-    })));
+    .mockResolvedValueOnce(new Response(JSON.stringify({ correct: true })));
 
   render(<AnswerForm sessionItemId="item-1" />);
 
   const answer = screen.getByLabelText("你的答案");
   await userEvent.type(answer, "6");
   await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
-  expect(await screen.findByRole("alert")).toHaveTextContent("提交没有成功，请重试。");
-  expect(answer).toBeDisabled();
-
-  await userEvent.click(screen.getByRole("button", { name: "重试提交" }));
-
-  expect(await screen.findByText("做对了，别忘了检查题目问的是什么。")).toBeInTheDocument();
+  expect(await screen.findByRole("alert")).toHaveTextContent("已暂存，网络恢复后会自动提交。");
   const firstPayload = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
-  const secondPayload = JSON.parse(fetchSpy.mock.calls[1][1]?.body as string);
-  expect(secondPayload.clientSubmissionId).toBe(firstPayload.clientSubmissionId);
+  const queuedPayload = JSON.parse(readSubmissionQueue()[0].body);
+  expect(queuedPayload.clientSubmissionId).toBe(firstPayload.clientSubmissionId);
 });

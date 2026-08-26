@@ -1,7 +1,8 @@
 "use client";
 
-import { FormEvent, useRef, useState, useSyncExternalStore } from "react";
+import { FormEvent, startTransition, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { AttemptTelemetry } from "@/domain/training/attempt-telemetry";
+import { clearDraft, enqueueSubmission, readDraft, writeDraft } from "@/services/offline/offline-store";
 import { DefiniteHintError, postHint, type HintResult } from "./request-hint";
 import { ReadingCard, type ReadingCardResponse } from "./reading-card";
 import { useActiveDuration } from "./use-active-duration";
@@ -119,6 +120,10 @@ async function postReflection(payload: { sessionItemId: string; reflection: Chil
 
 const subscribeToHydration = () => () => undefined;
 
+function hasReadingCardContent(value: ReadingCardResponse | null) {
+  return value !== null && Object.values(value).some((item) => item.trim().length > 0);
+}
+
 export function AnswerForm({
   sessionItemId,
   sessionItemIds = [sessionItemId],
@@ -142,7 +147,29 @@ export function AnswerForm({
   const [reflectionComplete, setReflectionComplete] = useState(false);
   const [reflectionSaving, setReflectionSaving] = useState(false);
   const [readingCardResponse, setReadingCardResponse] = useState<ReadingCardResponse | null>(null);
+  const [draftReady, setDraftReady] = useState(false);
   const currentActiveDuration = useActiveDuration();
+
+  useEffect(() => {
+    if (!hydrated) return;
+    const draft = readDraft(sessionItemId);
+    startTransition(() => {
+      setAnswerText(draft?.answerText ?? "");
+      setReadingCardResponse((draft?.readingCardResponse as ReadingCardResponse | undefined) ?? null);
+      setDraftReady(true);
+    });
+  }, [hydrated, sessionItemId]);
+
+  useEffect(() => {
+    if (!hydrated || !draftReady) return;
+    if (!answerText.trim() && !hasReadingCardContent(readingCardResponse)) return;
+    writeDraft({
+      sessionItemId,
+      answerText,
+      readingCardResponse: hasReadingCardContent(readingCardResponse) ? readingCardResponse ?? undefined : undefined,
+      updatedAt: Date.now(),
+    });
+  }, [answerText, draftReady, hydrated, readingCardResponse, sessionItemId]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -170,7 +197,9 @@ export function AnswerForm({
         ...telemetry,
       });
       setResult(nextResult);
+      clearDraft(sessionItemId);
       if (nextResult.sessionCompleted) for (const itemId of sessionItemIds) localStorage.removeItem(`math-scratch:${itemId}`);
+      if (nextResult.sessionCompleted) for (const itemId of sessionItemIds) clearDraft(itemId);
       if (!nextResult.correct) setHadIncorrectAnswer(true);
       setSubmissionId(null);
       setPendingTelemetry(null);
@@ -180,7 +209,22 @@ export function AnswerForm({
         setPendingTelemetry(null);
         setError(error.message);
       } else {
-        setError("提交没有成功，请重试。");
+        enqueueSubmission({
+          id: clientSubmissionId,
+          endpoint: "/api/child/attempts",
+          body: JSON.stringify({
+            sessionItemId,
+            clientSubmissionId,
+            answerText,
+            readingCardResponse: readingCardResponse ?? undefined,
+            ...telemetry,
+          }),
+          clientSubmissionId,
+          createdAt: Date.now(),
+        });
+        setSubmissionId(null);
+        setPendingTelemetry(null);
+        setError("已暂存，网络恢复后会自动提交。");
       }
     } finally {
       setSubmitting(false);
@@ -221,6 +265,15 @@ export function AnswerForm({
     window.location.assign(nextUrl.href);
   }
 
+  function updateAnswerText(value: string) {
+    setAnswerText(value);
+    if (value.trim() || hasReadingCardContent(readingCardResponse)) {
+      writeDraft({ sessionItemId, answerText: value, readingCardResponse: readingCardResponse ?? undefined, updatedAt: Date.now() });
+    } else {
+      clearDraft(sessionItemId);
+    }
+  }
+
   async function handleReflection(reflection: ChildReflection) {
     setReflectionSaving(true);
     setError(null);
@@ -236,12 +289,12 @@ export function AnswerForm({
 
   return (
     <form className="answerForm" onSubmit={handleSubmit}>
-      {readingCard && <ReadingCard onChange={setReadingCardResponse} />}
+      {readingCard && <ReadingCard onChange={setReadingCardResponse} value={readingCardResponse} />}
       <label className="answerLabel" htmlFor={`answer-${sessionItemId}`}>你的答案</label>
       <input
         id={`answer-${sessionItemId}`}
         value={answerText}
-        onChange={(event) => setAnswerText(event.target.value)}
+        onChange={(event) => updateAnswerText(event.target.value)}
         disabled={answerLocked}
       />
       <button type="button" onClick={handleHint} disabled={answerLocked || hintLoading}>

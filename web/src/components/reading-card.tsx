@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 
 export type ReadingCardResponse = { target: string; givens: string; units: string; usefulFacts: string; relationship: string; estimateRange: string };
 
@@ -9,8 +9,17 @@ const fields: Array<[keyof ReadingCardResponse, string]> = [
   ["usefulFacts", "哪些信息有用"], ["relationship", "数量之间有什么关系"], ["estimateRange", "答案大约在哪个范围"],
 ];
 
-export function ReadingCard({ onChange }: { onChange: (response: ReadingCardResponse) => void }) {
+export function ReadingCard({
+  onChange,
+  value,
+}: {
+  onChange: (response: ReadingCardResponse) => void;
+  value?: ReadingCardResponse | null;
+}) {
   const [response, setResponse] = useState<ReadingCardResponse>({ target: "", givens: "", units: "", usefulFacts: "", relationship: "", estimateRange: "" });
+  useEffect(() => {
+    if (value) startTransition(() => setResponse(value));
+  }, [value]);
   return <fieldset className="readingCard"><legend>先把题意说清楚</legend>{fields.map(([key, label]) => (
     <label key={key}>{label}<input value={response[key]} onChange={(event) => { const next = { ...response, [key]: event.target.value }; setResponse(next); onChange(next); }} /></label>
   ))}</fieldset>;

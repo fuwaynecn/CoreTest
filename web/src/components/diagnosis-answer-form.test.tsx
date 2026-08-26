@@ -1,11 +1,13 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { readDraft, readSubmissionQueue } from "@/services/offline/offline-store";
 import { DiagnosisAnswerForm } from "./diagnosis-answer-form";
 import { DiagnosisProgress } from "./diagnosis-progress";
 
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
+  localStorage.clear();
 });
 
 test("uses the formal hint ladder and records only visible focused diagnosis time", async () => {
@@ -160,21 +162,16 @@ test("keeps the text keyboard available when a number answer requires a unit", (
   expect(screen.getByLabelText("你的答案")).toHaveAttribute("inputmode", "text");
 });
 
-test("reuses the submission id only while success is uncertain", async () => {
+test("queues an uncertain diagnosis submission with the same id", async () => {
   const uncertain = vi.fn()
-    .mockRejectedValueOnce(new Error("offline"))
-    .mockResolvedValueOnce({
-      correct: true,
-      normalizedAnswer: "6",
-      explanation: "正确。",
-      diagnosis: { runId: "run-1", status: "in_progress", completedSlots: 1 },
-    });
+    .mockRejectedValueOnce(new Error("offline"));
   const view = render(<DiagnosisAnswerForm sessionItemId="item-1" runId="run-1" submitAnswer={uncertain} />);
   await userEvent.type(screen.getByLabelText("你的答案"), "6");
   await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
-  expect(await screen.findByRole("alert")).toHaveTextContent("提交状态还不能确认，请重试。");
-  await userEvent.click(screen.getByRole("button", { name: "重试提交" }));
-  expect(uncertain.mock.calls[1][0].clientSubmissionId).toBe(uncertain.mock.calls[0][0].clientSubmissionId);
+  expect(await screen.findByRole("alert")).toHaveTextContent("已暂存，网络恢复后会自动提交。");
+  expect(JSON.parse(readSubmissionQueue()[0].body)).toMatchObject({
+    clientSubmissionId: uncertain.mock.calls[0][0].clientSubmissionId,
+  });
 
   view.unmount();
   const rejected = vi.fn()
@@ -216,44 +213,86 @@ test.each([400, 401, 403])("uses a new submission id after a definite %s respons
   expect(second.clientSubmissionId).not.toBe(first.clientSubmissionId);
 });
 
-test("reuses the submission id after a 503 response", async () => {
+test("queues the submission after a 503 response", async () => {
   const fetchSpy = vi.spyOn(globalThis, "fetch")
-    .mockResolvedValueOnce(new Response(JSON.stringify({ error: "暂时不可用" }), { status: 503 }))
-    .mockResolvedValueOnce(new Response(JSON.stringify({
-      correct: true,
-      normalizedAnswer: "6",
-      explanation: "正确。",
-      diagnosis: { runId: "run-1", status: "in_progress", completedSlots: 1 },
-    })));
+    .mockResolvedValueOnce(new Response(JSON.stringify({ error: "暂时不可用" }), { status: 503 }));
   render(<DiagnosisAnswerForm sessionItemId="item-503" runId="run-1" />);
 
   await userEvent.type(screen.getByLabelText("你的答案"), "6");
   await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
-  expect(await screen.findByRole("alert")).toHaveTextContent("提交状态还不能确认，请重试。");
-  expect(screen.getByLabelText("你的答案")).toBeDisabled();
-  await userEvent.click(screen.getByRole("button", { name: "重试提交" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("已暂存，网络恢复后会自动提交。");
 
   const first = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
-  const second = JSON.parse(fetchSpy.mock.calls[1][1]?.body as string);
-  expect(second.clientSubmissionId).toBe(first.clientSubmissionId);
+  expect(JSON.parse(readSubmissionQueue()[0].body).clientSubmissionId).toBe(first.clientSubmissionId);
 });
 
-test("reuses the submission id after a malformed 2xx response", async () => {
+test("queues the submission after a malformed 2xx response", async () => {
   const fetchSpy = vi.spyOn(globalThis, "fetch")
-    .mockResolvedValueOnce(new Response(JSON.stringify({ correct: true })))
-    .mockResolvedValueOnce(new Response(JSON.stringify({
-      correct: true,
-      normalizedAnswer: "6",
-      explanation: "正确。",
-      diagnosis: { runId: "run-1", status: "in_progress", completedSlots: 1 },
-    })));
+    .mockResolvedValueOnce(new Response(JSON.stringify({ correct: true })));
   render(<DiagnosisAnswerForm sessionItemId="item-malformed" runId="run-1" />);
 
   await userEvent.type(screen.getByLabelText("你的答案"), "6");
   await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
-  await userEvent.click(await screen.findByRole("button", { name: "重试提交" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("已暂存，网络恢复后会自动提交。");
 
   const first = JSON.parse(fetchSpy.mock.calls[0][1]?.body as string);
-  const second = JSON.parse(fetchSpy.mock.calls[1][1]?.body as string);
-  expect(second.clientSubmissionId).toBe(first.clientSubmissionId);
+  expect(JSON.parse(readSubmissionQueue()[0].body).clientSubmissionId).toBe(first.clientSubmissionId);
+});
+
+test("restores and updates the saved diagnosis draft", async () => {
+  localStorage.setItem("math-offline:draft:item-1", JSON.stringify({
+    sessionItemId: "item-1",
+    answerText: "12",
+    updatedAt: 10,
+  }));
+
+  render(<DiagnosisAnswerForm sessionItemId="item-1" runId="run-1" />);
+
+  const answer = screen.getByLabelText("你的答案");
+  expect(answer).toHaveValue("12");
+
+  await userEvent.clear(answer);
+  await userEvent.type(answer, "18");
+
+  expect(readDraft("item-1")).toMatchObject({
+    sessionItemId: "item-1",
+    answerText: "18",
+  });
+});
+
+test("queues an uncertain diagnosis submission for online retry with the original submission id", async () => {
+  const submit = vi.fn().mockRejectedValueOnce(new Error("offline"));
+  render(<DiagnosisAnswerForm sessionItemId="item-1" runId="run-1" submitAnswer={submit} />);
+
+  const answer = screen.getByLabelText("你的答案");
+  await userEvent.type(answer, "6");
+  await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
+
+  expect(await screen.findByRole("alert")).toHaveTextContent("已暂存，网络恢复后会自动提交");
+  expect(answer).toHaveValue("6");
+  expect(readSubmissionQueue()).toEqual([
+    expect.objectContaining({
+      endpoint: "/api/child/diagnosis",
+      clientSubmissionId: submit.mock.calls[0][0].clientSubmissionId,
+    }),
+  ]);
+  expect(JSON.parse(readSubmissionQueue()[0].body)).toMatchObject({
+    sessionItemId: "item-1",
+    answerText: "6",
+    clientSubmissionId: submit.mock.calls[0][0].clientSubmissionId,
+  });
+});
+
+test("does not queue a definite diagnosis error", async () => {
+  vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({
+    error: "需要修改后重试",
+  }), { status: 403 }));
+
+  render(<DiagnosisAnswerForm sessionItemId="item-1" runId="run-1" />);
+
+  await userEvent.type(screen.getByLabelText("你的答案"), "6");
+  await userEvent.click(screen.getByRole("button", { name: "提交答案" }));
+
+  expect(await screen.findByRole("alert")).toHaveTextContent("需要修改后重试");
+  expect(readSubmissionQueue()).toEqual([]);
 });
