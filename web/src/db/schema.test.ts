@@ -1295,6 +1295,11 @@ test("adds AI provider config storage without changing populated attempts", () =
     expect(() => sqlite.prepare(`
       INSERT INTO ai_provider_configs (
         provider, base_url, model, encrypted_api_key, enabled, created_at, updated_at
+      ) VALUES ('anthropic', 'https://example.com', 'claude', NULL, 0, 11, 11)
+    `).run()).toThrow();
+    expect(() => sqlite.prepare(`
+      INSERT INTO ai_provider_configs (
+        provider, base_url, model, encrypted_api_key, enabled, created_at, updated_at
       ) VALUES ('openai', 'https://api.openai.com/v1', 'gpt-5-mini', NULL, 0, 11, 11)
     `).run()).toThrow();
   } finally {

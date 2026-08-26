@@ -79,3 +79,38 @@ Results:
 - The crypto code is intentionally minimal and uses only Node built-ins.
 - Validation is strict and rejects unsupported providers, unsafe URL protocols, and unknown fields.
 - The migration test exercises the real migration path and confirms existing `attempts` data survives the new table addition.
+
+## Round 1 Fix
+
+### Review findings addressed
+
+- Added a real SQLite/Drizzle `CHECK` constraint so `ai_provider_configs.provider` only accepts `openai` and `deepseek`.
+- Updated the checked-in migration SQL and snapshot metadata to match that constraint.
+- Added a real schema test proving an unsupported provider insert fails after migration.
+- Added focused malformed base64url segment tests for nonce/ciphertext/tag envelope parts.
+
+### Files updated
+
+- `web/src/db/schema.ts`
+- `web/src/db/schema.test.ts`
+- `web/src/domain/ai/provider-config.test.ts`
+- `web/drizzle/20260826083517_jazzy_cassandra_nova/migration.sql`
+- `web/drizzle/20260826083517_jazzy_cassandra_nova/snapshot.json`
+
+### Verification commands
+
+```powershell
+Set-Location web
+npm test -- --run src/domain/ai/provider-config.test.ts
+npm test -- --run src/db/schema.test.ts src/db/client.test.ts
+npm run typecheck
+```
+
+### Verification output
+
+- `npm test -- --run src/domain/ai/provider-config.test.ts`
+  - passed, 1 file / 6 tests
+- `npm test -- --run src/db/schema.test.ts src/db/client.test.ts`
+  - passed, 2 files / 9 tests
+- `npm run typecheck`
+  - passed

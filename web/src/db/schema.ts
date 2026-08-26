@@ -133,7 +133,9 @@ export const aiProviderConfigs = sqliteTable("ai_provider_configs", {
   enabled: integer("enabled", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
-});
+}, (table) => [
+  check("ai_provider_configs_provider", sql`${table.provider} IN ('openai', 'deepseek')`),
+]);
 
 export const trainingSessions = sqliteTable("training_sessions", {
   id: text("id").primaryKey(),

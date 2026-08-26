@@ -35,6 +35,15 @@ test("rejects malformed envelopes and weak master secrets", () => {
   expect(() => decryptApiKey("v1.only-two-parts", MASTER_SECRET)).toThrow("Invalid API key envelope");
 });
 
+test("rejects malformed base64url envelope segments", () => {
+  expect(() => decryptApiKey("v1.invalid!.cipher.tag", MASTER_SECRET))
+    .toThrow("Invalid API key envelope");
+  expect(() => decryptApiKey("v1.a.invalid!.tag", MASTER_SECRET))
+    .toThrow("Invalid API key envelope");
+  expect(() => decryptApiKey("v1.a.cipher.invalid!", MASTER_SECRET))
+    .toThrow("Invalid API key envelope");
+});
+
 test("masks API keys with six bullets and the trailing four characters", () => {
   expect(maskApiKey("")).toBe("");
   expect(maskApiKey("sk-1234567890")).toBe("••••••7890");

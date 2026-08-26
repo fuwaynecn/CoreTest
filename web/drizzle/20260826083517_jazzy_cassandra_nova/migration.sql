@@ -5,5 +5,6 @@ CREATE TABLE `ai_provider_configs` (
 	`encrypted_api_key` text,
 	`enabled` integer DEFAULT false NOT NULL,
 	`created_at` integer NOT NULL,
-	`updated_at` integer NOT NULL
+	`updated_at` integer NOT NULL,
+	CONSTRAINT "ai_provider_configs_provider" CHECK(`ai_provider_configs`.`provider` IN ('openai', 'deepseek'))
 );

@@ -2989,6 +2989,12 @@
       "table": "attempts"
     },
     {
+      "value": "\"provider\" IN ('openai', 'deepseek')",
+      "name": "ai_provider_configs_provider",
+      "entityType": "checks",
+      "table": "ai_provider_configs"
+    },
+    {
       "value": "\"track\" IN ('computation', 'equation')",
       "name": "dosage_states_track",
       "entityType": "checks",
