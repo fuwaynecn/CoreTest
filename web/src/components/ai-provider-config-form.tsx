@@ -18,6 +18,7 @@ type ProviderFormState = {
   apiKeyInput: string;
   clearApiKey: boolean;
   pending: boolean;
+  testPending: boolean;
   error: string;
   success: string;
 };
@@ -53,6 +54,7 @@ function toInitialState(initial: AiProviderConfigView[]) {
     apiKeyInput: "",
     clearApiKey: false,
     pending: false,
+    testPending: false,
     error: "",
     success: "",
   }])) as Record<AiProvider, ProviderFormState>;
@@ -129,6 +131,40 @@ export function AiProviderConfigForm({ initial }: Props) {
         apiKeyInput: "",
         pending: false,
         error: "网络连接失败，请检查网络后重试",
+      }));
+    }
+  }
+
+  async function testConnection(provider: AiProvider) {
+    updateProvider(provider, (value) => ({ ...value, testPending: true, error: "", success: "" }));
+
+    try {
+      const response = await fetch("/api/parent/ai-test", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ provider }),
+      });
+
+      if (!response.ok) {
+        updateProvider(provider, (value) => ({
+          ...value,
+          testPending: false,
+          error: "连接失败，请检查配置",
+        }));
+        return;
+      }
+
+      updateProvider(provider, (value) => ({
+        ...value,
+        testPending: false,
+        error: "",
+        success: `${providerLabels[provider].title} 连接正常`,
+      }));
+    } catch {
+      updateProvider(provider, (value) => ({
+        ...value,
+        testPending: false,
+        error: "连接失败，请检查配置",
       }));
     }
   }
@@ -212,7 +248,16 @@ export function AiProviderConfigForm({ initial }: Props) {
                   />
                   启用
                 </label>
-                <button type="submit">{labels.submitLabel}</button>
+                <div className="aiProviderActions">
+                  <button type="submit">{labels.submitLabel}</button>
+                  <button
+                    type="button"
+                    disabled={item.testPending}
+                    onClick={() => void testConnection(provider)}
+                  >
+                    {`测试 ${labels.title}`}
+                  </button>
+                </div>
                 {item.error && <p role="alert">{item.error}</p>}
                 {item.success && <p className="aiProviderSuccess">{item.success}</p>}
               </fieldset>

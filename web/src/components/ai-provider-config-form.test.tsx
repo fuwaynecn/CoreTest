@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { AiProviderConfigView } from "@/services/parent/ai-provider-config";
 import { AiProviderConfigForm } from "./ai-provider-config-form";
@@ -88,4 +88,67 @@ test("supports clearing a key and clears replacement input after a network failu
   }));
   expect(await screen.findByRole("alert")).toHaveTextContent("网络连接失败");
   expect(keyInput).toHaveValue("");
+});
+
+test("test button posts only provider and shows success", async () => {
+  const user = userEvent.setup();
+  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({
+    ok: true,
+    provider: "openai",
+    model: "gpt-5",
+  }));
+  vi.stubGlobal("fetch", fetchMock);
+  render(<AiProviderConfigForm initial={initialViews} />);
+
+  await user.click(screen.getByRole("button", { name: "测试 OpenAI" }));
+
+  expect(fetchMock).toHaveBeenCalledWith("/api/parent/ai-test", expect.objectContaining({
+    method: "POST",
+    body: JSON.stringify({ provider: "openai" }),
+  }));
+  expect(await screen.findByText("OpenAI 连接正常")).toBeInTheDocument();
+});
+
+test("test button shows safe failure and does not send a key", async () => {
+  const user = userEvent.setup();
+  const fetchMock = vi.fn().mockResolvedValue(jsonResponse({
+    error: { code: "ai_unavailable" },
+  }, { status: 502 }));
+  vi.stubGlobal("fetch", fetchMock);
+  render(<AiProviderConfigForm initial={initialViews} />);
+
+  await user.type(screen.getByLabelText("OpenAI API Key（更换时填写）"), "opaque-test-token");
+  await user.click(screen.getByRole("button", { name: "测试 OpenAI" }));
+
+  expect(fetchMock).toHaveBeenCalledWith("/api/parent/ai-test", expect.objectContaining({
+    method: "POST",
+    body: JSON.stringify({ provider: "openai" }),
+  }));
+  expect(fetchMock).not.toHaveBeenCalledWith("/api/parent/ai-test", expect.objectContaining({
+    body: expect.stringContaining("opaque-test-token"),
+  }));
+  expect(await screen.findByText("连接失败，请检查配置")).toBeInTheDocument();
+});
+
+test("only the active provider test button is disabled while pending", async () => {
+  const user = userEvent.setup();
+  let resolveFetch: ((value: Response) => void) | undefined;
+  const fetchMock = vi.fn().mockImplementation(() => new Promise<Response>((resolve) => {
+    resolveFetch = resolve;
+  }));
+  vi.stubGlobal("fetch", fetchMock);
+  render(<AiProviderConfigForm initial={initialViews} />);
+
+  const openAiTestButton = screen.getByRole("button", { name: "测试 OpenAI" });
+  const deepSeekTestButton = screen.getByRole("button", { name: "测试 DeepSeek" });
+
+  const clickPromise = user.click(openAiTestButton);
+  await vi.waitFor(() => expect(openAiTestButton).toBeDisabled());
+  expect(deepSeekTestButton).toBeEnabled();
+
+  await act(async () => {
+    resolveFetch?.(jsonResponse({ ok: true, provider: "openai", model: "gpt-5" }));
+  });
+  await clickPromise;
+  expect(await screen.findByText("OpenAI 连接正常")).toBeInTheDocument();
 });
