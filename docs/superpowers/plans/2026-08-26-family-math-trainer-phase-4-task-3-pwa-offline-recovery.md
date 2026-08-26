@@ -53,15 +53,15 @@ export function readSubmissionQueue(): QueuedSubmission[];
 export function removeSubmission(id: string): void;
 ```
 
-- [ ] **Step 1：先写失败测试**
+- [x] **Step 1：先写失败测试**
 
 覆盖草稿按题目隔离、无效 JSON 安全返回空、队列按 `createdAt` 排序、重复 `id` 覆盖、localStorage 异常不抛出，以及 API Key/响应字段不会被写入。
 
-- [ ] **Step 2：实现最小存储服务**
+- [x] **Step 2：实现最小存储服务**
 
 使用固定前缀键保存 JSON；只接受两个允许的 endpoint；读取时验证字段类型；存储不可用时返回空或静默跳过，保证在线流程不被阻断。
 
-- [ ] **Step 3：运行聚焦测试并提交**
+- [x] **Step 3：运行聚焦测试并提交**
 
 ```powershell
 Set-Location web
@@ -92,15 +92,15 @@ git commit -m "feat: add offline draft and submission store"
 - `online` 事件触发队列顺序发送；2xx 删除，确定性 4xx 删除并显示失败，其他失败保留。
 - 页面会话成功完成后清理对应草稿。
 
-- [ ] **Step 1：先写失败测试**
+- [x] **Step 1：先写失败测试**
 
 覆盖两个表单的草稿恢复、网络失败入队且复用提交标识、确定性 4xx 不入队、联网后按顺序发送，以及状态条事件文案。
 
-- [ ] **Step 2：实现最小接入**
+- [x] **Step 2：实现最小接入**
 
 复用现有提交函数和错误分类；只在 `postAttempt`/`postDiagnosisAnswer` 的不确定失败路径入队，避免改变在线成功结果和服务端判分。
 
-- [ ] **Step 3：运行聚焦测试并提交**
+- [x] **Step 3：运行聚焦测试并提交**
 
 ```powershell
 Set-Location web
@@ -131,15 +131,15 @@ git commit -m "feat: recover offline child submissions"
 - `PwaRegister` 仅在浏览器注册 `/sw.js`，注册失败不阻断页面。
 - layout 挂载 `PwaRegister` 和 `OfflineStatus`；状态条不遮挡主要答题区域。
 
-- [ ] **Step 1：先写失败测试**
+- [x] **Step 1：先写失败测试**
 
 验证组件只在浏览器注册 Service Worker，失败不抛出；验证 manifest 必需字段；验证 Service Worker 源码明确跳过 API 和跨源请求。
 
-- [ ] **Step 2：实现最小 PWA 壳**
+- [x] **Step 2：实现最小 PWA 壳**
 
 只缓存同源静态资源，避免缓存个性化响应；不添加安装弹窗和新依赖。
 
-- [ ] **Step 3：运行全量验证并提交**
+- [x] **Step 3：运行全量验证并提交**
 
 ```powershell
 Set-Location web
@@ -154,9 +154,9 @@ git commit -m "feat: add installable pwa shell"
 
 ## 完成检查
 
-- [ ] 平板可发现并安装 PWA，静态应用壳可加载。
-- [ ] 断网时答案、审题卡和草稿不丢失。
-- [ ] 恢复联网后按序重试，复用同一 `clientSubmissionId`。
-- [ ] 确定性错误不进入队列，未保存内容不显示为已完成。
-- [ ] 不缓存 API、Key 或服务端响应。
-- [ ] 现有核心流程、全量测试和生产构建通过。
+- [x] 平板可发现并安装 PWA，静态应用壳可加载。
+- [x] 断网时答案、审题卡和草稿不丢失。
+- [x] 恢复联网后按序重试，复用同一 `clientSubmissionId`。
+- [x] 确定性错误不进入队列，未保存内容不显示为已完成。
+- [x] 不缓存 API、Key 或服务端响应。
+- [x] 现有核心流程、全量测试和生产构建通过。
