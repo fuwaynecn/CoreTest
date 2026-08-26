@@ -12,7 +12,10 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   const url = new URL(request.url);
-  if (request.method !== "GET" || url.origin !== self.location.origin || url.pathname.startsWith("/api/") || url.pathname === "/login") return;
+  const cacheable = url.pathname === "/"
+    || url.pathname === "/favicon.ico"
+    || url.pathname.startsWith("/_next/static/");
+  if (request.method !== "GET" || url.origin !== self.location.origin || !cacheable) return;
 
   event.respondWith(
     caches.match(request).then((cached) => cached ?? fetch(request).then((response) => {
