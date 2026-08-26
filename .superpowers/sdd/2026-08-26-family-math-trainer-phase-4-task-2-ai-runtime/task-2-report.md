@@ -50,3 +50,25 @@
 - `web/src/app/api/parent/ai-test/route.test.ts`
 - `web/src/components/ai-provider-config-form.tsx`
 - `web/src/components/ai-provider-config-form.test.tsx`
+
+## 2026-08-26 Fix Wave
+
+### Scope
+
+- Replaced the misleading parent-facing copy so the page no longer claims no external AI calls happen.
+- Tightened the provider auth regression test to assert the exact bearer header from an opaque runtime token variable.
+- Added minimal `.aiProviderActions` layout CSS so save/test buttons wrap with a visible gap while preserving the existing 48px button height floor.
+
+### Verification
+
+- `npm test -- --run src/components/ai-provider-config-form.test.tsx src/services/ai/provider-client.test.ts`
+  - Passed.
+- `npm run lint`
+  - Passed.
+- `npm run typecheck`
+  - Passed.
+
+### Notes
+
+- No secrets or ciphertext were added to source or test assertions.
+- This fix wave did not re-run the broader suite; the earlier recorded pre-existing `src/db/seed.test.ts` timeout remains the only known full-suite concern from Task 2 work.

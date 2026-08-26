@@ -42,6 +42,7 @@ test("renders both providers, editable address/model, masked key, and enabled sw
   expect(screen.getByRole("group", { name: "DeepSeek" })).toBeInTheDocument();
   expect(screen.getByDisplayValue("gpt-5")).toBeInTheDocument();
   expect(screen.getByText("••••••-key")).toBeInTheDocument();
+  expect(screen.getByText("测试连接会向所选服务商发送固定的连接测试消息，不会发送孩子作答数据。")).toBeInTheDocument();
 });
 
 test("submits a replacement key without pre-filling the old key", async () => {

@@ -120,6 +120,7 @@ button, input { min-height: 48px; }
 .aiProviderCard input { width: 100%; padding: .7rem .85rem; border: 1px solid #9ca7a3; border-radius: .65rem; background: white; color: var(--ink); }
 .aiProviderCard button { width: fit-content; min-width: 9rem; padding: .75rem 1rem; border: 0; border-radius: .7rem; background: var(--brand); color: white; cursor: pointer; font-weight: 700; }
 .aiProviderCard button:disabled { cursor: wait; opacity: .65; }
+.aiProviderActions { display: flex; flex-wrap: wrap; gap: .75rem; }
 .aiProviderCard p { margin: 0; }
 .aiProviderCard p[role="alert"] { color: #9b2424; font-weight: 700; }
 .aiProviderStatus { color: #57635f; }

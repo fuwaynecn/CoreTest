@@ -5,7 +5,7 @@ function createOpaqueToken() {
 }
 
 test("posts an OpenAI-compatible chat request with bearer auth and returns text", async () => {
-  const apiKey = createOpaqueToken();
+  const runtimeToken = createOpaqueToken();
   const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({
     choices: [{ message: { content: "好的" } }],
   }), { status: 200 }));
@@ -13,7 +13,7 @@ test("posts an OpenAI-compatible chat request with bearer auth and returns text"
   await expect(callAiProvider({
     baseUrl: "https://example.com/v1/",
     model: "gpt-test",
-    apiKey,
+    apiKey: runtimeToken,
     messages: [{ role: "user", content: "只回复好的" }],
     fetchImpl,
   })).resolves.toEqual({ text: "好的" });
@@ -31,7 +31,7 @@ test("posts an OpenAI-compatible chat request with bearer auth and returns text"
   });
   expect(init?.headers).toMatchObject({
     "content-type": "application/json",
-    Authorization: expect.stringMatching(/^Bearer \S+$/),
+    Authorization: `Bearer ${runtimeToken}`,
   });
 });
 
