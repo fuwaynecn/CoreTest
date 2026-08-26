@@ -1,5 +1,5 @@
 CREATE TABLE `ai_provider_configs` (
-	`provider` text PRIMARY KEY,
+	`provider` text PRIMARY KEY NOT NULL,
 	`base_url` text NOT NULL,
 	`model` text NOT NULL,
 	`encrypted_api_key` text,

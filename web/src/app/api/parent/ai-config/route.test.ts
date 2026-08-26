@@ -1,5 +1,5 @@
 import { aiProviderConfigs } from "@/db/schema";
-import { encryptApiKey } from "@/domain/ai/provider-config-crypto";
+import { decryptApiKey, encryptApiKey } from "@/domain/ai/provider-config-crypto";
 import { createTestDatabase } from "@/test/test-db";
 
 const state = vi.hoisted(() => ({
@@ -70,15 +70,21 @@ test("GET lists both providers without exposing a key", async () => {
 });
 
 test("parent can create, update, retain, disable, and clear a key", async () => {
+  const replacementKey = "route-replacement-key";
   const create = await POST(jsonRequest({
     provider: "openai",
     baseUrl: "https://api.openai.com/v1",
     model: "gpt-5",
     enabled: true,
-    apiKey: "secret-key",
+    apiKey: replacementKey,
   }));
 
   expect(create.status).toBe(200);
+  const createdEncryptedApiKey = state.db!.select({ encryptedApiKey: aiProviderConfigs.encryptedApiKey })
+    .from(aiProviderConfigs)
+    .get()!.encryptedApiKey!;
+  expect(createdEncryptedApiKey === replacementKey).toBe(false);
+  expect(decryptApiKey(createdEncryptedApiKey) === replacementKey).toBe(true);
 
   const retain = await POST(jsonRequest({
     provider: "openai",
@@ -133,19 +139,35 @@ test("child and anonymous sessions are rejected", async () => {
   });
 });
 
-test("invalid payloads return 400 and never echo a submitted key", async () => {
-  const response = await POST(jsonRequest({
-    provider: "other",
-    baseUrl: "file:///tmp/key",
-    model: "",
-    enabled: true,
-    apiKey: "secret",
-    clearApiKey: true,
+test.each([
+  ["unsupported provider", {
+    provider: "other", baseUrl: "https://example.com", model: "model", enabled: true,
+  }],
+  ["non-web URL", {
+    provider: "openai", baseUrl: "file:///tmp/key", model: "model", enabled: true,
+  }],
+  ["blank model", {
+    provider: "openai", baseUrl: "https://example.com", model: "", enabled: true,
+  }],
+  ["unknown field", {
+    provider: "openai", baseUrl: "https://example.com", model: "model", enabled: true,
     extra: true,
-  }));
+  }],
+  ["conflicting key operations", {
+    provider: "openai", baseUrl: "https://example.com", model: "model", enabled: true,
+    apiKey: "replacement", clearApiKey: true,
+  }],
+  ["overlong replacement key", {
+    provider: "openai", baseUrl: "https://example.com", model: "model", enabled: true,
+    apiKey: "x".repeat(513),
+  }],
+] as const)("%s returns 400", async (_caseName, body) => {
+  const response = await POST(jsonRequest(body));
 
   expect(response.status).toBe(400);
-  expect(JSON.stringify(await response.json())).not.toContain("secret");
+  expect(await response.json()).toEqual({
+    error: { code: "invalid_request", message: "AI 服务配置无效" },
+  });
 });
 
 test("missing master secret returns the safe 503", async () => {

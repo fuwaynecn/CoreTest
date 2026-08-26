@@ -62,15 +62,30 @@ test("submits a replacement key without pre-filling the old key", async () => {
   expect(await screen.findByText("OpenAI 配置已保存")).toBeInTheDocument();
 });
 
-test("supports clearing a key and shows a safe error", async () => {
+test("clears the replacement key after a non-OK response", async () => {
+  const user = userEvent.setup();
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({}, { status: 400 })));
+  render(<AiProviderConfigForm initial={initialViews} />);
+  const keyInput = screen.getByLabelText("OpenAI API Key（更换时填写）");
+  await user.type(keyInput, "replacement");
+  await user.click(screen.getByRole("button", { name: "保存 OpenAI" }));
+
+  expect(await screen.findByRole("alert")).toHaveTextContent("保存失败，请刷新后重试");
+  expect(keyInput).toHaveValue("");
+});
+
+test("supports clearing a key and clears replacement input after a network failure", async () => {
   const user = userEvent.setup();
   const fetchMock = vi.fn().mockRejectedValue(new Error("offline"));
   vi.stubGlobal("fetch", fetchMock);
   render(<AiProviderConfigForm initial={initialViews} />);
+  const keyInput = screen.getByLabelText("OpenAI API Key（更换时填写）");
+  await user.type(keyInput, "replacement");
   await user.click(screen.getByLabelText("清除 OpenAI API Key"));
   await user.click(screen.getByRole("button", { name: "保存 OpenAI" }));
   expect(fetchMock).toHaveBeenCalledWith("/api/parent/ai-config", expect.objectContaining({
     body: expect.stringContaining("\"clearApiKey\":true"),
   }));
   expect(await screen.findByRole("alert")).toHaveTextContent("网络连接失败");
+  expect(keyInput).toHaveValue("");
 });

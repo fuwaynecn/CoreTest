@@ -126,7 +126,7 @@ export const parentPreferences = sqliteTable("parent_preferences", {
 });
 
 export const aiProviderConfigs = sqliteTable("ai_provider_configs", {
-  provider: text("provider", { enum: ["openai", "deepseek"] }).primaryKey(),
+  provider: text("provider", { enum: ["openai", "deepseek"] }).notNull().primaryKey(),
   baseUrl: text("base_url").notNull(),
   model: text("model").notNull(),
   encryptedApiKey: text("encrypted_api_key"),

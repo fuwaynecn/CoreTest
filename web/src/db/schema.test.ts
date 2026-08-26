@@ -1284,6 +1284,11 @@ test("adds AI provider config storage without changing populated attempts", () =
       "updated_at",
     ]));
     expect(primaryKeyColumns(sqlite, "ai_provider_configs")).toEqual(["provider"]);
+    expect(sqlite.prepare("PRAGMA table_info('ai_provider_configs')").all()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "provider", notnull: 1, pk: 1 }),
+      ]),
+    );
     expect(sqlite.prepare("SELECT count(*) AS count FROM attempts").get()).toEqual(existingAttemptCount);
     expect(foreignKeyCheck(sqlite)).toEqual([]);
 
@@ -1296,6 +1301,11 @@ test("adds AI provider config storage without changing populated attempts", () =
       INSERT INTO ai_provider_configs (
         provider, base_url, model, encrypted_api_key, enabled, created_at, updated_at
       ) VALUES ('anthropic', 'https://example.com', 'claude', NULL, 0, 11, 11)
+    `).run()).toThrow();
+    expect(() => sqlite.prepare(`
+      INSERT INTO ai_provider_configs (
+        provider, base_url, model, encrypted_api_key, enabled, created_at, updated_at
+      ) VALUES (NULL, 'https://example.com', 'model', NULL, 0, 11, 11)
     `).run()).toThrow();
     expect(() => sqlite.prepare(`
       INSERT INTO ai_provider_configs (

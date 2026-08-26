@@ -16,7 +16,7 @@ const postInputSchema = z.strictObject({
   baseUrl: z.string(),
   model: z.string(),
   enabled: z.boolean(),
-  apiKey: z.string().min(1).optional(),
+  apiKey: z.string().min(1).max(512).optional(),
   clearApiKey: z.boolean().optional(),
 }).refine((value) => !(value.apiKey && value.clearApiKey), {
   message: "conflicting apiKey and clearApiKey",

@@ -27,6 +27,9 @@ export function maskApiKey(apiKey: string): string {
   if (!apiKey) {
     return "";
   }
+  if (apiKey.length <= 4) {
+    return "••••••";
+  }
 
   return `••••••${apiKey.slice(-4)}`;
 }

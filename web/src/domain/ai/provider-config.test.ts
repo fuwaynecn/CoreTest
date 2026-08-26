@@ -44,8 +44,10 @@ test("rejects malformed base64url envelope segments", () => {
     .toThrow("Invalid API key envelope");
 });
 
-test("masks API keys with six bullets and the trailing four characters", () => {
+test("masks API keys without exposing short inputs", () => {
   expect(maskApiKey("")).toBe("");
+  expect(maskApiKey("a")).toBe("••••••");
+  expect(maskApiKey("abcd")).toBe("••••••");
   expect(maskApiKey("sk-1234567890")).toBe("••••••7890");
 });
 

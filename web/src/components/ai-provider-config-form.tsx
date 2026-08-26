@@ -101,6 +101,7 @@ export function AiProviderConfigForm({ initial }: Props) {
       if (!response.ok) {
         updateProvider(provider, (value) => ({
           ...value,
+          apiKeyInput: "",
           pending: false,
           error: "保存失败，请刷新后重试",
         }));
@@ -125,6 +126,7 @@ export function AiProviderConfigForm({ initial }: Props) {
     } catch {
       updateProvider(provider, (value) => ({
         ...value,
+        apiKeyInput: "",
         pending: false,
         error: "网络连接失败，请检查网络后重试",
       }));
