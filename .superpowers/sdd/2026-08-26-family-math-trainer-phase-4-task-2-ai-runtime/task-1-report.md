@@ -90,3 +90,40 @@ Results:
 
 - HTTP errors are intentionally collapsed into a single `http` code without preserving response detail, matching the brief’s safe-error requirement.
 - Invalid-response parsing only accepts the standard `choices[0].message.content` string shape; that is deliberate for this minimal runtime layer.
+
+## Round 1 Fix
+
+### Review Findings Addressed
+
+1. Abort during `response.json()` body consumption is now classified as `timeout` instead of `invalid_response`.
+2. Provider-client tests no longer commit a literal plaintext API-key test value or assert the full bearer token.
+
+### TDD Cycle
+
+1. Added a focused failing test for `AbortError` raised during body read after headers were received.
+2. Confirmed the red state: the new test failed because the runtime mapped that abort to `invalid_response`.
+3. Updated `provider-client.ts` so the `response.json()` catch maps `AbortError` to the existing safe `timeout` code.
+4. Re-ran the focused runtime verification to green.
+
+### Commands Run
+
+```powershell
+Set-Location web
+npm test -- --run src/services/ai/provider-client.test.ts
+npm test -- --run src/services/ai/provider-client.test.ts src/services/ai/generate-ai-enhancement.test.ts
+npm run typecheck
+```
+
+### Output Summary
+
+- `npm test -- --run src/services/ai/provider-client.test.ts`
+  - passed: 10 tests
+- `npm test -- --run src/services/ai/provider-client.test.ts src/services/ai/generate-ai-enhancement.test.ts`
+  - passed: 16 tests
+- `npm run typecheck`
+  - passed
+
+### Files Updated In Round 1
+
+- `web/src/services/ai/provider-client.ts`
+- `web/src/services/ai/provider-client.test.ts`

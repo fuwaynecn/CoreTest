@@ -76,7 +76,11 @@ export async function callAiProvider(input: CallAiProviderInput): Promise<{ text
     let payload: unknown;
     try {
       payload = await response.json();
-    } catch {
+    } catch (error) {
+      if (isAbortError(error)) {
+        throw new AiProviderError("timeout", "AI provider request timed out");
+      }
+
       throw toInvalidResponse();
     }
 
