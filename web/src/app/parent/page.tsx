@@ -1,5 +1,6 @@
 import { asc, count, desc, eq } from "drizzle-orm";
 import { AbilityMap } from "@/components/ability-map";
+import { AiProviderConfigForm } from "@/components/ai-provider-config-form";
 import { DosageSummary } from "@/components/dosage-summary";
 import { ErrorSummary } from "@/components/error-summary";
 import { ParentRetestButton } from "@/components/parent-retest-button";
@@ -10,6 +11,7 @@ import { getDatabase } from "@/db/client";
 import { attempts, diagnosticRuns, sessionItems, trainingSessions, users } from "@/db/schema";
 import type { InitialDiagnosisReport } from "@/domain/diagnosis/types";
 import { requireRole } from "@/lib/auth/current-user";
+import { listAiProviderConfigs } from "@/services/parent/ai-provider-config";
 import { getLearningState } from "@/services/parent/get-learning-state";
 import { getPlanDashboard } from "@/services/parent/get-plan-dashboard";
 import { getParentEvidence } from "@/services/training/get-parent-evidence";
@@ -81,6 +83,7 @@ function formatSubmittedAt(value: number) {
 export default async function ParentPage() {
   await requireRole("parent");
   const db = getDatabase();
+  const aiProviderConfigs = listAiProviderConfigs(db);
   const child = db.select({ id: users.id, displayName: users.displayName })
     .from(users)
     .where(eq(users.role, "child"))
@@ -90,9 +93,12 @@ export default async function ParentPage() {
   if (!child) {
     return (
       <main className="parentPage parentEmpty">
-        <p className="eyebrow">家长查看</p>
-        <h1>还没有孩子账号</h1>
-        <p>创建孩子账号后，这里会显示每次作答的原题和答案。</p>
+        <section className="parentEmptyIntro">
+          <p className="eyebrow">家长查看</p>
+          <h1>还没有孩子账号</h1>
+          <p>创建孩子账号后，这里会显示每次作答的原题和答案。</p>
+        </section>
+        <AiProviderConfigForm initial={aiProviderConfigs} />
       </main>
     );
   }
@@ -241,6 +247,8 @@ export default async function ParentPage() {
           )}
         </section>
       )}
+
+      <AiProviderConfigForm initial={aiProviderConfigs} />
 
       <section className="parentDashboardFlow" aria-label="家长训练概览">
       <WeeklyReport report={planDashboard.weeklyReport} />

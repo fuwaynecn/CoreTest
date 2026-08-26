@@ -137,6 +137,7 @@ test("labels first-attempt periods and bases the recommendation on this week", a
   expect(requireRole).toHaveBeenCalledWith("parent");
   expect(getParentEvidence).toHaveBeenCalledWith(state.db, "child-1");
   expect(screen.getByRole("heading", { name: "小雨的学习证据" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "AI 服务配置" })).toBeInTheDocument();
   expect(screen.getByText("首次作答证据")).toBeInTheDocument();
   expect(screen.getByText("累计首次作答")).toBeInTheDocument();
   expect(screen.getByText("累计首次答对率 67%")).toBeInTheDocument();
@@ -152,6 +153,18 @@ test("labels first-attempt periods and bases the recommendation on this week", a
   expect(within(rows[1]).getByText("7.5 元")).toBeInTheDocument();
   expect(within(rows[1]).getByText("已答对")).toBeInTheDocument();
   expect(screen.queryByText(/能力诊断|最终诊断/)).not.toBeInTheDocument();
+});
+
+test("renders AI config in the no-child empty state", async () => {
+  const db = createTestDatabase();
+  state.db = db;
+
+  render(await ParentPage());
+
+  expect(screen.getByRole("heading", { name: "还没有孩子账号" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "AI 服务配置" })).toBeInTheDocument();
+  expect(screen.getByRole("group", { name: "OpenAI" })).toBeInTheDocument();
+  expect(screen.getByRole("group", { name: "DeepSeek" })).toBeInTheDocument();
 });
 
 test("exposes the parent dashboard flow and complete mobile order", async () => {

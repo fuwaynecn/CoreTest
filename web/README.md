@@ -35,6 +35,7 @@ npm ci
 | `PARENT_PASSWORD` | `npm run db:seed` 使用的家长密码，长度必须为 4–128 个字符。 |
 | `CHILD_PIN` | `npm run db:seed` 使用的孩子 PIN，长度必须为 4–128 个字符。 |
 | `SESSION_COOKIE_SECURE` | 本地 HTTP 开发设为 `false`；HTTPS 环境可设为 `true`。生产构建始终发送 Secure 会话 Cookie。 |
+| `AI_CONFIG_ENCRYPTION_KEY` | 服务端加密 AI API Key 的部署密钥，至少 32 个字符；不要提交到 Git。 |
 
 不要把真实凭据提交到仓库。PowerShell 本地初始化示例：
 
