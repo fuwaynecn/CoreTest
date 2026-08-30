@@ -50,3 +50,17 @@ test("keeps daily training available while a version two retest is active", asyn
   expect(getOrCreateDailySession).toHaveBeenCalledTimes(1);
   expect(getOrCreateDiagnosis).not.toHaveBeenCalled();
 });
+
+test("shows completed state instead of another daily training link", async () => {
+  getDiagnosisLearningGate.mockReturnValue({ formalDailyUnlocked: true, activeDiagnosis: null });
+  getOrCreateDailySession.mockReturnValue({
+    id: "daily-1",
+    status: "completed",
+    questions: [{ answered: true }],
+  });
+
+  render(await ChildHomePage());
+
+  expect(screen.getByRole("heading", { name: "今天的训练已经完成" })).toBeVisible();
+  expect(screen.queryByRole("link", { name: /今天的训练/ })).not.toBeInTheDocument();
+});
