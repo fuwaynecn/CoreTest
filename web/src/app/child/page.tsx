@@ -6,6 +6,13 @@ import { getDiagnosisLearningGate, getOrCreateDiagnosis } from "@/services/diagn
 import { getChildRewards, type ChildRewards } from "@/services/training/award-rewards";
 import { getOrCreateDailySession } from "@/services/training/create-daily-session";
 
+const BADGE_ICONS: Record<string, string> = {
+  "reading-detective": "🔎",
+  "unit-inspector": "📏",
+  "equation-balancer": "⚖️",
+  "estimate-expert": "🧠",
+};
+
 function AchievementCard({ rewards }: { rewards: ChildRewards }) {
   return (
     <section className="achievementCard" aria-labelledby="achievement-heading">
@@ -20,7 +27,12 @@ function AchievementCard({ rewards }: { rewards: ChildRewards }) {
         <div>
           <p className="achievementLabel">已获得徽章</p>
           <ul className="achievementBadges">
-            {rewards.badges.map((badge) => <li key={badge.code}>{badge.label}</li>)}
+            {rewards.badges.map((badge) => (
+              <li key={badge.code}>
+                <span className="badgeIcon" aria-hidden="true">{BADGE_ICONS[badge.code] ?? "🏅"}</span>
+                <span>{badge.label}</span>
+              </li>
+            ))}
           </ul>
         </div>
       ) : <p className="achievementEmpty">完成训练，继续收集徽章。</p>}

@@ -82,4 +82,5 @@ test("shows lifetime points and earned badges on the child home", async () => {
   expect(screen.getByRole("heading", { name: "我的成就" })).toBeVisible();
   expect(screen.getByText("累计 18 分")).toBeVisible();
   expect(screen.getByText("审题侦探")).toBeVisible();
+  expect(screen.getByText("🔎")).toBeVisible();
 });
