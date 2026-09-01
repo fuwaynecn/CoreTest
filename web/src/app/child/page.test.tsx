@@ -55,6 +55,18 @@ test("keeps daily training available while a version two retest is active", asyn
   expect(getOrCreateDiagnosis).not.toHaveBeenCalled();
 });
 
+test("shows the actual number of questions scheduled for today", async () => {
+  getDiagnosisLearningGate.mockReturnValue({ formalDailyUnlocked: true, activeDiagnosis: null });
+  getOrCreateDailySession.mockReturnValue({
+    id: "daily-1",
+    questions: Array.from({ length: 20 }, () => ({ answered: false })),
+  });
+
+  render(await ChildHomePage());
+
+  expect(screen.getByText("今天安排了 20 道题。答错后可以订正，再继续下一题。")).toBeVisible();
+});
+
 test("shows completed state instead of another daily training link", async () => {
   getDiagnosisLearningGate.mockReturnValue({ formalDailyUnlocked: true, activeDiagnosis: null });
   getOrCreateDailySession.mockReturnValue({

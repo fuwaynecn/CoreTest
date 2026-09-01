@@ -27,6 +27,20 @@ test("reallocates an unavailable review slot to weakness before shortening", () 
   expect(result.shortages).toEqual(expect.objectContaining({ review: 1 }));
 });
 
+test("fills remaining slots from available categories when a composition is short", () => {
+  const result = selectDailyItems({
+    candidates: candidates.slice(3),
+    targetSeconds: 600,
+    composition: { weakness: 5, review: 0, reading: 0, extension: 0 },
+    date: "2026-08-20",
+    seed: "supplemental",
+  });
+  expect(result.items).toHaveLength(5);
+  expect(result.items.map((item) => item.category)).toEqual([
+    "weakness", "weakness", "weakness", "reading", "extension",
+  ]);
+});
+
 test("uses target difficulty after mastery rank when ordering candidates", () => {
   const result = selectDailyItems({ candidates: [
     { templateId: "far", skillId: "one", structureTag: "one", category: "weakness", difficulty: 4, targetDifficulty: 2, estimatedSeconds: 60, dueOn: null },

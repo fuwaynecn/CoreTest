@@ -55,7 +55,7 @@ export function getOrCreateAdaptiveSession(db: AppDatabase, childId: string, dat
     if (existing) return existing.id;
     const week = weekNumber(plan.startsOn, date);
     const focus = tx.select({ specialistFocus: parentPreferences.specialistFocus, targetMinutes: parentPreferences.targetMinutes, trainingWeekdays: parentPreferences.trainingWeekdays }).from(parentPreferences).where(eq(parentPreferences.childId, childId)).get();
-    const targetSeconds = (focus?.targetMinutes ?? 20) * 60;
+    const targetSeconds = (focus?.targetMinutes ?? 30) * 60;
     const due = tx.select().from(reviewSchedules).where(and(eq(reviewSchedules.childId, childId))).all();
     const dueBySkill = new Map(due.filter((row) => row.dueOn <= date).map((row) => [row.skillId, row]));
     const ranks = new Map(tx.select().from(masteryStates).where(eq(masteryStates.childId, childId)).all().map((row) => [row.skillId, ({ needs_support: 0, learning: 1, basic: 2, stable: 3, undiagnosed: 4 } as const)[row.status]]));
@@ -68,7 +68,7 @@ export function getOrCreateAdaptiveSession(db: AppDatabase, childId: string, dat
         dueOn: dueBySkill.get(row.skillId)?.dueOn ?? null, masteryRank: ranks.get(row.skillId) ?? 4, targetDifficulty: Math.min(4, (ranks.get(row.skillId) ?? 3) + 1) as 1 | 2 | 3 | 4,
         category: dueBySkill.has(row.skillId) ? "review" as const : targetSkillIds.has(row.skillId) ? "weakness" as const : row.domain === "thinking_habits" ? "reading" as const : "extension" as const,
       }));
-    const totalSlots = Math.max(1, Math.round(targetSeconds / 90));
+    const totalSlots = Math.max(15, Math.round(targetSeconds / 90));
     const composition = allocateComposition(totalSlots, (focus?.specialistFocus ?? "none") as SpecialistFocus);
     const selected = selectDailyItems({ candidates, composition, targetSeconds, date, seed: `${date}:${plan.id}:${plan.revision}` });
     const id = randomUUID(); const kind = isAssessmentDay(date, week, trainingWeekdays(focus?.trainingWeekdays)) ? "assessment" : "daily";

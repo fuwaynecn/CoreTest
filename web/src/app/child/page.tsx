@@ -103,7 +103,7 @@ export default async function ChildHomePage() {
     <main className="trainingPage">
       <p className="eyebrow">你好，{child.displayName}</p>
       <h1>今天的数学训练</h1>
-      <p>每次认真完成 3 道题。答错后可以订正，再继续下一题。</p>
+      <p>今天安排了 {session.questions.length} 道题。答错后可以订正，再继续下一题。</p>
       <AchievementCard rewards={rewards} />
       <Link className="primaryButton trainingStart" href={`/child/session/${session.id}`}>{label}</Link>
       {gate.activeDiagnosis && (

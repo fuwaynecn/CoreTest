@@ -39,8 +39,19 @@ test("creates immutable same-day adaptive snapshots from the active plan", () =>
   const items = db.select().from(sessionItems).where(eq(sessionItems.sessionId, first.id)).all();
   expect(again.id).toBe(first.id);
   expect(session).toMatchObject({ kind: "daily", learningPlanId: "plan", planRevision: 2, ruleVersion: "phase2c-v1" });
-  expect(items.length).toBeGreaterThan(0);
+  expect(items).toHaveLength(20);
   expect(items[0]).toMatchObject({ variantSeed: expect.stringContaining("2026-08-20"), selectionReasonSnapshot: expect.stringContaining("selectionReason") });
+});
+
+test("keeps a short configured session at a fifteen-question minimum", () => {
+  const db = seed();
+  db.insert(diagnosticRuns).values({ id: "diagnosis", childId: "child", version: 1, status: "completed", currentPart: 3, seed: "diagnosis-seed", startedAt: 1, completedAt: 2, reportSnapshot: "{}" }).run();
+  db.insert(learningPlans).values({ id: "plan", childId: "child", diagnosisRunId: "diagnosis", version: 1, revision: 1, status: "active", startsOn: "2026-08-17", endsOn: "2026-09-27", reasonSnapshot: "{}", createdAt: 1 }).run();
+  db.insert(parentPreferences).values({ childId: "child", trainingWeekdays: "[1,2,3,4,5]", targetMinutes: 20, specialistFocus: "none", updatedAt: 1 }).run();
+
+  const session = getOrCreateAdaptiveSession(db, "child", "2026-08-20");
+
+  expect(session.questions).toHaveLength(15);
 });
 
 test("classifies due daily items as review evidence with their frozen interval", () => {

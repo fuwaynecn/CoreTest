@@ -50,5 +50,18 @@ export function selectDailyItems(input: { candidates: readonly ScheduledCandidat
     select(category, reallocate);
     reallocate -= items.length - before;
   }
+  const requestedTotal = Object.values(input.composition).reduce((sum, value) => sum + value, 0);
+  for (const candidate of ordered) {
+    if (items.length >= requestedTotal || templates.has(candidate.templateId)) continue;
+    if ((structures.get(candidate.structureTag) ?? 0) >= 6) continue;
+    if (candidate.category === "review" && (reviews.get(candidate.skillId) ?? 0) >= 2) continue;
+    const used = items.reduce((sum, item) => sum + item.estimatedSeconds, 0);
+    if (used > input.targetSeconds) break;
+    const position = items.length;
+    templates.add(candidate.templateId);
+    structures.set(candidate.structureTag, (structures.get(candidate.structureTag) ?? 0) + 1);
+    if (candidate.category === "review") reviews.set(candidate.skillId, (reviews.get(candidate.skillId) ?? 0) + 1);
+    items.push({ ...candidate, position, variantSeed: `${input.seed}:${position + 1}:${candidate.templateId}`, selectionReason: "supplemental" });
+  }
   return { items, shortages };
 }
