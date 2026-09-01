@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { createTestDatabase } from "@/test/test-db";
 import { attempts, questionTemplates, rewardEvents, sessionItems, skills, trainingSessions, users } from "@/db/schema";
+import { getChildRewards } from "./award-rewards";
 import { submitAttempt } from "./submit-attempt";
 
 afterEach(() => {
@@ -117,4 +118,17 @@ test.each([
 
   expect(corrected.rewards.newBadges).toContainEqual({ code: badgeCode, label: badgeLabel });
   expect(db.select().from(rewardEvents).where(eq(rewardEvents.code, eventCode)).all()).toHaveLength(5);
+});
+
+test("summarizes lifetime points and earned badges", () => {
+  const db = database();
+  db.insert(rewardEvents).values([
+    { id: "points-1", childId: "child", sourceKey: "points:1", kind: "points", code: "session-completed", points: 5, occurredAt: 1 },
+    { id: "badge-1", childId: "child", sourceKey: "badge:1", kind: "badge", code: "reading-detective", points: 0, occurredAt: 2, metadata: JSON.stringify({ label: "审题侦探" }) },
+  ]).run();
+
+  expect(getChildRewards(db, "child")).toEqual({
+    totalPoints: 5,
+    badges: [{ code: "reading-detective", label: "审题侦探" }],
+  });
 });

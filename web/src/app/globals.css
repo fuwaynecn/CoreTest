@@ -28,6 +28,17 @@ button, input { min-height: 48px; }
 .trainingPage h1 { margin: .25rem 0 1rem; font-size: clamp(2rem, 6vw, 3.5rem); }
 .trainingStart { margin-top: 1rem; }
 .diagnosisHomeCount { width: fit-content; margin: 1.5rem 0 .25rem; padding: .65rem .9rem; border-left: .35rem solid var(--brand); background: #edf5f2; font-weight: 700; }
+.achievementCard { display: grid; gap: 1rem; margin: 1.5rem 0; padding: 1.1rem 1.2rem; border: 1px solid var(--sand); border-radius: .85rem; background: white; }
+.achievementHeader { display: flex; justify-content: space-between; gap: 1rem; align-items: end; }
+.achievementHeader h2 { margin: .15rem 0 0; }
+.achievementHeader .eyebrow { margin: 0; }
+.achievementPoints { display: grid; justify-items: end; margin: 0; color: var(--brand); }
+.achievementPoints strong { font-size: 2rem; line-height: 1; }
+.achievementLabel { color: var(--muted); font-size: .85rem; font-weight: 700; }
+.achievementLabel { margin: 0 0 .45rem; }
+.achievementBadges { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0; padding: 0; list-style: none; }
+.achievementBadges li { padding: .45rem .7rem; border-radius: 999px; background: #edf5f2; color: var(--brand); font-weight: 700; }
+.achievementEmpty { margin: 0; color: var(--muted); }
 .activeRetest { width: fit-content; margin-top: 1.5rem; padding: 1rem 1.15rem; border: 1px solid var(--sand); border-radius: .75rem; background: white; }
 .activeRetest p { margin-top: 0; }
 .activeRetest a { display: inline-flex; min-height: 48px; align-items: center; padding: .55rem .8rem; border: 1px solid var(--brand); border-radius: .65rem; color: var(--brand); font-weight: 700; text-decoration: none; }

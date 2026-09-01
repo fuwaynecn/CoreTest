@@ -4,6 +4,7 @@ import ChildHomePage from "./page";
 const getOrCreateDailySession = vi.hoisted(() => vi.fn());
 const getOrCreateDiagnosis = vi.hoisted(() => vi.fn());
 const getDiagnosisLearningGate = vi.hoisted(() => vi.fn());
+const getChildRewards = vi.hoisted(() => vi.fn());
 
 vi.mock("@/db/client", () => ({ getDatabase: () => ({}) }));
 vi.mock("@/lib/auth/current-user", () => ({
@@ -14,11 +15,14 @@ vi.mock("@/services/training/create-daily-session", () => ({
   getOrCreateDailySession,
 }));
 vi.mock("@/services/diagnosis/diagnosis-service", () => ({ getDiagnosisLearningGate, getOrCreateDiagnosis }));
+vi.mock("@/services/training/award-rewards", () => ({ getChildRewards }));
 
 beforeEach(() => {
   getOrCreateDailySession.mockReset();
   getOrCreateDiagnosis.mockReset();
   getDiagnosisLearningGate.mockReset();
+  getChildRewards.mockReset();
+  getChildRewards.mockReturnValue({ totalPoints: 0, badges: [] });
 });
 
 test("routes an undiagnosed child to the persisted diagnosis without creating daily work", async () => {
@@ -63,4 +67,19 @@ test("shows completed state instead of another daily training link", async () =>
 
   expect(screen.getByRole("heading", { name: "今天的训练已经完成" })).toBeVisible();
   expect(screen.queryByRole("link", { name: /今天的训练/ })).not.toBeInTheDocument();
+});
+
+test("shows lifetime points and earned badges on the child home", async () => {
+  getDiagnosisLearningGate.mockReturnValue({ formalDailyUnlocked: true, activeDiagnosis: null });
+  getOrCreateDailySession.mockReturnValue({ id: "daily-1", questions: [{ answered: false }] });
+  getChildRewards.mockReturnValue({
+    totalPoints: 18,
+    badges: [{ code: "reading-detective", label: "审题侦探" }],
+  });
+
+  render(await ChildHomePage());
+
+  expect(screen.getByRole("heading", { name: "我的成就" })).toBeVisible();
+  expect(screen.getByText("累计 18 分")).toBeVisible();
+  expect(screen.getByText("审题侦探")).toBeVisible();
 });

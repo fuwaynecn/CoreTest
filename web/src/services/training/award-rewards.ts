@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { eq, sql } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import type { AppDatabase } from "@/db/client";
 import { rewardEvents } from "@/db/schema";
 import { earnedBadges, pointValues, type BadgeCounts } from "@/domain/rewards/reward-rules";
 
 export type RewardSummary = { pointsEarned: number; totalPoints: number; newBadges: Array<{ code: string; label: string }> };
+export type ChildRewards = { totalPoints: number; badges: Array<{ code: string; label: string }> };
 type Tx = Parameters<Parameters<AppDatabase["transaction"]>[0]>[0];
 
 type RewardInput = {
@@ -17,6 +18,21 @@ type RewardInput = {
 
 function metadata(raw: string): Record<string, unknown> {
   try { return JSON.parse(raw) as Record<string, unknown>; } catch { return {}; }
+}
+
+export function getChildRewards(db: AppDatabase, childId: string): ChildRewards {
+  const rows = db.select({ kind: rewardEvents.kind, code: rewardEvents.code, points: rewardEvents.points, metadata: rewardEvents.metadata })
+    .from(rewardEvents)
+    .where(eq(rewardEvents.childId, childId))
+    .orderBy(asc(rewardEvents.occurredAt), asc(rewardEvents.id))
+    .all();
+  return {
+    totalPoints: rows.reduce((total, row) => total + row.points, 0),
+    badges: rows.filter((row) => row.kind === "badge").map((row) => ({
+      code: row.code,
+      label: typeof metadata(row.metadata).label === "string" ? metadata(row.metadata).label as string : row.code,
+    })),
+  };
 }
 
 function insertReward(tx: Tx, values: Omit<typeof rewardEvents.$inferInsert, "id">) {
