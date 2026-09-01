@@ -266,6 +266,7 @@ export function submitAttempt(db: AppDatabase, command: SubmitAttemptCommand): A
       sessionId: item.sessionId,
       sessionKind: item.sessionKind,
       sessionItemId: command.sessionItemId,
+      skillId: item.skillId,
       attemptId,
       priorAttemptCount,
       hadIncorrectPrior,

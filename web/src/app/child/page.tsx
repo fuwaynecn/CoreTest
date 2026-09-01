@@ -13,6 +13,23 @@ const BADGE_ICONS: Record<string, string> = {
   "estimate-expert": "🧠",
 };
 
+function topicBadgeIcon(code: string) {
+  if (code.startsWith("topic-equation")) return "⚖️";
+  if (["angle", "perimeter", "area", "volume", "composite-geometry", "spatial", "length-conversion"]
+    .some((part) => code.startsWith(`topic-${part}`))) return "📐";
+  if (["data-table", "data-bar", "data-line", "data-average", "data-compare", "possibility"]
+    .some((part) => code.startsWith(`topic-${part}`))) return "📊";
+  if (["price-model", "distance-model", "work-model", "ratio-model", "percent-model", "multi-step-model", "extra-information"]
+    .some((part) => code.startsWith(`topic-${part}`))) return "🧮";
+  if (["read-question", "find-condition", "unit-awareness", "estimate-check", "check-strategy"]
+    .some((part) => code.startsWith(`topic-${part}`))) return "🧭";
+  return "🔢";
+}
+
+function badgeIcon(code: string) {
+  return BADGE_ICONS[code] ?? (code.startsWith("topic-") ? topicBadgeIcon(code) : "🏅");
+}
+
 function AchievementCard({ rewards }: { rewards: ChildRewards }) {
   return (
     <section className="achievementCard" aria-labelledby="achievement-heading">
@@ -23,19 +40,32 @@ function AchievementCard({ rewards }: { rewards: ChildRewards }) {
         </div>
         <p className="achievementPoints"><strong>累计 {rewards.totalPoints} 分</strong></p>
       </div>
-      {rewards.badges.length > 0 ? (
+      <div>
+        <p className="achievementLabel">已掌握题型 {rewards.topicBadges.length} / {rewards.topicBadgeTotal}</p>
+        {rewards.topicBadges.length > 0 ? (
+          <ul className="achievementBadges">
+            {rewards.topicBadges.map((badge) => (
+              <li key={badge.code}>
+                <span className="badgeIcon" aria-hidden="true">{badgeIcon(badge.code)}</span>
+                <span>{badge.label}</span>
+              </li>
+            ))}
+          </ul>
+        ) : <p className="achievementEmpty">继续训练，解锁题型徽章。</p>}
+      </div>
+      {rewards.badges.length > 0 && (
         <div>
-          <p className="achievementLabel">已获得徽章</p>
+          <p className="achievementLabel">专项徽章</p>
           <ul className="achievementBadges">
             {rewards.badges.map((badge) => (
               <li key={badge.code}>
-                <span className="badgeIcon" aria-hidden="true">{BADGE_ICONS[badge.code] ?? "🏅"}</span>
+                <span className="badgeIcon" aria-hidden="true">{badgeIcon(badge.code)}</span>
                 <span>{badge.label}</span>
               </li>
             ))}
           </ul>
         </div>
-      ) : <p className="achievementEmpty">完成训练，继续收集徽章。</p>}
+      )}
     </section>
   );
 }

@@ -22,7 +22,7 @@ beforeEach(() => {
   getOrCreateDiagnosis.mockReset();
   getDiagnosisLearningGate.mockReset();
   getChildRewards.mockReset();
-  getChildRewards.mockReturnValue({ totalPoints: 0, badges: [] });
+  getChildRewards.mockReturnValue({ totalPoints: 0, badges: [], topicBadges: [], topicBadgeTotal: 38 });
 });
 
 test("routes an undiagnosed child to the persisted diagnosis without creating daily work", async () => {
@@ -75,6 +75,8 @@ test("shows lifetime points and earned badges on the child home", async () => {
   getChildRewards.mockReturnValue({
     totalPoints: 18,
     badges: [{ code: "reading-detective", label: "审题侦探" }],
+    topicBadges: [{ code: "topic-decimal", label: "小数运算" }],
+    topicBadgeTotal: 38,
   });
 
   render(await ChildHomePage());
@@ -83,4 +85,6 @@ test("shows lifetime points and earned badges on the child home", async () => {
   expect(screen.getByText("累计 18 分")).toBeVisible();
   expect(screen.getByText("审题侦探")).toBeVisible();
   expect(screen.getByText("🔎")).toBeVisible();
+  expect(screen.getByText("已掌握题型 1 / 38")).toBeVisible();
+  expect(screen.getByText("小数运算")).toBeVisible();
 });

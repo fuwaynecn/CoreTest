@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { createTestDatabase } from "@/test/test-db";
-import { attempts, questionTemplates, rewardEvents, sessionItems, skills, trainingSessions, users } from "@/db/schema";
+import { attempts, masteryStates, questionTemplates, rewardEvents, sessionItems, skills, trainingSessions, users } from "@/db/schema";
 import { getChildRewards } from "./award-rewards";
 import { submitAttempt } from "./submit-attempt";
 
@@ -130,5 +130,38 @@ test("summarizes lifetime points and earned badges", () => {
   expect(getChildRewards(db, "child")).toEqual({
     totalPoints: 5,
     badges: [{ code: "reading-detective", label: "审题侦探" }],
+    topicBadges: [],
+    topicBadgeTotal: 38,
   });
+});
+
+test("summarizes stable topic mastery as a topic badge", () => {
+  const db = database();
+  db.insert(skills).values({ id: "skill-decimal", code: "decimal", name: "小数运算", domain: "number_operations" }).run();
+  db.insert(masteryStates).values({
+    childId: "child", skillId: "skill-decimal", status: "stable", evidenceCount: 7, correctCount: 6,
+    reasonCode: "basic_due_review_stable", evidenceVersion: 7, updatedAt: 10,
+  }).run();
+
+  expect(getChildRewards(db, "child")).toMatchObject({
+    topicBadges: [{ code: "topic-decimal", label: "小数运算" }],
+    topicBadgeTotal: 38,
+  });
+});
+
+test("returns a new topic badge when a stable skill is answered", () => {
+  const db = database();
+  db.update(skills).set({ code: "decimal", name: "小数运算", domain: "number_operations" }).where(eq(skills.id, "skill")).run();
+  db.insert(masteryStates).values({
+    childId: "child", skillId: "skill", status: "stable", evidenceCount: 7, correctCount: 6,
+    reasonCode: "basic_due_review_stable", evidenceVersion: 7, updatedAt: 10,
+  }).run();
+
+  const result = submitAttempt(db, {
+    childId: "child", sessionItemId: "item", clientSubmissionId: "41111111-1111-4111-8111-111111111111", answerText: "5",
+    readingCardResponse: { target: "目标", givens: "已知", units: "元", usefulFacts: "事实", relationship: "关系", estimateRange: "5-5" },
+  });
+
+  expect(result.rewards.newBadges).toContainEqual({ code: "topic-decimal", label: "小数运算" });
+  expect(db.select().from(rewardEvents).where(eq(rewardEvents.code, "topic-decimal")).all()).toHaveLength(1);
 });

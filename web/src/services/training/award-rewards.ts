@@ -1,15 +1,17 @@
 import { randomUUID } from "node:crypto";
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import type { AppDatabase } from "@/db/client";
-import { rewardEvents } from "@/db/schema";
+import { masteryStates, rewardEvents, skills } from "@/db/schema";
+import { phase2Skills } from "@/content/phase2-catalog";
 import { earnedBadges, pointValues, type BadgeCounts } from "@/domain/rewards/reward-rules";
 
 export type RewardSummary = { pointsEarned: number; totalPoints: number; newBadges: Array<{ code: string; label: string }> };
-export type ChildRewards = { totalPoints: number; badges: Array<{ code: string; label: string }> };
+type Badge = { code: string; label: string };
+export type ChildRewards = { totalPoints: number; badges: Badge[]; topicBadges: Badge[]; topicBadgeTotal: number };
 type Tx = Parameters<Parameters<AppDatabase["transaction"]>[0]>[0];
 
 type RewardInput = {
-  childId: string; sessionId: string; sessionKind: string; sessionItemId: string; attemptId: string;
+  childId: string; sessionId: string; sessionKind: string; sessionItemId: string; skillId: string; attemptId: string;
   priorAttemptCount: number; correct: boolean; sessionCompleted: boolean; metadataSnapshot: string;
   hadIncorrectPrior: boolean; structureTagSnapshot: string;
   readingCardResponse?: { units: string; relationship: string };
@@ -26,12 +28,27 @@ export function getChildRewards(db: AppDatabase, childId: string): ChildRewards 
     .where(eq(rewardEvents.childId, childId))
     .orderBy(asc(rewardEvents.occurredAt), asc(rewardEvents.id))
     .all();
+  const topicCodes = new Set(phase2Skills.map((skill) => `topic-${skill.code}`));
+  const topicBadges = new Map<string, Badge>();
+  for (const row of rows.filter((item) => item.kind === "badge" && topicCodes.has(item.code))) {
+    const parsed = metadata(row.metadata);
+    topicBadges.set(row.code, { code: row.code, label: typeof parsed.label === "string" ? parsed.label : row.code });
+  }
+  const stableSkillIds = new Set(db.select({ skillId: masteryStates.skillId })
+    .from(masteryStates)
+    .where(and(eq(masteryStates.childId, childId), eq(masteryStates.status, "stable")))
+    .all().map((row) => row.skillId));
+  for (const skill of phase2Skills) {
+    if (stableSkillIds.has(skill.id)) topicBadges.set(`topic-${skill.code}`, { code: `topic-${skill.code}`, label: skill.name });
+  }
   return {
     totalPoints: rows.reduce((total, row) => total + row.points, 0),
-    badges: rows.filter((row) => row.kind === "badge").map((row) => ({
+    badges: rows.filter((row) => row.kind === "badge" && !topicCodes.has(row.code)).map((row) => ({
       code: row.code,
       label: typeof metadata(row.metadata).label === "string" ? metadata(row.metadata).label as string : row.code,
     })),
+    topicBadges: phase2Skills.flatMap((skill) => topicBadges.get(`topic-${skill.code}`) ?? []),
+    topicBadgeTotal: phase2Skills.length,
   };
 }
 
@@ -91,6 +108,17 @@ export function awardRewards(tx: Tx, input: RewardInput): RewardSummary {
   for (const badge of earnedBadges(counts)) {
     const sourceKey = `badge:${input.childId}:${badge.code}`;
     if (insertReward(tx, { childId: input.childId, sourceKey, kind: "badge", code: badge.code, points: 0, sessionId: input.sessionId, attemptId: input.attemptId, occurredAt: input.occurredAt, metadata: JSON.stringify({ label: badge.label }) })) newBadges.push({ code: badge.code, label: badge.label });
+  }
+  const skill = tx.select({ code: skills.code, name: skills.name }).from(skills).where(eq(skills.id, input.skillId)).get();
+  const mastery = tx.select({ status: masteryStates.status }).from(masteryStates).where(and(
+    eq(masteryStates.childId, input.childId),
+    eq(masteryStates.skillId, input.skillId),
+  )).get();
+  if (skill && mastery?.status === "stable" && phase2Skills.some((item) => item.code === skill.code)) {
+    const code = `topic-${skill.code}`;
+    if (insertReward(tx, { childId: input.childId, sourceKey: `badge:${input.childId}:${code}`, kind: "badge", code, points: 0, sessionId: input.sessionId, attemptId: input.attemptId, occurredAt: input.occurredAt, metadata: JSON.stringify({ label: skill.name }) })) {
+      newBadges.push({ code, label: skill.name });
+    }
   }
   const totalPoints = tx.select({ total: sql<number>`coalesce(sum(${rewardEvents.points}), 0)` }).from(rewardEvents).where(eq(rewardEvents.childId, input.childId)).get()!.total;
   return { pointsEarned, totalPoints, newBadges };
