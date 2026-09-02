@@ -1,4 +1,4 @@
-import { asc, count, desc, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
 import { AbilityMap } from "@/components/ability-map";
 import { AiProviderConfigForm } from "@/components/ai-provider-config-form";
 import { DosageSummary } from "@/components/dosage-summary";
@@ -6,8 +6,10 @@ import { ErrorSummary } from "@/components/error-summary";
 import { ParentRetestButton } from "@/components/parent-retest-button";
 import { PlanCalendar } from "@/components/plan-calendar";
 import { PlanPreferencesForm } from "@/components/plan-preferences-form";
+import { ParentResumeTrainingButton } from "@/components/parent-resume-training-button";
 import { WeeklyReport } from "@/components/weekly-report";
 import { getDatabase } from "@/db/client";
+import { shanghaiDateKey } from "@/domain/time/shanghai-calendar";
 import { attempts, diagnosticRuns, sessionItems, trainingSessions, users } from "@/db/schema";
 import type { InitialDiagnosisReport } from "@/domain/diagnosis/types";
 import { requireRole } from "@/lib/auth/current-user";
@@ -103,6 +105,17 @@ export default async function ParentPage() {
     );
   }
 
+  const todaySession = db.select({ id: trainingSessions.id, status: trainingSessions.status })
+    .from(trainingSessions)
+    .where(and(
+      eq(trainingSessions.childId, child.id),
+      eq(trainingSessions.sessionDate, shanghaiDateKey()),
+      inArray(trainingSessions.kind, ["daily", "assessment"]),
+    ))
+    .limit(1)
+    .get();
+  const resumableSession = todaySession?.status === "completed_early" ? todaySession : null;
+
   const evidence = getParentEvidence(db, child.id);
   const learningState = getLearningState(db, child.id);
   const planDashboard = getPlanDashboard(db, child.id);
@@ -163,6 +176,20 @@ export default async function ParentPage() {
           <strong>{recommendation(evidence.summary.week.answered, evidence.summary.week.correct)}</strong>
         </aside>
       </header>
+
+      {resumableSession && (
+        <section className="diagnosisSummary parentResumeCard" aria-labelledby="resume-training-heading">
+          <div className="sectionHeading">
+            <div>
+              <p className="eyebrow">今日训练</p>
+              <h2 id="resume-training-heading">今天的训练尚未完成</h2>
+            </div>
+            <p>可以继续</p>
+          </div>
+          <p>孩子可以从上次停下的位置继续，已经提交的答案会保留。</p>
+          <ParentResumeTrainingButton sessionId={resumableSession.id} />
+        </section>
+      )}
 
       {currentDiagnosis?.status === "in_progress" && (
         <section className="diagnosisSummary" aria-labelledby="diagnosis-current-heading">

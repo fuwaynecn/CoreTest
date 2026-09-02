@@ -1,6 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { diagnosticRuns, questionTemplates, sessionItems, skills, trainingSessions, users } from "@/db/schema";
+import { shanghaiDateKey } from "@/domain/time/shanghai-calendar";
 import { createTestDatabase } from "@/test/test-db";
 import ParentPage from "./page";
 
@@ -153,6 +154,24 @@ test("labels first-attempt periods and bases the recommendation on this week", a
   expect(within(rows[1]).getByText("7.5 元")).toBeInTheDocument();
   expect(within(rows[1]).getByText("已答对")).toBeInTheDocument();
   expect(screen.queryByText(/能力诊断|最终诊断/)).not.toBeInTheDocument();
+});
+
+test("shows a parent action to resume today's early-ended training", async () => {
+  const db = state.db as ReturnType<typeof createTestDatabase>;
+  db.insert(trainingSessions).values({
+    id: "daily-early",
+    childId: "child-1",
+    sessionDate: shanghaiDateKey(),
+    kind: "daily",
+    status: "completed_early",
+    startedAt: 1,
+    completedAt: 2,
+  }).run();
+
+  render(await ParentPage());
+
+  expect(screen.getByText("今天的训练尚未完成")).toBeVisible();
+  expect(screen.getByRole("button", { name: "恢复当前训练" })).toBeVisible();
 });
 
 test("renders AI config in the no-child empty state", async () => {
