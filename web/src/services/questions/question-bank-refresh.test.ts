@@ -64,6 +64,44 @@ test("scoped refreshes only replenish the requested skill and never exceed forty
     .toEqual(new Set([skillId]));
 });
 
+test("scoped refreshes are idempotent and honor the thirty-day Shanghai cutoff", () => {
+  const db = seedCatalog();
+  const target = phase2Catalog.find((template) => template.id === "num-int-mental-01")!;
+  const skillId = `skill-${target.skillCode}`;
+  const recent = Date.parse("2026-08-20T12:00:00+08:00");
+  db.insert(questionInstances).values(Array.from({ length: 8 }, (_, index) => ({
+    id: `recent-${index}`,
+    templateId: target.id,
+    skillId,
+    variantSeed: `recent-${index}`,
+    variables: "{}",
+    stem: `recent ${index}`,
+    answerSpec: JSON.stringify({ kind: "number", value: index, tolerance: 0, unit: null }),
+    explanation: "recent",
+    difficulty: target.difficulty,
+    fingerprint: `recent-fingerprint-${index}`,
+    active: true,
+    generatedAt: 1,
+    updatedAt: 1,
+    lastUsedAt: recent,
+  }))).run();
+
+  const first = ensureQuestionBankFresh(db, "2026-09-04", { skillIds: [skillId], now: 10 });
+  const second = ensureQuestionBankFresh(db, "2026-09-04", { skillIds: [skillId], now: 11 });
+  expect(first.generated).toBeGreaterThan(0);
+  expect(first.generated).toBeLessThanOrEqual(12);
+  expect(second).toEqual({ skipped: false, generated: 0, errors: [] });
+  expect(db.select().from(questionInstances).where(eq(questionInstances.skillId, skillId)).all())
+    .toHaveLength(8 + first.generated);
+});
+
+test("does not bypass the weekly ledger for a full force refresh", () => {
+  const db = seedCatalog();
+  expect(ensureQuestionBankFresh(db, "2026-09-04", { now: 20 }).skipped).toBe(false);
+  expect(ensureQuestionBankFresh(db, "2026-09-04", { force: true, now: 21 }))
+    .toEqual({ skipped: true, generated: 0, errors: [] });
+});
+
 test("records invalid reviewed variants and does not persist them", () => {
   const db = seedCatalog();
   const target = phase2Catalog.find((template) => template.id === "num-int-mental-01")!;
@@ -78,6 +116,54 @@ test("records invalid reviewed variants and does not persist them", () => {
     const result = ensureQuestionBankFresh(db, "2026-09-04", { skillIds: [`skill-${target.skillCode}`], force: true, now: 4 });
     expect(result.errors.some((error) => error.includes("incorrect_number_answer"))).toBe(true);
     expect(db.select().from(questionInstances).where(eq(questionInstances.templateId, target.id)).all()).toEqual([]);
+  } finally {
+    phase2Catalog[index] = original;
+  }
+});
+
+test("blocks catalog-level validation errors for the affected template", () => {
+  const db = seedCatalog();
+  const index = phase2Catalog.findIndex((template) => template.id === "num-int-mental-01");
+  const original = phase2Catalog[index];
+  phase2Catalog[index] = { ...original, difficulty: 5 as never };
+
+  try {
+    const result = ensureQuestionBankFresh(db, "2026-09-04", { skillIds: [`skill-${original.skillCode}`], now: 30 });
+    expect(result.errors).toContain("num-int-mental-01:invalid_template:difficulty");
+    expect(db.select().from(questionInstances).where(eq(questionInstances.templateId, original.id)).all()).toEqual([]);
+  } finally {
+    phase2Catalog[index] = original;
+  }
+});
+
+test("blocks duplicate template ids instead of materializing either duplicate", () => {
+  const db = seedCatalog();
+  const target = phase2Catalog.find((template) => template.id === "num-int-mental-01")!;
+  phase2Catalog.push({ ...target });
+
+  try {
+    const result = ensureQuestionBankFresh(db, "2026-09-04", { skillIds: [`skill-${target.skillCode}`], now: 32 });
+    expect(result.errors).toContain("num-int-mental-01:duplicate_id");
+    expect(db.select().from(questionInstances).where(eq(questionInstances.templateId, target.id)).all()).toEqual([]);
+  } finally {
+    phase2Catalog.pop();
+  }
+});
+
+test("skips unresolved placeholders rendered in explanations", () => {
+  const db = seedCatalog();
+  const index = phase2Catalog.findIndex((template) => template.id === "num-int-mental-01");
+  const original = phase2Catalog[index];
+  phase2Catalog[index] = {
+    ...original,
+    explanationPattern: "解析 {{note}}。",
+    variantSpec: { variables: { ...original.variantSpec.variables, note: ["{{undeclared}}"] } },
+  };
+
+  try {
+    const result = ensureQuestionBankFresh(db, "2026-09-04", { skillIds: [`skill-${original.skillCode}`], now: 31 });
+    expect(result.errors.some((error) => error.includes("unsupported_placeholder:rendered-variant"))).toBe(true);
+    expect(db.select().from(questionInstances).where(eq(questionInstances.templateId, original.id)).all()).toEqual([]);
   } finally {
     phase2Catalog[index] = original;
   }

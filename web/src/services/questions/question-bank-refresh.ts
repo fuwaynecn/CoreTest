@@ -33,7 +33,22 @@ function dateAtShanghaiMidnight(date: string) {
 }
 
 function stableVariantErrors(templateId: string, index: number, errors: readonly string[]) {
-  return errors.filter((error) => error.startsWith(`${templateId}:`) && error.endsWith(`:variant-${index}`));
+  return errors.filter((error) => error.startsWith(`${templateId}:`)
+    && new RegExp(`:(?:rendered-)?variant-${index}$`).test(error));
+}
+
+function templateErrors(templateId: string, errors: readonly string[]) {
+  return errors.filter((error) => error.startsWith(`${templateId}:`)
+    && !/:(?:rendered-)?variant-\d+$/.test(error));
+}
+
+function hasUnresolvedPlaceholder(value: unknown): boolean {
+  if (typeof value === "string") return value.includes("{{") || value.includes("}}");
+  if (Array.isArray(value)) return value.some(hasUnresolvedPlaceholder);
+  if (value !== null && typeof value === "object") {
+    return Object.values(value).some(hasUnresolvedPlaceholder);
+  }
+  return false;
 }
 
 export function ensureQuestionBankFresh(
@@ -46,7 +61,7 @@ export function ensureQuestionBankFresh(
   const now = options.now ?? Date.now();
 
   return db.transaction((tx) => {
-    if (!scoped && !options.force && tx.select({ weekKey: questionBankRefreshes.weekKey })
+    if (!scoped && tx.select({ weekKey: questionBankRefreshes.weekKey })
       .from(questionBankRefreshes).where(eq(questionBankRefreshes.weekKey, weekKey)).get()) {
       return { skipped: true, generated: 0, errors: [] };
     }
@@ -65,10 +80,19 @@ export function ensureQuestionBankFresh(
     const errors = new Set<string>();
     let generated = 0;
     let stop = false;
+    const knownIds = new Set(phase2Catalog.map((template) => template.id));
+    const unattributedErrors = catalogErrors.filter((error) => ![...knownIds]
+      .some((id) => error.startsWith(`${id}:`)));
+    unattributedErrors.forEach((error) => errors.add(error));
 
     for (const template of phase2Catalog) {
       const skillId = `skill-${template.skillCode}`;
       if (allowedSkills && !allowedSkills.has(skillId)) continue;
+      const invalidTemplateErrors = templateErrors(template.id, catalogErrors);
+      if (unattributedErrors.length || invalidTemplateErrors.length) {
+        invalidTemplateErrors.forEach((error) => errors.add(error));
+        continue;
+      }
       const cell = `${skillId}:${template.difficulty}`;
       if ((inventory.get(cell) ?? 0) >= MIN_INVENTORY) continue;
 
@@ -81,6 +105,13 @@ export function ensureQuestionBankFresh(
 
         try {
           const instance = instantiateTemplateAtIndex(template, index, `question-bank:${template.id}:${index}`);
+          if (hasUnresolvedPlaceholder(instance.explanation)
+            || hasUnresolvedPlaceholder(instance.hintLadder)
+            || hasUnresolvedPlaceholder(instance.answerSpec)
+            || hasUnresolvedPlaceholder(instance.stem)) {
+            errors.add(`${template.id}:unsupported_placeholder:rendered-variant-${index}`);
+            continue;
+          }
           const renderedErrors = renderedQuestionErrors({
             answerMode: template.answerMode,
             stem: instance.stem,
@@ -115,8 +146,8 @@ export function ensureQuestionBankFresh(
               break;
             }
           }
-        } catch (error) {
-          errors.add(`${template.id}:invalid_variant:${index}:${error instanceof Error ? error.message : "unknown"}`);
+        } catch {
+          errors.add(`variant_generation_failed:${template.id}:${index}`);
         }
       }
       if (stop) break;
