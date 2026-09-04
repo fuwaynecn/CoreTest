@@ -10,16 +10,40 @@ function todayInShanghai() {
   return `${part("year")}-${part("month")}-${part("day")}`;
 }
 
-function firstDailyAnswer() {
+function firstDailyReviewItem() {
   const database = new DatabaseSync(".tmp/e2e.sqlite", { readOnly: true });
   try {
-    const row = database.prepare(`SELECT answer_spec_snapshot AS answerSpec
+    const row = database.prepare(`SELECT si.question_instance_id AS questionInstanceId,
+        si.stem_snapshot AS stemSnapshot, si.answer_spec_snapshot AS answerSpec,
+        si.skill_id_snapshot AS skillIdSnapshot, si.selection_reason_snapshot AS selectionReasonSnapshot
       FROM session_items si JOIN training_sessions ts ON ts.id = si.session_id
       WHERE ts.child_id = 'child' AND ts.session_date = $date AND ts.kind IN ('daily', 'assessment')
       ORDER BY si.position LIMIT 1`).get({ date: todayInShanghai() }) as { answerSpec: string } | undefined;
     if (!row) throw new Error("The daily session has no first item");
-    const answer = JSON.parse(row.answerSpec) as { kind: "number" | "choice"; value: number | string };
-    return String(answer.value);
+    return row as {
+      questionInstanceId: string | null;
+      stemSnapshot: string;
+      answerSpec: string;
+      skillIdSnapshot: string;
+      selectionReasonSnapshot: string;
+    };
+  } finally {
+    database.close();
+  }
+}
+
+function questionBankRowIndex(questionInstanceId: string) {
+  const database = new DatabaseSync(".tmp/e2e.sqlite", { readOnly: true });
+  try {
+    const rows = database.prepare(`SELECT question_instances.id AS id
+      FROM question_instances
+      JOIN question_templates ON question_templates.id = question_instances.template_id
+      JOIN skills ON skills.id = question_instances.skill_id
+      ORDER BY question_instances.active DESC, skills.code ASC, question_instances.difficulty ASC,
+        question_instances.stem ASC, question_instances.id ASC LIMIT 100`).all() as Array<{ id: string }>;
+    const index = rows.findIndex((row) => row.id === questionInstanceId);
+    if (index < 0) throw new Error("The refreshed question instance is not in the parent bank");
+    return index;
   } finally {
     database.close();
   }
@@ -85,52 +109,76 @@ test("@phase2 overdue equation review refreshes, edits, and preserves evidence",
     before.close();
   }
   prepareCompletedReviewFixture();
+  try {
+    await page.goto("/login");
+    await page.getByRole("button", { name: /我是孩子/ }).click();
+    await page.getByLabel("PIN").fill("2468");
+    await Promise.all([
+      page.waitForURL("**/child"),
+      page.getByRole("button", { name: "登录", exact: true }).click(),
+    ]);
+    await Promise.all([
+      page.waitForURL("**/child/session/**"),
+      page.getByRole("link", { name: /开始今天的训练/ }).click(),
+    ]);
 
-  await page.goto("/login");
-  await page.getByRole("button", { name: /我是孩子/ }).click();
-  await page.getByLabel("PIN").fill("2468");
-  await Promise.all([
-    page.waitForURL("**/child"),
-    page.getByRole("button", { name: "登录", exact: true }).click(),
-  ]);
-  await Promise.all([
-    page.waitForURL("**/child/session/**"),
-    page.getByRole("link", { name: /开始今天的训练/ }).click(),
-  ]);
+    const reviewItem = firstDailyReviewItem();
+    const selectionReason = JSON.parse(reviewItem.selectionReasonSnapshot) as { selectionReason?: string };
+    expect(selectionReason.selectionReason).toBe("overdue_review");
+    expect(reviewItem.skillIdSnapshot).toBe("skill-equation-l1");
+    expect(reviewItem.questionInstanceId).toEqual(expect.any(String));
+    if (!reviewItem.questionInstanceId) throw new Error("The review item has no question instance");
+    const questionInstanceId = reviewItem.questionInstanceId;
+    const database = new DatabaseSync(".tmp/e2e.sqlite", { readOnly: true });
+    try {
+      expect(database.prepare(`SELECT id, skill_id AS skillId, active FROM question_instances WHERE id = $id`).get({ id: questionInstanceId }))
+        .toMatchObject({ id: questionInstanceId, skillId: "skill-equation-l1", active: 1 });
+    } finally {
+      database.close();
+    }
 
-  const originalStem = await page.locator("#question-heading").innerText();
-  expect(originalStem).toContain("x");
-  expect(originalStem).not.toContain("一级方程");
-  await page.getByLabel("你的答案").fill(firstDailyAnswer());
-  await page.getByRole("button", { name: "提交答案" }).click();
-  await expect(page.getByText("做对了，别忘了检查题目问的是什么。")).toBeVisible();
+    const originalStem = reviewItem.stemSnapshot;
+    await expect(page.locator("#question-heading")).toHaveText(originalStem);
+    expect(originalStem).toContain("x");
+    expect(originalStem).not.toContain("一级方程");
+    const answer = JSON.parse(reviewItem.answerSpec) as { kind: "number" | "choice"; value: number | string };
+    await page.getByLabel("你的答案").fill(String(answer.value));
+    await page.getByRole("button", { name: "提交答案" }).click();
+    await expect(page.getByText("做对了，别忘了检查题目问的是什么。")).toBeVisible();
 
-  await page.context().clearCookies();
-  await page.goto("/login");
-  await page.getByRole("button", { name: /我是家长/ }).click();
-  await page.getByLabel("家长密码").fill("parent-test-1234");
-  await Promise.all([
-    page.waitForURL("**/parent"),
-    page.getByRole("button", { name: "登录", exact: true }).click(),
-  ]);
-  await page.goto("/parent/questions");
-  const row = page.getByTestId("question-bank-item").filter({ hasText: originalStem }).first();
-  await expect(row).toBeVisible();
-  await row.locator("summary").click();
-  const editedStem = `${originalStem}（家长修订）`;
-  await row.getByLabel("题干").fill(editedStem);
-  await row.getByRole("button", { name: "保存", exact: true }).click();
-  await expect(page.getByText(editedStem, { exact: true }).first()).toBeVisible();
+    await page.context().clearCookies();
+    await page.goto("/login");
+    await page.getByRole("button", { name: /我是家长/ }).click();
+    await page.getByLabel("家长密码").fill("parent-test-1234");
+    await Promise.all([
+      page.waitForURL("**/parent"),
+      page.getByRole("button", { name: "登录", exact: true }).click(),
+    ]);
+    await page.goto("/parent/questions");
+    const row = page.getByTestId("question-bank-item").nth(questionBankRowIndex(questionInstanceId));
+    await expect(row).toContainText(originalStem);
+    await row.locator("summary").click();
+    const editedStem = `${originalStem}（家长修订）`;
+    await row.getByLabel("题干").fill(editedStem);
+    const saveRequest = page.waitForRequest((request) => {
+      if (request.method() !== "PATCH") return false;
+      return new URL(request.url()).pathname === `/api/parent/questions/${questionInstanceId}`;
+    });
+    await Promise.all([saveRequest, row.getByRole("button", { name: "保存", exact: true }).click()]);
+    const editedRow = page.getByTestId("question-bank-item").filter({ hasText: editedStem });
+    await expect(editedRow).toHaveCount(1);
 
-  await page.goto("/parent");
-  const evidence = page.getByRole("region", { name: "最近作答" });
-  await expect(evidence.getByText(originalStem, { exact: true })).toBeVisible();
-  await expect(evidence.getByText(editedStem, { exact: true })).toBeHidden();
-  for (const width of [390, 1024]) {
-    await page.setViewportSize({ width, height: 844 });
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.goto("/parent");
+    const evidence = page.getByRole("region", { name: "最近作答" });
+    await expect(evidence.getByText(originalStem, { exact: true })).toBeVisible();
+    await expect(evidence.getByText(editedStem, { exact: true })).toBeHidden();
+    for (const width of [390, 1024]) {
+      await page.setViewportSize({ width, height: 844 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    }
+  } finally {
+    cleanupReviewFixture();
   }
-  cleanupReviewFixture();
 });
 
 test("@parent parent sees the supporting evidence", async ({ page }) => {
