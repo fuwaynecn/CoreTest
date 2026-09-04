@@ -5,6 +5,7 @@ import { phase2Catalog } from "@/content/phase2-catalog";
 import { credentialInputSchema } from "@/domain/auth/credentials";
 import { createDatabase } from "@/db/client";
 import { requireReviewedCatalog, seedDatabase } from "@/db/seed";
+import { addShanghaiDays, shanghaiDateKey } from "@/domain/time/shanghai-calendar";
 
 const expectedDatabaseName = ".tmp/e2e.sqlite";
 
@@ -48,6 +49,13 @@ export async function seedE2eDatabase(options: SeedE2eOptions = {}) {
       childPin,
       openDatabase: () => db,
     });
+    const today = shanghaiDateKey();
+    const now = Date.now();
+    db.$client.exec(`
+      INSERT INTO review_schedules (child_id, skill_id, level, due_on, last_result, updated_at)
+        VALUES ('child', 'skill-equation-l1', 1, '${addShanghaiDays(today, -1)}', 'incorrect', ${now});
+    `);
+    // Keep question_instances empty here; the adaptive session must trigger the real refresh path.
   } finally {
     db.$client.close();
   }
