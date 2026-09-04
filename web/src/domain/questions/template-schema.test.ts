@@ -53,6 +53,12 @@ test("accepts reviewed incomplete-reading targets only for wrong choice labels",
   })])).toEqual([]);
 });
 
+test("reports the rendered variant index for a formally invalid answer", () => {
+  expect(validateCatalog([validTemplate({
+    variantSpec: { variables: { left: [18], right: [7], answer: [999] } },
+  })])).toContain("number-add-01:incorrect_number_answer:variant-0");
+});
+
 test.each([
   {
     name: "empty incomplete-reading targets",

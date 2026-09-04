@@ -27,6 +27,12 @@ export type QuestionInstance = {
   variables: Record<string, VariantValue>;
 };
 
+export function questionFingerprint(instance: Pick<QuestionInstance, "templateId" | "stem" | "answerSpec">): string {
+  return createHash("sha256")
+    .update(JSON.stringify([instance.templateId, instance.stem, instance.answerSpec]))
+    .digest("hex");
+}
+
 const exactPlaceholder = /^\{\{([a-z][a-z0-9_]*)\}\}$/i;
 const placeholder = /\{\{([a-z][a-z0-9_]*)\}\}/gi;
 
