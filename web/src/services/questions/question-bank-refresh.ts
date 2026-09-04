@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { phase2Catalog } from "@/content/phase2-catalog";
 import type { AppDatabase } from "@/db/client";
-import { questionBankRefreshes, questionInstances } from "@/db/schema";
+import { questionBankRefreshes, questionInstances, questionTemplates } from "@/db/schema";
 import {
   instantiateTemplateAtIndex,
   questionFingerprint,
@@ -60,13 +60,17 @@ export function ensureQuestionBankFresh(
   const scoped = options.skillIds !== undefined;
   const now = options.now ?? Date.now();
 
-  return db.transaction((tx) => {
+  db.$client.exec("PRAGMA busy_timeout = 5000");
+  try {
+    return db.transaction((tx) => {
     if (!scoped && tx.select({ weekKey: questionBankRefreshes.weekKey })
       .from(questionBankRefreshes).where(eq(questionBankRefreshes.weekKey, weekKey)).get()) {
       return { skipped: true, generated: 0, errors: [] };
     }
 
     const allowedSkills = options.skillIds ? new Set(options.skillIds) : null;
+    const activeTemplateIds = new Set(tx.select({ id: questionTemplates.id })
+      .from(questionTemplates).where(eq(questionTemplates.active, true)).all().map((row) => row.id));
     const cutoff = dateAtShanghaiMidnight(addShanghaiDays(date, -30));
     const inventory = new Map<string, number>();
     for (const row of tx.select({ skillId: questionInstances.skillId, difficulty: questionInstances.difficulty, lastUsedAt: questionInstances.lastUsedAt })
@@ -87,6 +91,7 @@ export function ensureQuestionBankFresh(
     unattributedErrors.forEach((error) => errors.add(error));
 
     for (const template of phase2Catalog) {
+      if (!activeTemplateIds.has(template.id)) continue;
       const skillId = `skill-${template.skillCode}`;
       if (allowedSkills && !allowedSkills.has(skillId)) continue;
       const invalidTemplateErrors = templateErrors(template.id, catalogErrors);
@@ -169,5 +174,8 @@ export function ensureQuestionBankFresh(
       }).run();
     }
     return { skipped: false, generated, errors: [...errors] };
-  }, { behavior: "immediate" });
+    }, { behavior: "immediate" });
+  } finally {
+    db.$client.exec("PRAGMA busy_timeout = 0");
+  }
 }

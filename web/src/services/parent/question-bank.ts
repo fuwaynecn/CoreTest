@@ -1,8 +1,8 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
 import type { AppDatabase } from "@/db/client";
-import { questionInstances, questionTemplates, skills } from "@/db/schema";
+import { questionInstances, questionTemplates, sessionItems, skills, trainingSessions } from "@/db/schema";
 import { answerSpecSchema, type AnswerSpec } from "@/domain/questions/answer-spec";
-import type { LearningDomain } from "@/domain/learning/contracts";
+import type { LearningDomain, SessionKind } from "@/domain/learning/contracts";
 import { renderedQuestionErrors } from "@/domain/questions/formal-template-validation";
 
 export type QuestionBankFilters = {
@@ -10,6 +10,12 @@ export type QuestionBankFilters = {
   domain?: LearningDomain;
   difficulty?: 1 | 2 | 3 | 4;
   status?: "active" | "inactive";
+};
+
+export type QuestionBankUsage = {
+  sessionDate: string;
+  sessionKind: SessionKind;
+  count: number;
 };
 
 export type QuestionBankRow = {
@@ -31,6 +37,7 @@ export type QuestionBankRow = {
   generatedAt: number;
   updatedAt: number;
   lastUsedAt: number | null;
+  usage: QuestionBankUsage[];
 };
 
 export type UpdateQuestionBankInput = {
@@ -46,8 +53,39 @@ export class QuestionBankItemNotFoundError extends Error {
   constructor() { super("question_bank_item_not_found"); }
 }
 
+export type QuestionBankValidationField = "stem" | "answer" | "unit" | "skill" | "difficulty" | "explanation" | "form";
+export type QuestionBankValidationReason = { code: string; field: QuestionBankValidationField };
+
+const validationReasonFields: Record<string, QuestionBankValidationField> = {
+  invalid_answer_spec: "answer",
+  answer_mode_mismatch: "answer",
+  incorrect_number_answer: "answer",
+  incorrect_equation_answer: "answer",
+  incorrect_choice_answer: "answer",
+  missing_unit: "unit",
+  unit_mismatch: "unit",
+  unknown_skill: "skill",
+  unsupported_number_pattern: "stem",
+  invalid_number_pattern: "stem",
+  unsolvable_equation: "stem",
+  invalid_choice_options: "stem",
+  duplicate_choice_option: "stem",
+  unsupported_choice_pattern: "stem",
+  invalid_choice_pattern: "stem",
+};
+
 export class QuestionBankValidationError extends Error {
   constructor(public readonly reasons: string[]) { super("question_bank_item_invalid"); }
+}
+
+export function questionBankValidationReasons(reasons: readonly string[]): QuestionBankValidationReason[] {
+  const mapped = new Map<string, QuestionBankValidationReason>();
+  for (const reason of reasons) {
+    const field = validationReasonFields[reason] ?? "form";
+    const code = validationReasonFields[reason] ? reason : "invalid_question";
+    mapped.set(`${code}:${field}`, { code, field });
+  }
+  return [...mapped.values()];
 }
 
 type QuestionBankDb = Pick<AppDatabase, "select">;
@@ -78,7 +116,7 @@ function rowQuery(db: QuestionBankDb, id?: string) {
     .where(filters.length ? and(...filters) : undefined);
 }
 
-function toRow(row: ReturnType<typeof rowQuery> extends { all: () => infer R } ? R extends Array<infer T> ? T : never : never): QuestionBankRow {
+function toRow(row: ReturnType<typeof rowQuery> extends { all: () => infer R } ? R extends Array<infer T> ? T : never : never): Omit<QuestionBankRow, "usage"> {
   const answerSpec = answerSpecSchema.parse(JSON.parse(row.answerSpec));
   return {
     ...row,
@@ -120,7 +158,31 @@ export function listQuestionBank(db: AppDatabase, filters: QuestionBankFilters):
     .orderBy(desc(questionInstances.active), asc(skills.code), asc(questionInstances.difficulty), asc(questionInstances.stem), asc(questionInstances.id))
     .limit(100)
     .all();
-  return query.map(toRow);
+  const usageByInstance = new Map<string, QuestionBankUsage[]>();
+  if (query.length) {
+    const usageRows = db.select({
+      questionInstanceId: sessionItems.questionInstanceId,
+      sessionDate: trainingSessions.sessionDate,
+      sessionKind: trainingSessions.kind,
+      count: count(sessionItems.id),
+    }).from(sessionItems)
+      .innerJoin(trainingSessions, eq(sessionItems.sessionId, trainingSessions.id))
+      .where(inArray(sessionItems.questionInstanceId, query.map((row) => row.id)))
+      .groupBy(sessionItems.questionInstanceId, trainingSessions.sessionDate, trainingSessions.kind)
+      .orderBy(desc(trainingSessions.sessionDate), asc(trainingSessions.kind))
+      .all();
+    for (const usage of usageRows) {
+      if (!usage.questionInstanceId) continue;
+      const values = usageByInstance.get(usage.questionInstanceId) ?? [];
+      if (values.length < 5) values.push({
+        sessionDate: usage.sessionDate,
+        sessionKind: usage.sessionKind as SessionKind,
+        count: Number(usage.count),
+      });
+      usageByInstance.set(usage.questionInstanceId, values);
+    }
+  }
+  return query.map((row) => ({ ...toRow(row), usage: usageByInstance.get(row.id) ?? [] }));
 }
 
 export function updateQuestionBankItem(db: AppDatabase, id: string, input: UpdateQuestionBankInput, now: Date | number): QuestionBankRow {
@@ -143,6 +205,6 @@ export function updateQuestionBankItem(db: AppDatabase, id: string, input: Updat
       active: input.active,
       updatedAt,
     }).where(eq(questionInstances.id, id)).run();
-    return toRow(rowQuery(tx, id).get()!);
+    return { ...toRow(rowQuery(tx, id).get()!), usage: [] };
   });
 }

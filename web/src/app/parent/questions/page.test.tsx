@@ -24,7 +24,7 @@ function row(index: number) {
     id: `instance-${index}`, stem: `${index} + 1 = ?`, answerSpec: { kind: "number" as const, value: index + 1, tolerance: 0, unit: null },
     explanation: "计算即可", skillId: "skill-add", skillCode: "add", skillName: "整数加法", domain: "number_operations" as const,
     difficulty: 1 as const, active: true, status: "active" as const, templateId: "template-add", templateName: "加法", structureTag: "addition",
-    answerMode: "written" as const, generatedAt: 1, updatedAt: 2, lastUsedAt: null,
+    answerMode: "written" as const, generatedAt: 1, updatedAt: 2, lastUsedAt: null, usage: [],
   };
 }
 
@@ -45,6 +45,19 @@ test("requires parent role, exposes native filters, and caps visible rows at 100
   expect(screen.getAllByRole("combobox", { name: "难度" })[0]).toHaveValue("2");
   expect(screen.getAllByRole("combobox", { name: "状态" })[0]).toHaveValue("inactive");
   expect(screen.getAllByTestId("question-bank-item")).toHaveLength(100);
+});
+
+test("defaults to active questions while an explicit all value includes inactive questions", async () => {
+  render(await ParentQuestionsPage({ searchParams: Promise.resolve({}) }));
+
+  expect(listQuestionBank).toHaveBeenCalledWith(state.db, { status: "active" });
+  expect(screen.getByRole("combobox", { name: "状态" })).toHaveValue("active");
+
+  listQuestionBank.mockClear();
+  render(await ParentQuestionsPage({ searchParams: Promise.resolve({ status: "all" }) }));
+
+  expect(listQuestionBank).toHaveBeenCalledWith(state.db, {});
+  expect(screen.getAllByRole("combobox", { name: "状态" })[1]).toHaveValue("all");
 });
 
 test("continues with existing inventory when weekly refresh fails", async () => {
@@ -72,10 +85,25 @@ test("shows question details and provenance timestamps", async () => {
   expect(screen.getByText("计算即可")).toBeInTheDocument();
   expect(screen.getByText("题目来源")).toBeInTheDocument();
   expect(screen.getByText("加法")).toBeInTheDocument();
+  expect(screen.getByText("模板 ID")).toBeInTheDocument();
+  expect(screen.getByText("template-add")).toBeInTheDocument();
   expect(screen.getByText("生成时间")).toBeInTheDocument();
   expect(screen.getByText("最近更新时间")).toBeInTheDocument();
   expect(screen.getByText("最近使用")).toBeInTheDocument();
   expect(container.querySelector('time[dateTime="2026-01-02T01:00:00.000Z"]')).toBeInTheDocument();
   expect(container.querySelector('time[dateTime="2026-01-03T01:00:00.000Z"]')).toBeInTheDocument();
   expect(screen.getByText("2026年1月4日 09:00")).toBeInTheDocument();
+});
+
+test("shows recent historical uses with date, session type, and count", async () => {
+  listQuestionBank.mockReturnValue([{ ...row(1), usage: [
+    { sessionDate: "2026-09-04", sessionKind: "review", count: 2 },
+  ] }]);
+
+  render(await ParentQuestionsPage({ searchParams: Promise.resolve({}) }));
+
+  expect(screen.getByText("历史使用")).toBeInTheDocument();
+  expect(screen.getByText(/2026-09-04/)).toBeInTheDocument();
+  expect(screen.getByText(/复习训练/)).toBeInTheDocument();
+  expect(screen.getByText("2 次")).toBeInTheDocument();
 });

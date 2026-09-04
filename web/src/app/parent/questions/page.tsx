@@ -31,6 +31,14 @@ function answerLabel(row: ReturnType<typeof listQuestionBank>[number]) {
     : row.answerSpec.value;
 }
 
+const sessionKindLabels = {
+  diagnostic: "诊断训练",
+  practice: "练习训练",
+  daily: "每日训练",
+  review: "复习训练",
+  assessment: "评估训练",
+} as const;
+
 export default async function ParentQuestionsPage({ searchParams }: { searchParams: SearchParams }) {
   await requireRole("parent");
   const db = getDatabase();
@@ -46,8 +54,10 @@ export default async function ParentQuestionsPage({ searchParams }: { searchPara
   const domain = valueOf(params.domain);
   const difficultyValue = valueOf(params.difficulty);
   const difficulty = difficultyValue && ["1", "2", "3", "4"].includes(difficultyValue) ? Number(difficultyValue) as 1 | 2 | 3 | 4 : undefined;
-  const statusValue = valueOf(params.status);
-  const status = statusValue === "active" || statusValue === "inactive" ? statusValue : undefined;
+  const rawStatusValue = valueOf(params.status);
+  const statusValue = rawStatusValue === "all" || rawStatusValue === "active" || rawStatusValue === "inactive"
+    ? rawStatusValue : "active";
+  const status = statusValue === "all" ? undefined : statusValue;
   const filters: QuestionBankFilters = {};
   if (skillId) filters.skillId = skillId;
   if (domains.some(([key]) => key === domain)) filters.domain = domain as QuestionBankFilters["domain"];
@@ -67,7 +77,7 @@ export default async function ParentQuestionsPage({ searchParams }: { searchPara
         <label>知识点<select name="skillId" defaultValue={skillId ?? ""}><option value="">全部知识点</option>{skillOptions.map((skill) => <option key={skill.id} value={skill.id}>{skill.name}</option>)}</select></label>
         <label>领域<select name="domain" defaultValue={domain ?? ""}><option value="">全部领域</option>{domains.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
         <label>难度<select name="difficulty" defaultValue={difficultyValue ?? ""}><option value="">全部难度</option>{[1, 2, 3, 4].map((level) => <option key={level} value={level}>{level} 级</option>)}</select></label>
-        <label>状态<select name="status" defaultValue={statusValue ?? ""}><option value="">全部状态</option><option value="active">启用</option><option value="inactive">停用</option></select></label>
+        <label>状态<select name="status" defaultValue={statusValue}><option value="all">全部状态</option><option value="active">启用</option><option value="inactive">停用</option></select></label>
         <button type="submit">筛选</button>
       </form>
       <section className="questionBankList" aria-label="题库题目">
@@ -76,7 +86,7 @@ export default async function ParentQuestionsPage({ searchParams }: { searchPara
           <details className="questionBankItem" data-testid="question-bank-item" key={row.id}>
             <summary><span>{row.stem}</span><span className="questionBankMeta">{row.skillName} · {row.difficulty} 级 · {row.active ? "启用" : "停用"}</span></summary>
             <div className="questionBankDetails">
-              <dl className="questionBankFacts"><div><dt>正确答案</dt><dd>{answerLabel(row)}</dd></div><div><dt>解析</dt><dd>{row.explanation}</dd></div><div><dt>题目来源</dt><dd>{row.templateName}</dd></div><div><dt>生成时间</dt><dd><time dateTime={new Date(row.generatedAt).toISOString()}>{formatTime(row.generatedAt)}</time></dd></div><div><dt>最近更新时间</dt><dd><time dateTime={new Date(row.updatedAt).toISOString()}>{formatTime(row.updatedAt)}</time></dd></div><div><dt>最近使用</dt><dd>{formatTime(row.lastUsedAt)}</dd></div></dl>
+              <dl className="questionBankFacts"><div><dt>正确答案</dt><dd>{answerLabel(row)}</dd></div><div><dt>解析</dt><dd>{row.explanation}</dd></div><div><dt>题目来源</dt><dd>{row.templateName}</dd></div><div><dt>模板 ID</dt><dd>{row.templateId}</dd></div><div><dt>生成时间</dt><dd><time dateTime={new Date(row.generatedAt).toISOString()}>{formatTime(row.generatedAt)}</time></dd></div><div><dt>最近更新时间</dt><dd><time dateTime={new Date(row.updatedAt).toISOString()}>{formatTime(row.updatedAt)}</time></dd></div><div><dt>最近使用</dt><dd>{formatTime(row.lastUsedAt)}</dd></div><div><dt>历史使用</dt><dd>{row.usage.length === 0 ? "暂无" : <ul className="questionBankUsage">{row.usage.map((usage) => <li key={`${usage.sessionDate}-${usage.sessionKind}`}><time dateTime={usage.sessionDate}>{usage.sessionDate}</time> · {sessionKindLabels[usage.sessionKind]} · <span>{usage.count} 次</span></li>)}</ul>}</dd></div></dl>
               <QuestionBankEditor row={row} skillOptions={skillOptions} />
             </div>
           </details>

@@ -14,6 +14,7 @@ function firstDailyReviewItem() {
   const database = new DatabaseSync(".tmp/e2e.sqlite", { readOnly: true });
   try {
     const row = database.prepare(`SELECT si.question_instance_id AS questionInstanceId,
+        si.question_template_id AS templateId,
         si.stem_snapshot AS stemSnapshot, si.answer_spec_snapshot AS answerSpec,
         si.skill_id_snapshot AS skillIdSnapshot, si.selection_reason_snapshot AS selectionReasonSnapshot
       FROM session_items si JOIN training_sessions ts ON ts.id = si.session_id
@@ -22,6 +23,7 @@ function firstDailyReviewItem() {
     if (!row) throw new Error("The daily session has no first item");
     return row as {
       questionInstanceId: string | null;
+      templateId: string;
       stemSnapshot: string;
       answerSpec: string;
       skillIdSnapshot: string;
@@ -68,6 +70,7 @@ function prepareCompletedReviewFixture() {
         VALUES ('e2e-plan', 'child', 'e2e-diagnosis', 1, 1, 'active', '${startsOn}', '${endsOn}', '{"source":"e2e"}', ${now});
       INSERT INTO plan_targets (plan_id, week_number, target_key, skill_id, track, category, minimum, target, maximum, reason_code)
         VALUES ('e2e-plan', 1, 'review:skill-equation-l1', 'skill-equation-l1', 'equation', 'review', 1, 1, 2, 'due_review');
+      UPDATE question_templates SET active = CASE WHEN id = 'eq-l1-balance-01' THEN 1 ELSE 0 END;
     `);
   } finally {
     database.close();
@@ -126,6 +129,7 @@ test("@phase2 overdue equation review refreshes, edits, and preserves evidence",
     const selectionReason = JSON.parse(reviewItem.selectionReasonSnapshot) as { selectionReason?: string };
     expect(selectionReason.selectionReason).toBe("overdue_review");
     expect(reviewItem.skillIdSnapshot).toBe("skill-equation-l1");
+    expect(reviewItem.templateId).toBe("eq-l1-balance-01");
     expect(reviewItem.questionInstanceId).toEqual(expect.any(String));
     if (!reviewItem.questionInstanceId) throw new Error("The review item has no question instance");
     const questionInstanceId = reviewItem.questionInstanceId;
@@ -158,13 +162,22 @@ test("@phase2 overdue equation review refreshes, edits, and preserves evidence",
     const row = page.getByTestId("question-bank-item").nth(questionBankRowIndex(questionInstanceId));
     await expect(row).toContainText(originalStem);
     await row.locator("summary").click();
-    const editedStem = `${originalStem}（家长修订）`;
+    const edited = { stem: "解方程：x + 6 = 17。", answer: "11" };
+    const editedStem = edited.stem;
     await row.getByLabel("题干").fill(editedStem);
+    await row.getByLabel("正确答案").fill(edited.answer);
     const saveRequest = page.waitForRequest((request) => {
       if (request.method() !== "PATCH") return false;
       return new URL(request.url()).pathname === `/api/parent/questions/${questionInstanceId}`;
     });
-    await Promise.all([saveRequest, row.getByRole("button", { name: "保存", exact: true }).click()]);
+    const saveResponse = page.waitForResponse((response) => response.request().method() === "PATCH"
+      && new URL(response.url()).pathname === `/api/parent/questions/${questionInstanceId}`);
+    const [, response] = await Promise.all([
+      saveRequest,
+      saveResponse,
+      row.getByRole("button", { name: "保存", exact: true }).click(),
+    ]);
+    expect(response.status()).toBe(200);
     const editedRow = page.getByTestId("question-bank-item").filter({ hasText: editedStem });
     await expect(editedRow).toHaveCount(1);
 

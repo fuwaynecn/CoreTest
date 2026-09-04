@@ -46,3 +46,18 @@ test.each([
   expect(response.status).toBe(400);
   expect(await response.json()).toMatchObject({ error: { code } });
 });
+
+test("returns stable field mappings without exposing validation details", async () => {
+  const response = await PATCH(parentRequest({
+    ...valid,
+    stem: "长方形长 2 厘米，宽 3 厘米，面积是多少平方厘米？",
+    answerSpec: { kind: "number", value: 6, tolerance: 0, unit: null },
+  }), { params: Promise.resolve({ id: "instance-1" }) });
+
+  expect(response.status).toBe(400);
+  expect(await response.json()).toEqual({ error: {
+    code: "invalid_question",
+    message: "题库题目参数无效",
+    reasons: [{ code: "missing_unit", field: "unit" }],
+  } });
+});

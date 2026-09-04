@@ -5,6 +5,7 @@ import { diagnosticRuns, learningPlans, masteryEvidence, parentPreferences, plan
 import * as questionBank from "@/services/questions/question-bank-refresh";
 import { shanghaiWeekKey } from "@/domain/time/shanghai-calendar";
 import { createTestDatabase } from "@/test/test-db";
+import { getPlanDashboard } from "@/services/parent/get-plan-dashboard";
 import { ActivePlanRequiredError, DiagnosisRequiredError, getOrCreateAdaptiveSession } from "./create-adaptive-session";
 import { submitAttempt } from "./submit-attempt";
 
@@ -112,6 +113,41 @@ test("falls back to existing active instances when bank refresh fails", () => {
   } finally {
     refresh.mockRestore();
   }
+});
+
+test("uses the instance skill domain for scheduling while retaining template provenance", () => {
+  const db = seed();
+  const sourceTemplate = phase2Catalog.find((template) => template.id === "num-int-mental-01")!;
+  db.insert(diagnosticRuns).values({ id: "diagnosis", childId: "child", version: 1, status: "completed", currentPart: 3, seed: "seed", startedAt: 1, completedAt: 2 }).run();
+  db.insert(learningPlans).values({ id: "plan", childId: "child", diagnosisRunId: "diagnosis", version: 1, revision: 1, status: "active", startsOn: "2026-08-17", endsOn: "2026-09-27", reasonSnapshot: "{}", createdAt: 1 }).run();
+  db.insert(questionInstances).values({
+    id: "moved-instance", templateId: sourceTemplate.id, skillId: "skill-read-question", variantSeed: "moved", variables: "{}",
+    stem: "口算：3 + 4 = ？", answerSpec: JSON.stringify({ kind: "number", value: 7, tolerance: 0, unit: null }), explanation: "7",
+    difficulty: sourceTemplate.difficulty, fingerprint: "moved-fingerprint", active: true, generatedAt: 1, updatedAt: 1, lastUsedAt: null,
+  }).run();
+  const refresh = vi.spyOn(questionBank, "ensureQuestionBankFresh").mockReturnValue({ skipped: true, generated: 0, errors: [] });
+
+  try {
+    const session = getOrCreateAdaptiveSession(db, "child", "2026-08-20", 2);
+    const item = db.select().from(sessionItems).where(eq(sessionItems.sessionId, session.id)).get()!;
+    expect(JSON.parse(item.selectionReasonSnapshot)).toMatchObject({ category: "reading" });
+    expect(item).toMatchObject({ questionInstanceId: "moved-instance", questionTemplateId: sourceTemplate.id, skillIdSnapshot: "skill-read-question" });
+  } finally {
+    refresh.mockRestore();
+  }
+});
+
+test("uses the instance skill domain in the parent dashboard preview", () => {
+  const db = seed();
+  const sourceTemplate = phase2Catalog.find((template) => template.id === "num-int-mental-01")!;
+  db.insert(questionInstances).values({
+    id: "moved-preview-instance", templateId: sourceTemplate.id, skillId: "skill-read-question", variantSeed: "moved-preview", variables: "{}",
+    stem: "口算：3 + 4 = ？", answerSpec: JSON.stringify({ kind: "number", value: 7, tolerance: 0, unit: null }), explanation: "7",
+    difficulty: sourceTemplate.difficulty, fingerprint: "moved-preview-fingerprint", active: true, generatedAt: 1, updatedAt: 1, lastUsedAt: null,
+  }).run();
+
+  const preview = getPlanDashboard(db, "child", new Date("2026-08-24T04:00:00Z")).nextSevenDays[0].items;
+  expect(preview).toEqual(expect.arrayContaining([{ category: "reading", reason: "reading" }]));
 });
 
 test("does not let an existing daily session bypass the diagnosis gate", () => {

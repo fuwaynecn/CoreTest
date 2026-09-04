@@ -36,6 +36,43 @@ test("filters and orders the question bank deterministically, capped at 100", ()
   expect(listQuestionBank(db, {}).every((row) => row.templateId === "template-1")).toBe(true);
 });
 
+test("returns a bounded training-use summary grouped by date and session type", () => {
+  const db = fixture();
+  for (let index = 0; index < 6; index += 1) {
+    const date = `2026-09-${String(2 + index).padStart(2, "0")}`;
+    db.insert(trainingSessions).values({
+      id: `usage-session-${index}`,
+      childId: "child-1",
+      sessionDate: date,
+      kind: index % 2 === 0 ? "review" : "practice",
+      status: "completed",
+      startedAt: index + 2,
+    }).run();
+    db.insert(sessionItems).values({
+      id: `usage-item-${index}`,
+      sessionId: `usage-session-${index}`,
+      questionTemplateId: "template-1",
+      questionInstanceId: "instance-z",
+      position: 0,
+      stemSnapshot: "9 - 2 = ?",
+      answerSpecSnapshot: JSON.stringify({ kind: "number", value: 7, tolerance: 0, unit: null }),
+      explanationSnapshot: "7",
+      skillIdSnapshot: "skill-z",
+      skillNameSnapshot: "Z技能",
+      difficultySnapshot: 2,
+    }).run();
+  }
+
+  expect(listQuestionBank(db, { status: "active" }).find((row) => row.id === "instance-z")?.usage)
+    .toEqual([
+      { sessionDate: "2026-09-07", sessionKind: "practice", count: 1 },
+      { sessionDate: "2026-09-06", sessionKind: "review", count: 1 },
+      { sessionDate: "2026-09-05", sessionKind: "practice", count: 1 },
+      { sessionDate: "2026-09-04", sessionKind: "review", count: 1 },
+      { sessionDate: "2026-09-03", sessionKind: "practice", count: 1 },
+    ]);
+});
+
 test("edits an instance without deleting it or changing historical snapshots", () => {
   const db = fixture();
   const before = db.select().from(sessionItems).where(eq(sessionItems.id, "item-1")).get()!;
