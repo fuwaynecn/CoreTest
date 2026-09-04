@@ -97,6 +97,7 @@ function cleanupReviewFixture() {
       DELETE FROM review_schedules WHERE child_id = 'child';
       DELETE FROM question_instances;
       DELETE FROM question_bank_refreshes;
+      UPDATE question_templates SET active = 1;
       DELETE FROM auth_sessions;
     `);
   } finally {
