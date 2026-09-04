@@ -80,6 +80,7 @@ export function ensureQuestionBankFresh(
     const errors = new Set<string>();
     let generated = 0;
     let stop = false;
+    const shortageCells = new Set<string>();
     const knownIds = new Set(phase2Catalog.map((template) => template.id));
     const unattributedErrors = catalogErrors.filter((error) => ![...knownIds]
       .some((id) => error.startsWith(`${id}:`)));
@@ -94,7 +95,10 @@ export function ensureQuestionBankFresh(
         continue;
       }
       const cell = `${skillId}:${template.difficulty}`;
-      if ((inventory.get(cell) ?? 0) >= MIN_INVENTORY) continue;
+      if (!shortageCells.has(cell)) {
+        if ((inventory.get(cell) ?? 0) >= MIN_INVENTORY) continue;
+        shortageCells.add(cell);
+      }
 
       for (let index = 0; index < variantPeriod(template) && (inventory.get(cell) ?? 0) < TARGET_INVENTORY; index += 1) {
         const knownErrors = stableVariantErrors(template.id, index, catalogErrors);

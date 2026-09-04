@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { phase2Catalog, phase2Skills } from "@/content/phase2-catalog";
 import { instantiateTemplate, questionFingerprint } from "@/domain/questions/instantiate-template";
 import { createTestDatabase } from "@/test/test-db";
@@ -33,6 +33,34 @@ function seedCatalog() {
     };
   })).run();
   return db;
+}
+
+function addInventoryRows(db: ReturnType<typeof createTestDatabase>, input: {
+  skillCode: string;
+  difficulty: 1 | 2 | 3 | 4;
+  count: number;
+  lastUsedAt: number | null;
+}) {
+  const template = phase2Catalog.find((candidate) => candidate.skillCode === input.skillCode
+    && candidate.difficulty === input.difficulty)!;
+  const skillId = `skill-${input.skillCode}`;
+  db.insert(questionInstances).values(Array.from({ length: input.count }, (_, index) => ({
+    id: `fixture-${input.skillCode}-${input.difficulty}-${index}`,
+    templateId: template.id,
+    skillId,
+    variantSeed: `fixture-${index}`,
+    variables: "{}",
+    stem: `fixture ${index}`,
+    answerSpec: JSON.stringify({ kind: "number", value: index, tolerance: 0, unit: null }),
+    explanation: "fixture",
+    difficulty: input.difficulty,
+    fingerprint: `fixture-fingerprint-${input.skillCode}-${input.difficulty}-${index}`,
+    active: true,
+    generatedAt: 1,
+    updatedAt: 1,
+    lastUsedAt: input.lastUsedAt,
+  }))).run();
+  return skillId;
 }
 
 test("refreshes the reviewed bank once per Shanghai week and deduplicates fingerprints", () => {
@@ -93,6 +121,37 @@ test("scoped refreshes are idempotent and honor the thirty-day Shanghai cutoff",
   expect(second).toEqual({ skipped: false, generated: 0, errors: [] });
   expect(db.select().from(questionInstances).where(eq(questionInstances.skillId, skillId)).all())
     .toHaveLength(8 + first.generated);
+});
+
+test("replenishes a well-supplied cell exactly from seven to twelve", () => {
+  const db = seedCatalog();
+  const skillId = addInventoryRows(db, {
+    skillCode: "equation-l1",
+    difficulty: 1,
+    count: 7,
+    lastUsedAt: Date.parse("2026-07-01T12:00:00+08:00"),
+  });
+
+  const result = ensureQuestionBankFresh(db, "2026-09-04", { skillIds: [skillId], now: 12 });
+  const rows = db.select().from(questionInstances).where(and(
+    eq(questionInstances.skillId, skillId), eq(questionInstances.difficulty, 1),
+  )).all();
+  expect(result).toEqual({ skipped: false, generated: 5, errors: [] });
+  expect(rows).toHaveLength(12);
+  expect(rows.filter((row) => row.lastUsedAt !== null && row.lastUsedAt < Date.parse("2026-08-05T00:00:00+08:00"))).toHaveLength(7);
+});
+
+test("stops at the unique reviewed supply when it is below twelve", () => {
+  const db = seedCatalog();
+  const skillId = `skill-${phase2Catalog.find((template) => template.skillCode === "data-bar" && template.difficulty === 2)!.skillCode}`;
+
+  const result = ensureQuestionBankFresh(db, "2026-09-04", { skillIds: [skillId], now: 13 });
+  const rows = db.select().from(questionInstances).where(and(
+    eq(questionInstances.skillId, skillId), eq(questionInstances.difficulty, 2),
+  )).all();
+  expect(result).toEqual({ skipped: false, generated: 9, errors: [] });
+  expect(rows).toHaveLength(9);
+  expect(new Set(rows.map((row) => row.fingerprint)).size).toBe(9);
 });
 
 test("does not bypass the weekly ledger for a full force refresh", () => {
