@@ -166,6 +166,31 @@ button, input { min-height: 48px; }
 .parentEmpty { display: grid; gap: 2rem; align-content: start; }
 .parentEmptyIntro { display: grid; gap: .35rem; place-content: center; min-height: 40dvh; text-align: center; }
 .parentEmptyIntro h1, .parentEmptyIntro p { margin: 0; }
+.questionBankPage { overflow-x: clip; }
+.questionBankFilters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) auto; gap: .75rem; margin: 2rem 0; padding: 1rem; border: 1px solid var(--sand); border-radius: .85rem; background: white; }
+.questionBankFilters label, .questionBankEditor label { display: grid; gap: .35rem; font-weight: 700; }
+.questionBankFilters select, .questionBankFilters button, .questionBankEditor input, .questionBankEditor select, .questionBankEditor textarea { min-height: 48px; padding: .65rem .75rem; border: 1px solid #9ca7a3; border-radius: .65rem; background: white; color: var(--ink); }
+.questionBankFilters button, .questionBankActions button { border: 0; background: var(--brand); color: white; cursor: pointer; font-weight: 700; }
+.questionBankRefreshError, .questionBankError { color: #9b2424; font-weight: 700; }
+.questionBankList { display: grid; gap: .8rem; }
+.questionBankItem { min-width: 0; border: 1px solid var(--sand); border-radius: .8rem; background: white; overflow: hidden; }
+.questionBankItem summary { display: flex; min-height: 56px; justify-content: space-between; gap: 1rem; align-items: center; padding: .85rem 1rem; cursor: pointer; font-weight: 700; }
+.questionBankItem summary > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.questionBankMeta { flex: 0 0 auto; color: var(--muted); font-size: .8rem; font-weight: 400; }
+.questionBankDetails { display: grid; grid-template-columns: minmax(0, 1fr) minmax(18rem, 1fr); gap: 1.25rem; padding: 0 1rem 1rem; border-top: 1px solid var(--sand); }
+.questionBankFacts { display: grid; gap: .65rem; margin: 1rem 0 0; }
+.questionBankFacts div { display: grid; grid-template-columns: 7rem minmax(0, 1fr); gap: .6rem; min-width: 0; padding-bottom: .55rem; border-bottom: 1px solid #f0eadf; }
+.questionBankFacts dt { color: var(--muted); font-size: .82rem; font-weight: 700; }
+.questionBankFacts dd { min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.questionBankEditor { display: grid; gap: .75rem; margin-top: 1rem; }
+.questionBankEditor textarea { min-height: 5rem; resize: vertical; }
+.questionBankToggle { display: flex !important; min-height: 48px; align-items: center; gap: .5rem; }
+.questionBankToggle input { width: 1.25rem; min-height: 1.25rem; }
+.questionBankError { margin: 0; }
+.questionBankActions { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; }
+.questionBankActions button { min-height: 48px; padding: .7rem 1rem; border-radius: .65rem; }
+.questionBankActions button:disabled { cursor: wait; opacity: .65; }
+.questionBankSaved { color: var(--brand); font-weight: 700; }
 .parentDashboardFlow { display: block; }
 .planCalendar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .5rem; padding: 0; list-style: none; }
 .planCalendar li, .planPreferences, .weeklyReport { padding: 1rem; border: 1px solid var(--sand); border-radius: .75rem; background: white; }
@@ -273,6 +298,9 @@ button, input { min-height: 48px; }
   .reviewDoseGrid { grid-template-columns: 1fr; }
 }
 @media (max-width: 48rem) {
+  .questionBankFilters { grid-template-columns: 1fr 1fr; }
+  .questionBankFilters button { min-height: 48px; }
+  .questionBankDetails { grid-template-columns: 1fr; }
   .parentDashboardFlow { display: grid; grid-template-columns: minmax(0, 1fr); }
   .parentDashboardFlow > .weeklyReport { order: 1; }
   .parentDashboardFlow > .parentSignalSection { order: 2; }
@@ -299,6 +327,9 @@ button, input { min-height: 48px; }
   .evidenceTable td::before { content: attr(data-label); color: #57635f; font-size: .8rem; font-weight: 700; }
 }
 @media (max-width: 35rem) {
+  .questionBankFilters { grid-template-columns: 1fr; }
+  .questionBankItem summary { display: grid; }
+  .questionBankMeta { white-space: normal; }
   .roleCards { grid-template-columns: 1fr; }
   .summaryMetrics { grid-template-columns: 1fr; gap: 1rem; }
   .summaryMetrics div { border-left: 0; border-top: 1px solid var(--sand); padding: 1rem 0 0; }

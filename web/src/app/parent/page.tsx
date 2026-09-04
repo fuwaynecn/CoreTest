@@ -8,6 +8,7 @@ import { PlanCalendar } from "@/components/plan-calendar";
 import { PlanPreferencesForm } from "@/components/plan-preferences-form";
 import { ParentResumeTrainingButton } from "@/components/parent-resume-training-button";
 import { WeeklyReport } from "@/components/weekly-report";
+import Link from "next/link";
 import { getDatabase } from "@/db/client";
 import { shanghaiDateKey } from "@/domain/time/shanghai-calendar";
 import { attempts, diagnosticRuns, sessionItems, trainingSessions, users } from "@/db/schema";
@@ -170,6 +171,7 @@ export default async function ParentPage() {
           <p className="eyebrow">家长查看 · 阶段性记录</p>
           <h1>{child.displayName}的学习证据</h1>
           <p>这里记录孩子实际作答的题目与答案，用来安排下一步练习。</p>
+          <Link className="evidenceAnchor" href="/parent/questions">查看题库</Link>
         </div>
         <aside className="parentRecommendation" aria-labelledby="recommendation-heading">
           <p id="recommendation-heading">本周建议</p>
