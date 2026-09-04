@@ -139,6 +139,7 @@ test("labels first-attempt periods and bases the recommendation on this week", a
   expect(getParentEvidence).toHaveBeenCalledWith(state.db, "child-1");
   expect(screen.getByRole("heading", { name: "小雨的学习证据" })).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "AI 服务配置" })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "查看题库" })).toHaveAttribute("href", "/parent/questions");
   expect(screen.getByText("首次作答证据")).toBeInTheDocument();
   expect(screen.getByText("累计首次作答")).toBeInTheDocument();
   expect(screen.getByText("累计首次答对率 67%")).toBeInTheDocument();

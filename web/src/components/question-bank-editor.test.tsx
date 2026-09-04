@@ -35,13 +35,24 @@ test("edits friendly fields, saves the complete row payload, and toggles active 
   fetchMock.mockRestore();
 });
 
-test("shows a field-level server error", async () => {
+test("associates invalid question errors with stem and answer controls", async () => {
   const user = userEvent.setup();
-  const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ error: { message: "题干与答案不匹配" } }), { status: 400 }));
+  const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ error: { code: "invalid_question", message: "题干与答案不匹配" } }), { status: 400 }));
   render(<QuestionBankEditor row={baseRow} />);
 
   await user.click(screen.getByRole("button", { name: "保存" }));
 
-  expect(await screen.findByRole("alert")).toHaveTextContent("题干与答案不匹配");
+  const error = await screen.findByRole("alert");
+  expect(error).toHaveTextContent("题干与答案不匹配");
+  expect(error).toHaveAttribute("id", "question-bank-error-instance-1");
+  expect(screen.getByLabelText("题干")).toHaveAttribute("aria-invalid", "true");
+  expect(screen.getByLabelText("题干")).toHaveAttribute("aria-describedby", error.id);
+  expect(screen.getByLabelText("正确答案")).toHaveAttribute("aria-invalid", "true");
+  expect(screen.getByLabelText("正确答案")).toHaveAttribute("aria-describedby", error.id);
+
+  await user.type(screen.getByLabelText("题干"), " ");
+  expect(screen.getByLabelText("题干")).not.toHaveAttribute("aria-invalid");
+  expect(screen.getByLabelText("正确答案")).not.toHaveAttribute("aria-invalid");
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   fetchMock.mockRestore();
 });

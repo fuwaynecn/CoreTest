@@ -17,11 +17,18 @@ export function QuestionBankEditor({ row, skillOptions = [{ id: row.skillId, nam
   const [active, setActive] = useState(row.active);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [fieldError, setFieldError] = useState(false);
   const [saved, setSaved] = useState(false);
+  const errorId = `question-bank-error-${row.id}`;
+
+  function clearError() {
+    setError("");
+    setFieldError(false);
+  }
 
   async function save() {
     setSaving(true);
-    setError("");
+    clearError();
     setSaved(false);
     const answerSpec = row.answerSpec.kind === "choice"
       ? { kind: "choice" as const, value: answer as "A" | "B" | "C" | "D" }
@@ -33,13 +40,15 @@ export function QuestionBankEditor({ row, skillOptions = [{ id: row.skillId, nam
         body: JSON.stringify({ stem, answerSpec, explanation, skillId, difficulty: Number(difficulty), active }),
       });
       if (!response.ok) {
-        const body = await response.json().catch(() => null) as { error?: { message?: string } } | null;
+        const body = await response.json().catch(() => null) as { error?: { code?: string; message?: string } } | null;
+        setFieldError(body?.error?.code === "invalid_question");
         setError(body?.error?.message ?? "保存失败，请稍后重试");
         return;
       }
       setSaved(true);
       router.refresh();
     } catch {
+      setFieldError(false);
       setError("保存失败，请检查网络后重试");
     } finally {
       setSaving(false);
@@ -48,20 +57,20 @@ export function QuestionBankEditor({ row, skillOptions = [{ id: row.skillId, nam
 
   return (
     <form className="questionBankEditor" onSubmit={(event) => { event.preventDefault(); void save(); }}>
-      <label>题干<textarea value={stem} onChange={(event) => setStem(event.target.value)} required /></label>
+      <label>题干<textarea value={stem} onChange={(event) => { setStem(event.target.value); clearError(); }} aria-invalid={fieldError || undefined} aria-describedby={fieldError ? errorId : undefined} required /></label>
       <label>正确答案
         {row.answerSpec.kind === "choice" ? (
-          <select value={answer} onChange={(event) => setAnswer(event.target.value)}>
+          <select value={answer} onChange={(event) => { setAnswer(event.target.value); clearError(); }} aria-invalid={fieldError || undefined} aria-describedby={fieldError ? errorId : undefined}>
             {(["A", "B", "C", "D"] as const).map((option) => <option key={option}>{option}</option>)}
           </select>
-        ) : <input type="number" step="any" value={answer} onChange={(event) => setAnswer(event.target.value)} required />}
+        ) : <input type="number" step="any" value={answer} onChange={(event) => { setAnswer(event.target.value); clearError(); }} aria-invalid={fieldError || undefined} aria-describedby={fieldError ? errorId : undefined} required />}
       </label>
-      {row.answerSpec.kind === "number" && <label>可选单位<input value={unit} onChange={(event) => setUnit(event.target.value)} /></label>}
-      <label>解析<textarea value={explanation} onChange={(event) => setExplanation(event.target.value)} required /></label>
+      {row.answerSpec.kind === "number" && <label>可选单位<input value={unit} onChange={(event) => { setUnit(event.target.value); clearError(); }} /></label>}
+      <label>解析<textarea value={explanation} onChange={(event) => { setExplanation(event.target.value); clearError(); }} required /></label>
       <label>知识点<select value={skillId} onChange={(event) => setSkillId(event.target.value)}>{skillOptions.map((skill) => <option key={skill.id} value={skill.id}>{skill.name}</option>)}</select></label>
       <label>难度<select value={difficulty} onChange={(event) => setDifficulty(event.target.value)}>{[1, 2, 3, 4].map((level) => <option key={level} value={level}>{level} 级</option>)}</select></label>
       <label className="questionBankToggle"><input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} />启用状态</label>
-      {error && <p className="questionBankError" role="alert">{error}</p>}
+      {error && <p className="questionBankError" id={fieldError ? errorId : undefined} role="alert">{error}</p>}
       <div className="questionBankActions"><button type="submit" disabled={saving}>{saving ? "保存中…" : "保存"}</button>{saved && <span className="questionBankSaved">已保存</span>}</div>
     </form>
   );

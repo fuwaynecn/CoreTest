@@ -55,3 +55,27 @@ test("continues with existing inventory when weekly refresh fails", async () => 
   expect(screen.getAllByText("0 + 1 = ?").length).toBeGreaterThan(0);
   expect(screen.getByText(/刷新失败/)).toBeInTheDocument();
 });
+
+test("shows question details and provenance timestamps", async () => {
+  listQuestionBank.mockReturnValue([{
+    ...row(8),
+    generatedAt: Date.UTC(2026, 0, 2, 1),
+    updatedAt: Date.UTC(2026, 0, 3, 1),
+    lastUsedAt: Date.UTC(2026, 0, 4, 1),
+  }]);
+
+  const { container } = render(await ParentQuestionsPage({ searchParams: Promise.resolve({}) }));
+
+  expect(screen.getByText("8 + 1 = ?")).toBeInTheDocument();
+  expect(screen.getByText("正确答案")).toBeInTheDocument();
+  expect(screen.getByText("9")).toBeInTheDocument();
+  expect(screen.getByText("计算即可")).toBeInTheDocument();
+  expect(screen.getByText("题目来源")).toBeInTheDocument();
+  expect(screen.getByText("加法")).toBeInTheDocument();
+  expect(screen.getByText("生成时间")).toBeInTheDocument();
+  expect(screen.getByText("最近更新时间")).toBeInTheDocument();
+  expect(screen.getByText("最近使用")).toBeInTheDocument();
+  expect(container.querySelector('time[dateTime="2026-01-02T01:00:00.000Z"]')).toBeInTheDocument();
+  expect(container.querySelector('time[dateTime="2026-01-03T01:00:00.000Z"]')).toBeInTheDocument();
+  expect(screen.getByText("2026年1月4日 09:00")).toBeInTheDocument();
+});
