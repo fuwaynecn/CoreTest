@@ -38,11 +38,11 @@ test("returns 404 for a missing instance", async () => {
 });
 
 test.each([
-  { ...valid, stem: "3 + 4 = ?", answerSpec: { kind: "number", value: 8, tolerance: 0, unit: null }, explanation: "错误答案" },
-  { ...valid, stem: "", explanation: "解析" },
-  { ...valid, answerSpec: { kind: "number", value: 7, tolerance: 0, unit: null }, skillId: "unknown-skill" },
-])("rejects invalid edited content", async (body) => {
+  [{ ...valid, stem: "3 + 4 = ?", answerSpec: { kind: "number", value: 8, tolerance: 0, unit: null }, explanation: "错误答案" }, "invalid_question"],
+  [{ ...valid, stem: "", explanation: "解析" }, "invalid_request"],
+  [{ ...valid, answerSpec: { kind: "number", value: 7, tolerance: 0, unit: null }, skillId: "unknown-skill" }, "invalid_question"],
+] as const)("returns the right error code for invalid edited content", async (body, code) => {
   const response = await PATCH(parentRequest(body), { params: Promise.resolve({ id: "instance-1" }) });
   expect(response.status).toBe(400);
-  expect(await response.json()).toMatchObject({ error: { code: "invalid_request" } });
+  expect(await response.json()).toMatchObject({ error: { code } });
 });

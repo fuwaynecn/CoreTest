@@ -56,3 +56,18 @@ test("associates invalid question errors with stem and answer controls", async (
   expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   fetchMock.mockRestore();
 });
+
+test("clears the field error when a non-answer field is edited", async () => {
+  const user = userEvent.setup();
+  const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ error: { code: "invalid_question", message: "题干与答案不匹配" } }), { status: 400 }));
+  render(<QuestionBankEditor row={baseRow} />);
+
+  await user.click(screen.getByRole("button", { name: "保存" }));
+  await screen.findByRole("alert");
+  await user.selectOptions(screen.getByLabelText("难度"), "2");
+
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  expect(screen.getByLabelText("题干")).not.toHaveAttribute("aria-invalid");
+  expect(screen.getByLabelText("正确答案")).not.toHaveAttribute("aria-invalid");
+  fetchMock.mockRestore();
+});

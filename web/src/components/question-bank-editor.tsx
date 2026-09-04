@@ -67,9 +67,9 @@ export function QuestionBankEditor({ row, skillOptions = [{ id: row.skillId, nam
       </label>
       {row.answerSpec.kind === "number" && <label>可选单位<input value={unit} onChange={(event) => { setUnit(event.target.value); clearError(); }} /></label>}
       <label>解析<textarea value={explanation} onChange={(event) => { setExplanation(event.target.value); clearError(); }} required /></label>
-      <label>知识点<select value={skillId} onChange={(event) => setSkillId(event.target.value)}>{skillOptions.map((skill) => <option key={skill.id} value={skill.id}>{skill.name}</option>)}</select></label>
-      <label>难度<select value={difficulty} onChange={(event) => setDifficulty(event.target.value)}>{[1, 2, 3, 4].map((level) => <option key={level} value={level}>{level} 级</option>)}</select></label>
-      <label className="questionBankToggle"><input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} />启用状态</label>
+      <label>知识点<select value={skillId} onChange={(event) => { setSkillId(event.target.value); clearError(); }}>{skillOptions.map((skill) => <option key={skill.id} value={skill.id}>{skill.name}</option>)}</select></label>
+      <label>难度<select value={difficulty} onChange={(event) => { setDifficulty(event.target.value); clearError(); }}>{[1, 2, 3, 4].map((level) => <option key={level} value={level}>{level} 级</option>)}</select></label>
+      <label className="questionBankToggle"><input type="checkbox" checked={active} onChange={(event) => { setActive(event.target.checked); clearError(); }} />启用状态</label>
       {error && <p className="questionBankError" id={fieldError ? errorId : undefined} role="alert">{error}</p>}
       <div className="questionBankActions"><button type="submit" disabled={saving}>{saving ? "保存中…" : "保存"}</button>{saved && <span className="questionBankSaved">已保存</span>}</div>
     </form>

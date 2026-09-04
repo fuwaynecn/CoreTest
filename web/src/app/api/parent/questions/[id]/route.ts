@@ -42,7 +42,7 @@ export async function PATCH(
       return errorResponse(404, "question_not_found", "没有找到这道题目");
     }
     if (error instanceof QuestionBankValidationError) {
-      return errorResponse(400, "invalid_request", "题库题目参数无效");
+      return errorResponse(400, "invalid_question", "题库题目参数无效");
     }
     throw error;
   }
