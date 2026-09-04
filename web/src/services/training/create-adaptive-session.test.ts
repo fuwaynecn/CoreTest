@@ -1,7 +1,9 @@
 import { eq } from "drizzle-orm";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { phase2Catalog, phase2Skills } from "@/content/phase2-catalog";
-import { diagnosticRuns, learningPlans, masteryEvidence, parentPreferences, planTargets, questionTemplates, sessionItems, skills, trainingSessions, users, reviewSchedules, masteryStates } from "@/db/schema";
+import { diagnosticRuns, learningPlans, masteryEvidence, parentPreferences, planTargets, questionBankRefreshes, questionInstances, questionTemplates, sessionItems, skills, trainingSessions, users, reviewSchedules, masteryStates } from "@/db/schema";
+import * as questionBank from "@/services/questions/question-bank-refresh";
+import { shanghaiWeekKey } from "@/domain/time/shanghai-calendar";
 import { createTestDatabase } from "@/test/test-db";
 import { ActivePlanRequiredError, DiagnosisRequiredError, getOrCreateAdaptiveSession } from "./create-adaptive-session";
 import { submitAttempt } from "./submit-attempt";
@@ -66,6 +68,50 @@ test("classifies due daily items as review evidence with their frozen interval",
   submitAttempt(db, { childId: "child", sessionItemId: item.id, clientSubmissionId: "33333333-3333-4333-8333-333333333333", answerText: String(answer) });
   expect(db.select().from(masteryEvidence).where(eq(masteryEvidence.sessionItemId, item.id)).get())
     .toMatchObject({ purpose: "review", reviewIntervalDays: 3 });
+});
+
+test("creates due reviews from persistent question instances and marks them used", () => {
+  const db = seed();
+  db.insert(diagnosticRuns).values({ id: "diagnosis", childId: "child", version: 1, status: "completed", currentPart: 3, seed: "seed", startedAt: 1, completedAt: 2, reportSnapshot: "{}" }).run();
+  db.insert(learningPlans).values({ id: "plan", childId: "child", diagnosisRunId: "diagnosis", version: 1, revision: 1, status: "active", startsOn: "2026-08-17", endsOn: "2026-09-27", reasonSnapshot: "{}", createdAt: 1 }).run();
+  db.insert(reviewSchedules).values({ childId: "child", skillId: "skill-equation-l1", level: 1, dueOn: "2026-08-19", lastResult: null, updatedAt: 1 }).run();
+
+  const usedAt = 1_725_000_000_000;
+  const session = getOrCreateAdaptiveSession(db, "child", "2026-08-20", usedAt);
+  expect(session.questions).toContainEqual(expect.objectContaining({ stem: expect.stringContaining("方程") }));
+  const item = db.select().from(sessionItems).where(eq(sessionItems.sessionId, session.id)).all()
+    .find((row) => JSON.parse(row.selectionReasonSnapshot).category === "review")!;
+  const instance = db.select().from(questionInstances).where(eq(questionInstances.id, item.questionInstanceId!)).get()!;
+  expect(item).toMatchObject({ questionTemplateId: instance.templateId, questionInstanceId: instance.id, stemSnapshot: instance.stem, answerSpecSnapshot: instance.answerSpec, explanationSnapshot: instance.explanation, difficultySnapshot: instance.difficulty });
+  expect(item.questionInstanceId).not.toBeNull();
+  expect(instance.lastUsedAt).toBe(usedAt);
+});
+
+test("scoped refresh replenishes a missing due skill even when the weekly ledger exists", () => {
+  const db = seed();
+  db.insert(diagnosticRuns).values({ id: "diagnosis", childId: "child", version: 1, status: "completed", currentPart: 3, seed: "seed", startedAt: 1, completedAt: 2, reportSnapshot: "{}" }).run();
+  db.insert(learningPlans).values({ id: "plan", childId: "child", diagnosisRunId: "diagnosis", version: 1, revision: 1, status: "active", startsOn: "2026-08-17", endsOn: "2026-09-27", reasonSnapshot: "{}", createdAt: 1 }).run();
+  db.insert(reviewSchedules).values({ childId: "child", skillId: "skill-equation-l1", level: 1, dueOn: "2026-08-19", lastResult: null, updatedAt: 1 }).run();
+  db.insert(questionBankRefreshes).values({ weekKey: shanghaiWeekKey(new Date("2026-08-20T12:00:00+08:00")), completedAt: 1, generatedCount: 0, errors: "[]" }).run();
+
+  getOrCreateAdaptiveSession(db, "child", "2026-08-20");
+  expect(db.select().from(questionInstances).where(eq(questionInstances.skillId, "skill-equation-l1")).all().length).toBeGreaterThan(0);
+});
+
+test("falls back to existing active instances when bank refresh fails", () => {
+  const db = seed();
+  db.insert(diagnosticRuns).values({ id: "diagnosis", childId: "child", version: 1, status: "completed", currentPart: 3, seed: "seed", startedAt: 1, completedAt: 2, reportSnapshot: "{}" }).run();
+  db.insert(learningPlans).values({ id: "plan", childId: "child", diagnosisRunId: "diagnosis", version: 1, revision: 1, status: "active", startsOn: "2026-08-17", endsOn: "2026-09-27", reasonSnapshot: "{}", createdAt: 1 }).run();
+  const template = phase2Catalog.find((row) => row.id === "eq-l1-balance-01")!;
+  db.insert(questionInstances).values({ id: "existing-instance", templateId: template.id, skillId: "skill-equation-l1", variantSeed: "existing", variables: "{}", stem: "方程复习题", answerSpec: JSON.stringify({ kind: "equation", value: "3" }), explanation: "已有题目", difficulty: template.difficulty, fingerprint: "existing-fingerprint", active: true, generatedAt: 1, updatedAt: 1, lastUsedAt: null }).run();
+  const refresh = vi.spyOn(questionBank, "ensureQuestionBankFresh").mockImplementation(() => { throw new Error("refresh unavailable"); });
+  try {
+    const session = getOrCreateAdaptiveSession(db, "child", "2026-08-20");
+    const item = db.select().from(sessionItems).where(eq(sessionItems.sessionId, session.id)).all().find((row) => row.questionInstanceId === "existing-instance");
+    expect(item).toMatchObject({ questionInstanceId: "existing-instance", stemSnapshot: "方程复习题" });
+  } finally {
+    refresh.mockRestore();
+  }
 });
 
 test("does not let an existing daily session bypass the diagnosis gate", () => {

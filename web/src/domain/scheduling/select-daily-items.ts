@@ -2,7 +2,7 @@ import type { PlanCategory } from "@/domain/planning/build-six-week-plan";
 import type { DailyComposition } from "./allocate-composition";
 
 export type ScheduledCandidate = {
-  templateId: string; skillId: string; structureTag: string; category: PlanCategory;
+  templateId: string; questionInstanceId: string; lastUsedAt: number | null; skillId: string; structureTag: string; category: PlanCategory;
   difficulty: 1 | 2 | 3 | 4; estimatedSeconds: number; dueOn: string | null;
   masteryRank?: number; targetDifficulty?: number;
 };
@@ -21,20 +21,21 @@ export function selectDailyItems(input: { candidates: readonly ScheduledCandidat
     daysLate(input.date, right.dueOn) - daysLate(input.date, left.dueOn)
     || (left.masteryRank ?? 0) - (right.masteryRank ?? 0)
     || Math.abs(left.difficulty - (left.targetDifficulty ?? left.difficulty)) - Math.abs(right.difficulty - (right.targetDifficulty ?? right.difficulty))
-    || left.templateId.localeCompare(right.templateId)
+    || (left.lastUsedAt === null && right.lastUsedAt !== null ? -1 : left.lastUsedAt !== null && right.lastUsedAt === null ? 1 : left.lastUsedAt !== null && right.lastUsedAt !== null ? left.lastUsedAt - right.lastUsedAt : 0)
+    || left.questionInstanceId.localeCompare(right.questionInstanceId)
   ));
   const items: ScheduledItem[] = [];
   const shortages: Partial<Record<PlanCategory, number>> = {};
-  const templates = new Set<string>(); const structures = new Map<string, number>(); const reviews = new Map<string, number>();
+  const instances = new Set<string>(); const structures = new Map<string, number>(); const reviews = new Map<string, number>();
   const select = (category: PlanCategory, requested: number) => {
     let added = 0;
     for (const candidate of ordered) {
-      if (added === requested || candidate.category !== category || templates.has(candidate.templateId)) continue;
+      if (added === requested || candidate.category !== category || instances.has(candidate.questionInstanceId)) continue;
       if ((structures.get(candidate.structureTag) ?? 0) >= 6) continue;
       if (category === "review" && (reviews.get(candidate.skillId) ?? 0) >= 2) continue;
       const used = items.reduce((sum, item) => sum + item.estimatedSeconds, 0);
       if (used + candidate.estimatedSeconds > input.targetSeconds + candidate.estimatedSeconds) continue;
-      templates.add(candidate.templateId); structures.set(candidate.structureTag, (structures.get(candidate.structureTag) ?? 0) + 1);
+      instances.add(candidate.questionInstanceId); structures.set(candidate.structureTag, (structures.get(candidate.structureTag) ?? 0) + 1);
       if (category === "review") reviews.set(candidate.skillId, (reviews.get(candidate.skillId) ?? 0) + 1);
       const position = items.length;
       items.push({ ...candidate, position, variantSeed: `${input.seed}:${position + 1}:${candidate.templateId}`, selectionReason: category === "review" ? (candidate.dueOn && candidate.dueOn < input.date ? "overdue_review" : "due_review") : category });
@@ -52,13 +53,13 @@ export function selectDailyItems(input: { candidates: readonly ScheduledCandidat
   }
   const requestedTotal = Object.values(input.composition).reduce((sum, value) => sum + value, 0);
   for (const candidate of ordered) {
-    if (items.length >= requestedTotal || templates.has(candidate.templateId)) continue;
+    if (items.length >= requestedTotal || instances.has(candidate.questionInstanceId)) continue;
     if ((structures.get(candidate.structureTag) ?? 0) >= 6) continue;
     if (candidate.category === "review" && (reviews.get(candidate.skillId) ?? 0) >= 2) continue;
     const used = items.reduce((sum, item) => sum + item.estimatedSeconds, 0);
     if (used > input.targetSeconds) break;
     const position = items.length;
-    templates.add(candidate.templateId);
+    instances.add(candidate.questionInstanceId);
     structures.set(candidate.structureTag, (structures.get(candidate.structureTag) ?? 0) + 1);
     if (candidate.category === "review") reviews.set(candidate.skillId, (reviews.get(candidate.skillId) ?? 0) + 1);
     items.push({ ...candidate, position, variantSeed: `${input.seed}:${position + 1}:${candidate.templateId}`, selectionReason: "supplemental" });
