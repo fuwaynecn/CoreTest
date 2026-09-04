@@ -61,6 +61,33 @@ export const questionTemplates = sqliteTable("question_templates", {
   active: integer("active", { mode: "boolean" }).notNull().default(true),
 });
 
+export const questionInstances = sqliteTable("question_instances", {
+  id: text("id").primaryKey(),
+  templateId: text("template_id").notNull().references(() => questionTemplates.id),
+  skillId: text("skill_id").notNull().references(() => skills.id),
+  variantSeed: text("variant_seed").notNull(),
+  variables: text("variables").notNull(),
+  stem: text("stem").notNull(),
+  answerSpec: text("answer_spec").notNull(),
+  explanation: text("explanation").notNull(),
+  difficulty: integer("difficulty").notNull(),
+  fingerprint: text("fingerprint").notNull(),
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
+  generatedAt: integer("generated_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+  lastUsedAt: integer("last_used_at"),
+}, (table) => [
+  uniqueIndex("question_instances_fingerprint_idx").on(table.fingerprint),
+  check("question_instances_difficulty", sql`${table.difficulty} BETWEEN 1 AND 4`),
+]);
+
+export const questionBankRefreshes = sqliteTable("question_bank_refreshes", {
+  weekKey: text("week_key").primaryKey(),
+  completedAt: integer("completed_at").notNull(),
+  generatedCount: integer("generated_count").notNull(),
+  errors: text("errors").notNull().default("[]"),
+});
+
 export const diagnosticRuns = sqliteTable("diagnostic_runs", {
   id: text("id").primaryKey(),
   childId: text("child_id").notNull().references(() => users.id),
@@ -167,6 +194,7 @@ export const sessionItems = sqliteTable("session_items", {
   id: text("id").primaryKey(),
   sessionId: text("session_id").notNull().references(() => trainingSessions.id, { onDelete: "cascade" }),
   questionTemplateId: text("question_template_id").notNull().references(() => questionTemplates.id),
+  questionInstanceId: text("question_instance_id").references(() => questionInstances.id),
   position: integer("position").notNull(),
   stemSnapshot: text("stem_snapshot").notNull(),
   answerSpecSnapshot: text("answer_spec_snapshot").notNull(),

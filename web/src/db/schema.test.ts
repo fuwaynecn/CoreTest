@@ -8,7 +8,10 @@ import { migrateDatabase } from "@/db/migrate";
 import { seedDatabase } from "@/db/seed";
 import {
   attempts,
+  questionBankRefreshes,
+  questionInstances,
   questionTemplates,
+  sessionItems,
   skills,
   trainingSessions,
   users,
@@ -374,6 +377,76 @@ test("backfills immutable session snapshots in a populated pre-snapshot database
     db.$client.close();
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test("persists generated question instances and refresh runs", () => {
+  const db = createTestDatabase();
+  db.insert(skills).values({ id: "skill-1", code: "addition", name: "加法", domain: "数与运算" }).run();
+  db.insert(questionTemplates).values({
+    id: "template-1",
+    skillId: "skill-1",
+    stem: "加法",
+    answerSpec: JSON.stringify({ kind: "number", value: 7, tolerance: 0, unit: null }),
+    explanation: "3 加 4 等于 7。",
+    difficulty: 1,
+  }).run();
+
+  db.insert(questionInstances).values({
+    id: "instance-1",
+    templateId: "template-1",
+    skillId: "skill-1",
+    variantSeed: "2026-09-04:template-1:0",
+    variables: JSON.stringify({ left: 3, right: 4, answer: 7 }),
+    stem: "3 + 4 = ?",
+    answerSpec: JSON.stringify({ kind: "number", value: 7, tolerance: 0, unit: null }),
+    explanation: "3 加 4 等于 7。",
+    difficulty: 1,
+    fingerprint: "fingerprint-1",
+    active: true,
+    generatedAt: 1,
+    updatedAt: 1,
+  }).run();
+  expect(() => db.insert(questionInstances).values({
+    id: "instance-2",
+    templateId: "template-1",
+    skillId: "skill-1",
+    variantSeed: "duplicate-seed",
+    variables: "{}",
+    stem: "3 + 4 = ?",
+    answerSpec: JSON.stringify({ kind: "number", value: 7, tolerance: 0, unit: null }),
+    explanation: "重复题",
+    difficulty: 1,
+    fingerprint: "fingerprint-1",
+    active: true,
+    generatedAt: 2,
+    updatedAt: 2,
+  }).run()).toThrow();
+
+  db.insert(questionBankRefreshes).values({
+    weekKey: "2026-W36",
+    completedAt: 3,
+    generatedCount: 1,
+  }).run();
+  expect(db.select().from(questionBankRefreshes).all()).toEqual([{
+    weekKey: "2026-W36",
+    completedAt: 3,
+    generatedCount: 1,
+    errors: "[]",
+  }]);
+
+  db.insert(users).values({
+    id: "child-1", role: "child", displayName: "孩子", credentialHash: "hash", createdAt: 1,
+  }).run();
+  db.insert(trainingSessions).values({
+    id: "session-1", childId: "child-1", sessionDate: "2026-09-04", status: "in_progress", startedAt: 1,
+  }).run();
+  db.insert(sessionItems).values({
+    id: "item-1", sessionId: "session-1", questionTemplateId: "template-1", questionInstanceId: null,
+    position: 0, stemSnapshot: "3 + 4 = ?", answerSpecSnapshot: "{}", explanationSnapshot: "7",
+    skillIdSnapshot: "skill-1", skillNameSnapshot: "加法",
+  }).run();
+  expect(db.select({ questionInstanceId: sessionItems.questionInstanceId }).from(sessionItems).all())
+    .toEqual([{ questionInstanceId: null }]);
 });
 
 test("migrates and production-seeds populated Phase 1 data without losing history", async () => {
