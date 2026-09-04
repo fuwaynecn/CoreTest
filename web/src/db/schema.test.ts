@@ -421,6 +421,10 @@ test("persists generated question instances and refresh runs", () => {
     generatedAt: 2,
     updatedAt: 2,
   }).run()).toThrow();
+  expect(() => db.update(questionInstances).set({ fingerprint: "fingerprint-2" })
+    .where(eq(questionInstances.id, "instance-1")).run()).toThrow();
+  expect(db.select({ fingerprint: questionInstances.fingerprint }).from(questionInstances)
+    .where(eq(questionInstances.id, "instance-1")).get()).toEqual({ fingerprint: "fingerprint-1" });
 
   db.insert(questionBankRefreshes).values({
     weekKey: "2026-W36",

@@ -27,3 +27,10 @@ CREATE TABLE `question_instances` (
 --> statement-breakpoint
 ALTER TABLE `session_items` ADD `question_instance_id` text REFERENCES question_instances(id);--> statement-breakpoint
 CREATE UNIQUE INDEX `question_instances_fingerprint_idx` ON `question_instances` (`fingerprint`);
+--> statement-breakpoint
+CREATE TRIGGER `question_instances_fingerprint_immutable`
+BEFORE UPDATE OF `fingerprint` ON `question_instances`
+WHEN OLD.`fingerprint` IS NOT NEW.`fingerprint`
+BEGIN
+  SELECT RAISE(ABORT, 'question_instances.fingerprint is immutable');
+END;
