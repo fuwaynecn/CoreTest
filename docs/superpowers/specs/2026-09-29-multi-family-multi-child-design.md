@@ -1,11 +1,12 @@
 # 多家庭多孩子支持与五六年级题库补齐设计
 
-- 日期：2026-09-29（同日修订 v2：纳入校历自动解锁、五六年级题库一次性补齐）
+- 日期：2026-09-29（同日修订 v2：纳入校历自动解锁、五六年级题库一次性补齐；v3：增加第 9 节多教材版本与地方题型包扩展设计）
 - 状态：设计已确认，尚未实施
 - 范围：
   1. 在现有家庭数学训练系统（math.fubee.cn）上支持多个互相独立的家长家庭，每个家长账号下管理多个孩子，各孩子拥有独立的年级与题库设置。
   2. 按人教版教材一次性补齐五、六年级缺失的知识点与题目。
   3. 引入校历轴：系统按学期时间自动解锁知识点，家长可手动覆盖。
+  4. 为未来扩展（浙江等多教材版本、黄冈等地方题型包）预留数据列与代码结构。
 
 ## 1. 背景与目标
 
@@ -31,6 +32,7 @@
 6. 系统按校历自动解锁本学期已教到的知识点；家长可提前开启或强制关闭，并可恢复自动。
 7. 家长账号采用手动开户，不做开放注册。
 8. AI APIKEY 保持全局共用。
+9. 孩子档案预留教材版本字段（edition，默认人教版）；解锁引擎通过解析函数读取知识点进度，为未来多教材版本与地方题型包零逻辑改动接入做准备（见第 9 节）。
 
 ### 1.3 非目标（YAGNI）
 
@@ -39,7 +41,8 @@
 - 不做家长注册页面、邀请码注册流程。
 - 不把 AI 配置改为按家长隔离。
 - 本期不补齐一~四年级题库内容（数据结构已预留年级，内容以后另立项）。
-- 不支持人教版以外的教材版本（北师大版、苏教版单元顺序不同）。
+- 本期不实现人教版以外的教材版本（北师大版、浙江版等进度不同），但数据列与解析函数已预留，扩展方式见第 9 节。
+- 本期不实现黄冈等地方题型包（题目标签与题型包表延后），扩展方式见第 9 节。
 - 不做自动年级晋升（每年由家长手动修改孩子年级）。
 - 不覆盖学前、初中年级（现有 equation-l6 等超纲内容保留，但不作为小学考核要求）。
 
@@ -54,12 +57,14 @@
 | `login_name` | TEXT UNIQUE | 登录名；家长、孩子各自全局唯一 |
 | `parent_id` | TEXT → users.id | 仅孩子行有值：指向所属家长 |
 | `grade` | INTEGER | 仅孩子行有值：1–6 年级 |
+| `edition` | TEXT DEFAULT 'pep' | 仅孩子行有值：教材版本代码（pep=人教版），未来可填 zhejiang 等 |
 | `is_admin` | INTEGER DEFAULT 0 | 仅家长行：是否管理员 |
 
 约束：
 
 - `parent_id` 为 NULL 或引用 `users.id`；删除家长时其下孩子的处理策略见 2.5。
 - `grade` 为 NULL 或 BETWEEN 1 AND 6。
+- `edition` 为小写版本代码；当前仅允许 `'pep'`（校验枚举随新版本上线时放宽）。
 - `is_admin` IN (0, 1)，仅对 parent 角色有意义。
 
 ### 2.2 skills 表新增列
@@ -130,8 +135,8 @@ academic_calendar
 
 ### 3.2 孩子账号（家长自助）
 
-- 家长登录后在「孩子管理」中点「添加孩子」：填写孩子姓名、登录名、年级（1–6）、密码。
-- 系统创建 `role=child, parent_id=当前家长, grade=所选年级` 的账号。
+- 家长登录后在「孩子管理」中点「添加孩子」：填写孩子姓名、登录名、年级（1–6）、密码；教材版本固定人教版（当前只有 pep 可选）。
+- 系统创建 `role=child, parent_id=当前家长, grade=所选年级, edition='pep'` 的账号。
 - 家长可随时重置孩子密码、修改孩子年级与显示名。
 - 每年 9 月开学由家长手动调整孩子年级，系统不自动晋升。
 
@@ -180,18 +185,28 @@ academic_calendar
 
 ### 5.1 自动解锁规则
 
-输入：孩子年级、当前日期、当前学年的 `academic_calendar`。
+输入：孩子年级、孩子 edition、当前日期、当前学年的 `academic_calendar`。
+
+**进度解析函数（本期必须采用的代码组织方式）：**
+
+```text
+resolveSkillSchedule(skill, edition) → { grade, semester, expectedWeek }
+  本期实现：直接返回 skill 自身的 grade/semester/expected_week（忽略 edition）。
+  未来：先查 skill_edition_overrides 覆盖行，有则返回覆盖值，无则返回 skill 基线。
+```
+
+解锁引擎只调用该函数、不直接读 skill 的三列。这样未来接入多教材版本时引擎与出题逻辑零改动（见第 9 节）。
 
 「开学至今周数」= 今天与学期开始日相差天数 ÷ 7，向下取整（开学当天为第 0 周）。
 
 对每个知识点计算 `auto_available`：
 
-1. `skill.grade < 孩子.grade` → **true**（低年级学过的内容始终保留用于复习）。
-2. `skill.grade = 孩子.grade`：
-   - 上册：`开学至今周数 >= skill.expected_week`（以 semester1_start 起算）。
-   - 下册：`开学至今周数 >= skill.expected_week`（以 semester2_start 起算）。
+1. `resolved.grade < 孩子.grade` → **true**（低年级学过的内容始终保留用于复习）。
+2. `resolved.grade = 孩子.grade`：
+   - 上册：`开学至今周数 >= resolved.expected_week`（以 semester1_start 起算）。
+   - 下册：`开学至今周数 >= resolved.expected_week`（以 semester2_start 起算）。
    - 处于学期结束后的暑假期间 → 该年级全部 true。
-3. `skill.grade > 孩子.grade` → **false**。
+3. `resolved.grade > 孩子.grade` → **false**。
 
 ### 5.2 家长覆盖后的最终状态
 
@@ -250,7 +265,7 @@ mode = auto → auto_available
 ## 7. 现有数据迁移
 
 1. 现有家长：`login_name='admin'`、`is_admin=1`。
-2. 现有孩子：`parent_id` 指向现有家长；`login_name`、`grade` 由 Wayne 在迁移前提供。
+2. 现有孩子：`parent_id` 指向现有家长；`login_name`、`grade` 由 Wayne 在迁移前提供；`edition` 由列默认值自动置为 `'pep'`。
 3. 执行《人教版知识点目录与进度表》：现有 skills 回填 grade/semester/expected_week；新增约 13 个知识点；decimal/fraction/percent 拆分并把存量模板重新指向新 skill。
 4. 写入新模板（80–120 个），全部通过形式化校验。
 5. `academic_calendar` 写入当前学年行（默认 2026-09-01 / 2027-02-22，待 Wayne 确认）。
@@ -263,6 +278,7 @@ mode = auto → auto_available
 ### 8.1 单元测试
 
 - 登录名 + 密码登录成功/失败；登录名不存在、角色不匹配的分支。
+- 进度解析函数：edition='pep' 时返回 skill 自身三列（为未来覆盖行为预留测试挂点）。
 - 校历解锁引擎：开学周边界（expected_week 前一周/当周）、上下学期切换、暑假全解锁、低年级恒解锁、高年级恒锁定。
 - 校历缺行时使用默认日期并给出提示。
 - 三态覆盖：auto 跟随、on 提前开启、off 强制关闭、恢复自动。
@@ -272,7 +288,7 @@ mode = auto → auto_available
 
 ### 8.2 迁移测试
 
-- 在生产库副本上执行迁移：现有孩子 `parent_id`、`grade` 正确；所有 skill 都有合法 grade/semester/expected_week；每个知识点模板数 ≥ 6；历史数据行数不丢失。
+- 在生产库副本上执行迁移：现有孩子 `parent_id`、`grade`、`edition='pep'` 正确；所有 skill 都有合法 grade/semester/expected_week；每个知识点模板数 ≥ 6；历史数据行数不丢失。
 
 ### 8.3 端到端测试
 
@@ -281,7 +297,57 @@ mode = auto → auto_available
 - 管理员更新学期开学日期 → 解锁结果随之变化。
 - 普通家长与管理员分别登录，入口与页面权限符合 6.3。
 
-## 9. 开放事项（实施前确认）
+## 9. 未来扩展：多教材版本与地方题型包
+
+本期只做预留，不建下列新表；当第一个相关家庭出现时再落地。
+
+### 9.1 区分两类扩展
+
+| 扩展 | 本质 | 差异所在 |
+|------|------|----------|
+| 浙江（浙教版/北师大版等） | 教材版本 | 同一批知识点，年级/学期编排顺序不同，外加少量本地特有单元 |
+| 黄冈（及海淀、魔都等教辅风格） | 题型风格 | 知识点相同，差异在题目难度、变式与出题风格 |
+
+### 9.2 多教材版本：知识点不复制，只加版本覆盖表
+
+```text
+skill_edition_overrides
+  skill_id       → skills.id
+  edition        TEXT                    -- 'bnu' / 'zhejiang' / ...
+  grade          INTEGER
+  semester       INTEGER
+  expected_week  INTEGER
+  included       INTEGER NOT NULL        -- 该版本是否包含此知识点（0/1）
+  PRIMARY KEY(skill_id, edition)
+```
+
+落地方式：
+
+- `resolveSkillSchedule(skill, edition)` 内部先查覆盖行：有且 included=1 → 返回覆盖值；无覆盖行 → 回退 skill 的人教版基线。
+- 浙江特有、人教版没有的单元：新建 canonical skill，再写覆盖行标明仅该版本 included=1；人教版孩子看不到。
+- 掌握状态、徽章、复习、错题全部挂在 canonical skill 上，与版本无关；孩子换教材版本时历史数据无缝保留。
+- 新增一个教材版本的工作量 = 一张进度映射表 + 少量特有单元题目，引擎与出题逻辑不改。
+
+### 9.3 地方题型包：题目加标签，家长勾选加餐
+
+```text
+question_templates 新增列
+  pack_tags  TEXT DEFAULT '[]'           -- 如 ['huanggang']，普通题为空
+
+child_style_packs（新增表）
+  child_id   → users.id
+  pack_code  TEXT                        -- 'huanggang' / 'haidian' / ...
+  mode       TEXT NOT NULL               -- auto / on / off，语义同知识点三态
+  PRIMARY KEY(child_id, pack_code)
+```
+
+落地方式：
+
+- 家长在孩子题库设置中勾选某个题型包（后续需要增加难度时即勾选此处），组题 scheduler 按标签将该包题目按权重混入。
+- 题型包题目归属正常知识点，徽章与掌握判定照常生效。
+- 新增任何地方题型包 = 出题 + 打标签 + 建包，结构零改动。
+
+## 10. 开放事项（实施前确认）
 
 1. 现有孩子的登录名与年级：由 Wayne 在迁移前提供。
 2. 《人教版知识点目录与进度表》：含每个 skill 的 grade/semester/expected_week、新增知识点、decimal/fraction/percent 拆分映射，实施第一阶段产出并经 Wayne 确认。
