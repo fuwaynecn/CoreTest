@@ -15,12 +15,12 @@ export const users = sqliteTable("users", {
   displayName: text("display_name").notNull(),
   credentialHash: text("credential_hash").notNull(),
   createdAt: integer("created_at").notNull(),
-  loginName: text("login_name").unique(),
+  loginName: text("login_name"),
   parentId: text("parent_id").references((): AnySQLiteColumn => users.id),
   grade: integer("grade"),
   edition: text("edition", { enum: ["pep"] }).notNull().default("pep"),
   isAdmin: integer("is_admin", { mode: "boolean" }).notNull().default(false),
-});
+}, (table) => [uniqueIndex("users_login_name_idx").on(table.loginName)]);
 
 export const authSessions = sqliteTable("auth_sessions", {
   id: text("id").primaryKey(),

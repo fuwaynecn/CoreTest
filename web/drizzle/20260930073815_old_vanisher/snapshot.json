@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "72520ae9-293b-43cf-9989-ce6b2083df7a",
+  "id": "cb0bd422-8c5b-43fe-a322-6a474482351b",
   "prevIds": [
     "c1512b19-632f-4f3d-b8cd-4397151d5072"
   ],
@@ -3446,6 +3446,20 @@
     },
     {
       "columns": [
+        {
+          "value": "login_name",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "name": "users_login_name_idx",
+      "entityType": "indexes",
+      "table": "users"
+    },
+    {
+      "columns": [
         "client_submission_id"
       ],
       "nameExplicit": false,
@@ -3470,15 +3484,6 @@
       "name": "skills_code_unique",
       "entityType": "uniques",
       "table": "skills"
-    },
-    {
-      "columns": [
-        "login_name"
-      ],
-      "nameExplicit": false,
-      "name": "users_login_name_unique",
-      "entityType": "uniques",
-      "table": "users"
     },
     {
       "value": "\"provider\" IN ('openai', 'deepseek')",

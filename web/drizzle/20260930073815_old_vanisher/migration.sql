@@ -23,22 +23,4 @@ ALTER TABLE `users` ADD `parent_id` text REFERENCES users(id);--> statement-brea
 ALTER TABLE `users` ADD `grade` integer;--> statement-breakpoint
 ALTER TABLE `users` ADD `edition` text DEFAULT 'pep' NOT NULL;--> statement-breakpoint
 ALTER TABLE `users` ADD `is_admin` integer DEFAULT false NOT NULL;--> statement-breakpoint
-PRAGMA foreign_keys=OFF;--> statement-breakpoint
-CREATE TABLE `__new_users` (
-	`id` text PRIMARY KEY,
-	`role` text NOT NULL,
-	`display_name` text NOT NULL,
-	`credential_hash` text NOT NULL,
-	`created_at` integer NOT NULL,
-	`login_name` text UNIQUE,
-	`parent_id` text,
-	`grade` integer,
-	`edition` text DEFAULT 'pep' NOT NULL,
-	`is_admin` integer DEFAULT false NOT NULL,
-	CONSTRAINT `fk_users_parent_id_users_id_fk` FOREIGN KEY (`parent_id`) REFERENCES `users`(`id`)
-);
---> statement-breakpoint
-INSERT INTO `__new_users`(`id`, `role`, `display_name`, `credential_hash`, `created_at`) SELECT `id`, `role`, `display_name`, `credential_hash`, `created_at` FROM `users`;--> statement-breakpoint
-DROP TABLE `users`;--> statement-breakpoint
-ALTER TABLE `__new_users` RENAME TO `users`;--> statement-breakpoint
-PRAGMA foreign_keys=ON;
+CREATE UNIQUE INDEX `users_login_name_idx` ON `users` (`login_name`);

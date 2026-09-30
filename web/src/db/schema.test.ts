@@ -135,19 +135,10 @@ test("migrates and stably replays an existing attempt", () => {
 
   try {
     migrateDatabase(db, legacyMigrations);
-    db.insert(users).values({
-      id: "legacy-child",
-      role: "child",
-      displayName: "孩子",
-      credentialHash: "hash",
-      createdAt: 1,
-    }).run();
-    db.insert(skills).values({
-      id: "legacy-skill",
-      code: "legacy",
-      name: "旧技能",
-      domain: "数与运算",
-    }).run();
+    db.$client.prepare(`INSERT INTO users (id, role, display_name, credential_hash, created_at) VALUES (?, ?, ?, ?, ?)`)
+      .run("legacy-child", "child", "孩子", "hash", 1);
+    db.$client.prepare(`INSERT INTO skills (id, code, name, domain) VALUES (?, ?, ?, ?)`)
+      .run("legacy-skill", "legacy", "旧技能", "数与运算");
     insertPhase1Question(db.$client, {
       id: "legacy-question",
       skillId: "legacy-skill",
@@ -269,19 +260,10 @@ test("backfills immutable session snapshots in a populated pre-snapshot database
 
   try {
     migrateDatabase(db, preSnapshotMigrations);
-    db.insert(users).values({
-      id: "snapshot-child",
-      role: "child",
-      displayName: "孩子",
-      credentialHash: "hash",
-      createdAt: 1,
-    }).run();
-    db.insert(skills).values({
-      id: "snapshot-skill",
-      code: "snapshot",
-      name: "迁移前技能",
-      domain: "数与运算",
-    }).run();
+    db.$client.prepare(`INSERT INTO users (id, role, display_name, credential_hash, created_at) VALUES (?, ?, ?, ?, ?)`)
+      .run("snapshot-child", "child", "孩子", "hash", 1);
+    db.$client.prepare(`INSERT INTO skills (id, code, name, domain) VALUES (?, ?, ?, ?)`)
+      .run("snapshot-skill", "snapshot", "迁移前技能", "数与运算");
     insertPhase1Question(db.$client, {
       id: "snapshot-question",
       skillId: "snapshot-skill",
@@ -474,19 +456,10 @@ test("migrates and production-seeds populated Phase 1 data without losing histor
 
   try {
     migrateDatabase(db, phase1Migrations);
-    db.insert(users).values({
-      id: "phase1-child",
-      role: "child",
-      displayName: "孩子",
-      credentialHash: "hash",
-      createdAt: 1,
-    }).run();
-    db.insert(skills).values({
-      id: "phase1-skill",
-      code: "phase1-skill",
-      name: "旧技能",
-      domain: "数与运算",
-    }).run();
+    sqlite.prepare(`INSERT INTO users (id, role, display_name, credential_hash, created_at) VALUES (?, ?, ?, ?, ?)`)
+      .run("phase1-child", "child", "孩子", "hash", 1);
+    sqlite.prepare(`INSERT INTO skills (id, code, name, domain) VALUES (?, ?, ?, ?)`)
+      .run("phase1-skill", "phase1-skill", "旧技能", "数与运算");
     insertPhase1Question(sqlite, {
       id: "phase1-question",
       skillId: "phase1-skill",
@@ -1415,6 +1388,10 @@ describe("multi-family schema", () => {
       VALUES ('skill-x','x','X','number_operations',5,1,10)`);
     db.run(`INSERT INTO academic_calendar (school_year, semester1_start, semester2_start, updated_at)
       VALUES ('2026-2027','2026-09-01','2027-02-22',1)`);
+    db.$client.prepare(`INSERT INTO users (id, role, display_name, credential_hash, created_at, login_name, grade, edition, is_admin) VALUES (?,?,?,?,?,?,?,?,?)`)
+      .run("p1", "parent", "家长", "h", 1, "admin", null, "pep", 1);
+    db.$client.prepare(`INSERT INTO users (id, role, display_name, credential_hash, created_at, login_name, parent_id, grade, edition, is_admin) VALUES (?,?,?,?,?,?,?,?,?,?)`)
+      .run("c1", "child", "孩子", "h", 2, "kid", "p1", 6, "pep", 0);
     db.run(`INSERT INTO child_skill_settings (child_id, skill_id, mode, updated_at)
       VALUES ('c1','skill-x','on',1)`);
     const row = db.all("SELECT mode FROM child_skill_settings")[0] as Record<string, unknown>;
