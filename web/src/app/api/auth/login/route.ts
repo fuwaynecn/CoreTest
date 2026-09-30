@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { eq, lte } from "drizzle-orm";
+import { and, eq, lte } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { credentialInputSchema, verifyCredential } from "@/domain/auth/credentials";
@@ -7,8 +7,11 @@ import { createSessionToken } from "@/domain/auth/session-token";
 import { getDatabase } from "@/db/client";
 import { authSessions, users } from "@/db/schema";
 
+const loginNameSchema = z.string().regex(/^[a-z][a-z0-9_.]{1,31}$/);
+
 const loginInput = z.object({
   role: z.enum(["parent", "child"]),
+  loginName: loginNameSchema,
   credential: credentialInputSchema,
 });
 
@@ -24,12 +27,9 @@ export async function POST(request: Request) {
 
   const db = getDatabase();
   const [user] = await db
-    .select({
-      id: users.id,
-      credentialHash: users.credentialHash,
-    })
+    .select({ id: users.id, credentialHash: users.credentialHash })
     .from(users)
-    .where(eq(users.role, input.data.role))
+    .where(and(eq(users.role, input.data.role), eq(users.loginName, input.data.loginName)))
     .limit(1);
 
   if (!user || !await verifyCredential(input.data.credential, user.credentialHash)) {

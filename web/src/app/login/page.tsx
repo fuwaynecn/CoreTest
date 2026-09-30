@@ -6,7 +6,7 @@ export default function LoginPage() {
       <div className="loginPanel">
         <p className="eyebrow">家庭数学训练</p>
         <h1>选择身份登录</h1>
-        <p>孩子使用 PIN，家长使用家长密码。</p>
+        <p>孩子使用登录名和 PIN，家长使用登录名和家长密码。</p>
         <LoginForm />
       </div>
     </main>

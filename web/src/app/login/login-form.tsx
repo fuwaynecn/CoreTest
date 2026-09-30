@@ -6,6 +6,7 @@ type Role = "parent" | "child";
 
 export default function LoginForm() {
   const [role, setRole] = useState<Role>("child");
+  const [loginName, setLoginName] = useState("");
   const [credential, setCredential] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -25,7 +26,7 @@ export default function LoginForm() {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ role, credential }),
+        body: JSON.stringify({ role, loginName, credential }),
       });
       const result = await response.json() as { error?: string; redirectTo?: string };
 
@@ -54,7 +55,7 @@ export default function LoginForm() {
           onClick={() => selectRole("child")}
         >
           <strong>我是孩子</strong>
-          <span>使用 PIN 登录</span>
+          <span>使用登录名与 PIN 登录</span>
         </button>
         <button
           type="button"
@@ -63,9 +64,21 @@ export default function LoginForm() {
           onClick={() => selectRole("parent")}
         >
           <strong>我是家长</strong>
-          <span>使用家长密码登录</span>
+          <span>使用登录名与家长密码登录</span>
         </button>
       </div>
+
+      <label className="credentialField">
+        <span>登录名</span>
+        <input
+          required
+          minLength={2}
+          maxLength={32}
+          autoComplete="username"
+          value={loginName}
+          onChange={(event) => setLoginName(event.target.value)}
+        />
+      </label>
 
       <label className="credentialField">
         <span>{credentialLabel}</span>

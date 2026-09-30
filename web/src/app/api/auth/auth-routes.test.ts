@@ -35,6 +35,7 @@ beforeEach(async () => {
       id: "parent",
       role: "parent",
       displayName: "家长",
+      loginName: "testparent",
       credentialHash: parentCredentialHash,
       createdAt: 1,
     },
@@ -42,6 +43,7 @@ beforeEach(async () => {
       id: "child",
       role: "child",
       displayName: "孩子",
+      loginName: "testkid",
       credentialHash: childCredentialHash,
       createdAt: 1,
     },
@@ -52,11 +54,11 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-function loginRequest(role: "parent" | "child", credential: string) {
+function loginRequest(role: "parent" | "child", loginName: string, credential: string) {
   return new Request("http://localhost/api/auth/login", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ role, credential }),
+    body: JSON.stringify({ role, loginName, credential }),
   });
 }
 
@@ -71,7 +73,7 @@ test("logs the selected role in with a hash-only seven-day session and secure pr
   });
   const before = Date.now();
 
-  const response = await login(loginRequest("parent", "parent-password"));
+  const response = await login(loginRequest("parent", "testparent", "parent-password"));
   const after = Date.now();
 
   expect(response.status).toBe(200);
@@ -93,7 +95,7 @@ test("logs the selected role in with a hash-only seven-day session and secure pr
 });
 
 test("selects the child role independently", async () => {
-  const response = await login(loginRequest("child", "2468"));
+  const response = await login(loginRequest("child", "testkid", "2468"));
 
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual({ redirectTo: "/child" });
@@ -101,11 +103,23 @@ test("selects the child role independently", async () => {
   expect(session.userId).toBe("child");
 });
 
+test("rejects login when the login name does not exist", async () => {
+  const response = await login(loginRequest("child", "ghost", "2468"));
+  expect(response.status).toBe(401);
+  expect(await response.json()).toEqual({ error: "身份或凭据不正确" });
+  expect(response.headers.get("set-cookie")).toBeNull();
+  expect(await db.select().from(authSessions)).toEqual([]);
+});
+
 test("returns the same generic failure for either role and malformed input", async () => {
   const attempts = [
-    loginRequest("parent", "wrong-password"),
-    loginRequest("child", "9999"),
-    loginRequest("child", "1"),
+    loginRequest("parent", "testparent", "wrong-password"),
+    loginRequest("child", "testkid", "9999"),
+    new Request("http://localhost/api/auth/login", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ role: "child", loginName: "BAD NAME!!", credential: "2468" }),
+    }),
   ];
 
   for (const request of attempts) {
