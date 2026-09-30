@@ -80,5 +80,6 @@ test("getCurrentUser returns only public identity fields for a live session", as
     id: "parent",
     role: "parent",
     displayName: "家长",
+    isAdmin: false,
   });
 });
