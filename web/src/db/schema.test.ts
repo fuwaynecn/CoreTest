@@ -1394,3 +1394,30 @@ test("adds AI provider config storage without changing populated attempts", () =
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+describe("multi-family schema", () => {
+  it("users 支持登录名、归属、年级、版本与管理员标记", () => {
+    const db = createTestDatabase();
+    db.run(`INSERT INTO users (id, role, display_name, credential_hash, created_at,
+      login_name, parent_id, grade, edition, is_admin)
+      VALUES ('p1','parent','家长','h',1,'admin',NULL,NULL,'pep',1)`);
+    db.run(`INSERT INTO users (id, role, display_name, credential_hash, created_at,
+      login_name, parent_id, grade, edition, is_admin)
+      VALUES ('c1','child','孩子','h',2,'kid','p1',6,'pep',0)`);
+    const child = db.all("SELECT * FROM users WHERE id='c1'")[0] as Record<string, unknown>;
+    expect(child.parent_id).toBe("p1");
+    expect(child.grade).toBe(6);
+  });
+
+  it("skills 含年级/学期/周序；两张新表可写入", () => {
+    const db = createTestDatabase();
+    db.run(`INSERT INTO skills (id, code, name, domain, grade, semester, expected_week)
+      VALUES ('skill-x','x','X','number_operations',5,1,10)`);
+    db.run(`INSERT INTO academic_calendar (school_year, semester1_start, semester2_start, updated_at)
+      VALUES ('2026-2027','2026-09-01','2027-02-22',1)`);
+    db.run(`INSERT INTO child_skill_settings (child_id, skill_id, mode, updated_at)
+      VALUES ('c1','skill-x','on',1)`);
+    const row = db.all("SELECT mode FROM child_skill_settings")[0] as Record<string, unknown>;
+    expect(row.mode).toBe("on");
+  });
+});

@@ -15,6 +15,11 @@ export const users = sqliteTable("users", {
   displayName: text("display_name").notNull(),
   credentialHash: text("credential_hash").notNull(),
   createdAt: integer("created_at").notNull(),
+  loginName: text("login_name").unique(),
+  parentId: text("parent_id").references((): AnySQLiteColumn => users.id),
+  grade: integer("grade"),
+  edition: text("edition", { enum: ["pep"] }).notNull().default("pep"),
+  isAdmin: integer("is_admin", { mode: "boolean" }).notNull().default(false),
 });
 
 export const authSessions = sqliteTable("auth_sessions", {
@@ -29,6 +34,9 @@ export const skills = sqliteTable("skills", {
   code: text("code").notNull().unique(),
   name: text("name").notNull(),
   domain: text("domain").notNull(),
+  grade: integer("grade").notNull().default(1),
+  semester: integer("semester").notNull().default(1),
+  expectedWeek: integer("expected_week").notNull().default(1),
 });
 
 export const questionTemplates = sqliteTable("question_templates", {
@@ -416,3 +424,17 @@ export const masteryStates = sqliteTable("mastery_states", {
   check("mastery_states_counts", sql`${table.evidenceCount} >= 0 AND ${table.correctCount} >= 0 AND ${table.correctCount} <= ${table.evidenceCount}`),
   check("mastery_states_evidence_version", sql`${table.evidenceVersion} >= 0`),
 ]);
+
+export const childSkillSettings = sqliteTable("child_skill_settings", {
+  childId: text("child_id").notNull().references(() => users.id),
+  skillId: text("skill_id").notNull().references(() => skills.id),
+  mode: text("mode", { enum: ["auto", "on", "off"] }).notNull().default("auto"),
+  updatedAt: integer("updated_at").notNull(),
+}, (table) => [primaryKey({ columns: [table.childId, table.skillId] })]);
+
+export const academicCalendar = sqliteTable("academic_calendar", {
+  schoolYear: text("school_year").primaryKey(),
+  semester1Start: text("semester1_start").notNull(),
+  semester2Start: text("semester2_start").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
