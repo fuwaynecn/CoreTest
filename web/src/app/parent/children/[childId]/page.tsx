@@ -10,7 +10,7 @@ import { WeeklyReport } from "@/components/weekly-report";
 import Link from "next/link";
 import { getDatabase } from "@/db/client";
 import { shanghaiDateKey } from "@/domain/time/shanghai-calendar";
-import { attempts, diagnosticRuns, sessionItems, trainingSessions, users } from "@/db/schema";
+import { attempts, diagnosticRuns, sessionItems, trainingSessions } from "@/db/schema";
 import type { InitialDiagnosisReport } from "@/domain/diagnosis/types";
 import { requireParent, getOwnedChild } from "@/lib/auth/parent-child";
 import { getLearningState } from "@/services/parent/get-learning-state";
