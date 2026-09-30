@@ -9,6 +9,7 @@ export type CurrentUser = {
   id: string;
   role: "parent" | "child";
   displayName: string;
+  isAdmin: boolean;
 };
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
@@ -21,6 +22,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
       id: users.id,
       role: users.role,
       displayName: users.displayName,
+      isAdmin: users.isAdmin,
     })
     .from(authSessions)
     .innerJoin(users, eq(authSessions.userId, users.id))
