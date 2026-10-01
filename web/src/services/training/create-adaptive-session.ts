@@ -73,9 +73,8 @@ export function getOrCreateAdaptiveSession(db: AppDatabase, childId: string, dat
   if (preflight.existingId) return sessionView(db, preflight.existingId);
   const timestamp = new Date(now).getTime();
   try { ensureQuestionBankFresh(db, date, { now: timestamp }); } catch { /* Existing active inventory remains usable when refresh fails. */ }
-  const missingSkills = db.transaction((tx) => preflight.skillIds.filter((skillId) => !tx.select({ id: questionInstances.id }).from(questionInstances).innerJoin(questionTemplates, eq(questionInstances.templateId, questionTemplates.id)).where(and(eq(questionInstances.skillId, skillId), eq(questionInstances.active, true), eq(questionTemplates.active, true))).get()));
-  if (missingSkills.length) {
-    try { ensureQuestionBankFresh(db, date, { skillIds: missingSkills, force: true, now: timestamp }); } catch { /* Fall back to remaining active inventory. */ }
+  if (preflight.skillIds.length) {
+    try { ensureQuestionBankFresh(db, date, { skillIds: preflight.skillIds, force: true, now: timestamp }); } catch { /* Fall back to remaining active inventory. */ }
   }
   const sessionId = db.transaction((tx) => {
     const diagnosis = tx.select({ id: diagnosticRuns.id }).from(diagnosticRuns).where(and(eq(diagnosticRuns.childId, childId), eq(diagnosticRuns.status, "completed"))).orderBy(desc(diagnosticRuns.version)).get();
@@ -103,10 +102,11 @@ export function getOrCreateAdaptiveSession(db: AppDatabase, childId: string, dat
       }));
     const totalSlots = Math.max(15, Math.round(targetSeconds / 90));
     const composition = allocateComposition(totalSlots, (focus?.specialistFocus ?? "none") as SpecialistFocus);
-    const selected = selectDailyItems({ candidates, composition, targetSeconds, date, seed: `${date}:${plan.id}:${plan.revision}` });
+    const reuseCutoff = timestamp - 7 * 86_400_000;
+    const selected = selectDailyItems({ candidates, composition, targetSeconds, date, seed: `${date}:${plan.id}:${plan.revision}`, recentlyUsedCutoff: reuseCutoff });
     const candidateByInstance = new Map(candidates.map((candidate) => [candidate.questionInstanceId, candidate]));
     const id = randomUUID(); const kind = isAssessmentDay(date, week, trainingWeekdays(focus?.trainingWeekdays)) ? "assessment" : "daily";
-    tx.insert(trainingSessions).values({ id, childId, sessionDate: date, kind, ruleVersion: "phase2c-v1", targetSeconds, learningPlanId: plan.id, planRevision: plan.revision, status: "in_progress", startedAt: new Date(now).getTime(), compositionSnapshot: JSON.stringify({ snapshotVersion: 1, composition, shortages: selected.shortages, week }) }).run();
+    tx.insert(trainingSessions).values({ id, childId, sessionDate: date, kind, ruleVersion: "phase2c-v2", targetSeconds, learningPlanId: plan.id, planRevision: plan.revision, status: "in_progress", startedAt: new Date(now).getTime(), compositionSnapshot: JSON.stringify({ snapshotVersion: 1, composition, shortages: selected.shortages, week }) }).run();
     if (selected.items.length) tx.insert(sessionItems).values(selected.items.map((item) => {
       const instance = candidateByInstance.get(item.questionInstanceId)!;
       const skill = tx.select({ name: skills.name }).from(skills).where(eq(skills.id, item.skillId)).get();
