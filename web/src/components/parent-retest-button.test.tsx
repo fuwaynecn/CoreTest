@@ -9,12 +9,12 @@ test("starts the expected diagnosis version once and refreshes on success", asyn
   const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
     diagnosis: { runId: "run-v2", version: 2, status: "in_progress" },
   }), { status: 201 }));
-  render(<ParentRetestButton expectedCompletedVersion={1} refresh={refresh} />);
+  render(<ParentRetestButton childId="child-1" expectedCompletedVersion={1} refresh={refresh} />);
 
   await userEvent.dblClick(screen.getByRole("button", { name: "发起第 2 版诊断" }));
 
   expect(fetchSpy).toHaveBeenCalledTimes(1);
-  expect(JSON.parse(fetchSpy.mock.calls[0][1]?.body as string)).toEqual({ expectedCompletedVersion: 1 });
+  expect(JSON.parse(fetchSpy.mock.calls[0][1]?.body as string)).toEqual({ expectedCompletedVersion: 1, childId: "child-1" });
   expect(refresh).toHaveBeenCalledTimes(1);
 });
 
@@ -23,10 +23,23 @@ test("shows the structured conflict without pretending a retest started", async 
   vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
     error: { code: "retest_already_active", message: "已有复测进行中", currentVersion: 2 },
   }), { status: 409 }));
-  render(<ParentRetestButton expectedCompletedVersion={1} refresh={refresh} />);
+  render(<ParentRetestButton childId="child-1" expectedCompletedVersion={1} refresh={refresh} />);
 
   await userEvent.click(screen.getByRole("button", { name: "发起第 2 版诊断" }));
 
   expect(await screen.findByRole("alert")).toHaveTextContent("已有复测进行中");
+  expect(refresh).not.toHaveBeenCalled();
+});
+
+test("shows not_your_child error message when server rejects ownership", async () => {
+  const refresh = vi.fn();
+  vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
+    error: { code: "not_your_child", message: "不能操作别家孩子" },
+  }), { status: 403 }));
+  render(<ParentRetestButton childId="child-other" expectedCompletedVersion={1} refresh={refresh} />);
+
+  await userEvent.click(screen.getByRole("button", { name: "发起第 2 版诊断" }));
+
+  expect(await screen.findByRole("alert")).toHaveTextContent("不能操作别家孩子");
   expect(refresh).not.toHaveBeenCalled();
 });

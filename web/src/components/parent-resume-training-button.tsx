@@ -3,11 +3,22 @@
 import { useRef, useState } from "react";
 
 type ParentResumeTrainingButtonProps = {
+  childId: string;
   sessionId: string;
   refresh?: () => void;
 };
 
+function responseMessage(value: unknown): string {
+  if (typeof value === "object" && value !== null && "error" in value) {
+    const error = value.error;
+    if (typeof error === "object" && error !== null && "message" in error
+      && typeof error.message === "string") return error.message;
+  }
+  return "今天没有可以恢复的未完成训练";
+}
+
 export function ParentResumeTrainingButton({
+  childId,
   sessionId,
   refresh = () => window.location.reload(),
 }: ParentResumeTrainingButtonProps) {
@@ -21,9 +32,14 @@ export function ParentResumeTrainingButton({
     setSubmitting(true);
     setError(null);
     try {
-      const response = await fetch(`/api/parent/sessions/${sessionId}/resume`, { method: "POST" });
+      const response = await fetch(`/api/parent/sessions/${sessionId}/resume`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ childId }),
+      });
+      const data: unknown = await response.json().catch(() => null);
       if (!response.ok) {
-        setError("今天没有可以恢复的未完成训练");
+        setError(responseMessage(data));
         return;
       }
       refresh();

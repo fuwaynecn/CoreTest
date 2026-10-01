@@ -1,9 +1,8 @@
-import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getDatabase } from "@/db/client";
-import { users } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth/current-user";
+import { getOwnedChild } from "@/lib/auth/parent-child";
 import { correctErrorObservation, ErrorObservationAccessError } from "@/services/training/error-observation-service";
 
 const inputSchema = z.strictObject({
@@ -11,6 +10,7 @@ const inputSchema = z.strictObject({
     "missing_unit", "copied_number", "calculation", "relationship",
     "range_check", "incomplete_reading", "unknown",
   ]),
+  childId: z.string().min(1),
 });
 
 function errorResponse(status: number, code: string, message: string) {
@@ -28,8 +28,8 @@ export async function PATCH(
   if (!input.success) return errorResponse(400, "invalid_request", "错因修正参数无效");
 
   const db = getDatabase();
-  const child = db.select({ id: users.id }).from(users).where(eq(users.role, "child")).limit(1).get();
-  if (!child) return errorResponse(404, "child_not_found", "还没有配置孩子账号");
+  const child = getOwnedChild(db, parent.id, input.data.childId);
+  if (!child) return errorResponse(403, "not_your_child", "不能操作别家孩子");
   const { id } = await context.params;
   try {
     const observation = correctErrorObservation(db, {

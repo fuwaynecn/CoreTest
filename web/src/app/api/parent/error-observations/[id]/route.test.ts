@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { errorObservations, questionTemplates, sessionItems, skills, trainingSessions, users } from "@/db/schema";
 import { createTestDatabase } from "@/test/test-db";
 import { submitAttempt } from "@/services/training/submit-attempt";
@@ -14,7 +15,9 @@ beforeEach(() => {
   state.getCurrentUser.mockResolvedValue({ id: "parent-1", role: "parent", displayName: "家长" });
   db.insert(users).values([
     { id: "parent-1", role: "parent", displayName: "家长", credentialHash: "x", createdAt: 1 },
-    { id: "child-1", role: "child", displayName: "孩子", credentialHash: "x", createdAt: 1 },
+    { id: "child-1", role: "child", displayName: "孩子", credentialHash: "x", createdAt: 1, parentId: "parent-1" },
+    { id: "parent-2", role: "parent", displayName: "别家", credentialHash: "x", createdAt: 1 },
+    { id: "child-2", role: "child", displayName: "别家孩子", credentialHash: "x", createdAt: 1, parentId: "parent-2" },
   ]).run();
   db.insert(skills).values({ id: "skill-1", code: "s", name: "能力", domain: "number_operations" }).run();
   db.insert(questionTemplates).values({ id: "template-1", skillId: "skill-1", stem: "1+1", answerSpec: JSON.stringify({ kind: "number", value: 2, tolerance: 0, unit: null }), explanation: "2", difficulty: 1 }).run();
@@ -28,14 +31,18 @@ beforeEach(() => {
 });
 
 function request(id: string, body: unknown) {
-  return PATCH(new Request(`http://localhost/api/parent/error-observations/${id}`, { method: "PATCH", body: JSON.stringify(body) }), { params: Promise.resolve({ id }) });
+  return PATCH(new Request(`http://localhost/api/parent/error-observations/${id}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  }), { params: Promise.resolve({ id }) });
 }
 
 test("appends a parent revision and replays an identical retry", async () => {
   const db = state.db as ReturnType<typeof createTestDatabase>;
   const root = db.select().from(errorObservations).get()!;
-  expect((await request(root.id, { cause: "relationship" })).status).toBe(200);
-  expect((await request(root.id, { cause: "relationship" })).status).toBe(200);
+  expect((await request(root.id, { cause: "relationship", childId: "child-1" })).status).toBe(200);
+  expect((await request(root.id, { cause: "relationship", childId: "child-1" })).status).toBe(200);
   expect(db.select().from(errorObservations).all()).toHaveLength(2);
 });
 
@@ -44,15 +51,31 @@ test.each([
   { user: { id: "child-1", role: "child", displayName: "孩子" }, status: 403, code: "parent_access_required" },
 ])("protects the parent correction endpoint", async ({ user, status, code }) => {
   state.getCurrentUser.mockResolvedValue(user);
-  const response = await request("missing", { cause: "unknown" });
+  const response = await request("missing", { cause: "unknown", childId: "child-1" });
   expect(response.status).toBe(status);
   expect(await response.json()).toMatchObject({ error: { code } });
 });
 
 test("returns structured validation and not-found responses", async () => {
-  const invalid = await request("missing", { cause: "guess" });
+  const invalid = await request("missing", { cause: "guess", childId: "child-1" });
   expect(invalid.status).toBe(400);
-  const missing = await request("missing", { cause: "unknown" });
+  const missing = await request("missing", { cause: "unknown", childId: "child-1" });
   expect(missing.status).toBe(404);
   expect(await missing.json()).toMatchObject({ error: { code: "observation_not_found" } });
+});
+
+test("rejects a child owned by another parent with 403 and adds no observation", async () => {
+  const db = state.db as ReturnType<typeof createTestDatabase>;
+  const root = db.select().from(errorObservations).get()!;
+  const before = db.select({ id: errorObservations.id }).from(errorObservations).all().length;
+
+  const response = await request(root.id, { cause: "calculation", childId: "child-2" });
+  expect(response.status).toBe(403);
+  expect(await response.json()).toMatchObject({ error: { code: "not_your_child" } });
+
+  const after = db.select({ id: errorObservations.id }).from(errorObservations).all().length;
+  expect(after).toBe(before);
+  // Verify the original observation's cause was not changed
+  const unchanged = db.select().from(errorObservations).where(eq(errorObservations.id, root.id)).get();
+  expect(unchanged?.parentCorrection).not.toBe("calculation");
 });

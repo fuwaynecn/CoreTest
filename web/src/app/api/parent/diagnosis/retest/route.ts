@@ -1,9 +1,8 @@
-import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getDatabase } from "@/db/client";
-import { users } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth/current-user";
+import { getOwnedChild } from "@/lib/auth/parent-child";
 import {
   DiagnosisRetestConflictError,
   DiagnosisStateError,
@@ -12,6 +11,7 @@ import {
 
 const retestInput = z.strictObject({
   expectedCompletedVersion: z.number().int().positive(),
+  childId: z.string().min(1),
 });
 
 function errorResponse(status: number, code: string, message: string, currentVersion?: number) {
@@ -34,9 +34,8 @@ export async function POST(request: Request) {
   if (!input.success) return errorResponse(400, "invalid_request", "诊断版本参数无效");
 
   const db = getDatabase();
-  const child = db.select({ id: users.id }).from(users)
-    .where(eq(users.role, "child")).limit(1).get();
-  if (!child) return errorResponse(404, "child_not_found", "还没有可诊断的孩子账号");
+  const child = getOwnedChild(db, parent.id, input.data.childId);
+  if (!child) return errorResponse(403, "not_your_child", "不能操作别家孩子");
 
   try {
     const diagnosis = startDiagnosisRetest(db, {

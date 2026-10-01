@@ -31,7 +31,7 @@ test("submits a parent correction and refreshes the audited read model", async (
   const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
     observation: { id: "observation-3" },
   }), { status: 200 }));
-  render(<ErrorSummary {...view} refresh={refresh} />);
+  render(<ErrorSummary childId="child-1" {...view} refresh={refresh} />);
 
   const evidence = screen.getByRole("article", { name: /单位题的错因证据/ });
   expect(within(evidence).getByText("孩子自评：漏了条件或单位")).toBeInTheDocument();
@@ -41,7 +41,7 @@ test("submits a parent correction and refreshes the audited read model", async (
 
   expect(fetchSpy).toHaveBeenCalledWith("/api/parent/error-observations/observation-1", expect.objectContaining({
     method: "PATCH",
-    body: JSON.stringify({ cause: "calculation" }),
+    body: JSON.stringify({ cause: "calculation", childId: "child-1" }),
   }));
   expect(await within(evidence).findByRole("status")).toHaveTextContent("已保存，正在更新证据链");
   expect(refresh).toHaveBeenCalledTimes(1);
@@ -51,7 +51,7 @@ test("keeps the original audit visible when a correction fails", async () => {
   vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
     error: { message: "没有找到这个孩子的错因记录" },
   }), { status: 404 }));
-  render(<ErrorSummary {...view} refresh={() => undefined} />);
+  render(<ErrorSummary childId="child-1" {...view} refresh={() => undefined} />);
 
   await userEvent.click(screen.getByRole("button", { name: "保存家长修正" }));
 

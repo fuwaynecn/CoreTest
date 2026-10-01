@@ -172,7 +172,7 @@ export default async function ChildPage({ params }: { params: Promise<{ childId:
             <p>可以继续</p>
           </div>
           <p>孩子可以从上次停下的位置继续，已经提交的答案会保留。</p>
-          <ParentResumeTrainingButton sessionId={resumableSession.id} />
+          <ParentResumeTrainingButton childId={child.id} sessionId={resumableSession.id} />
         </section>
       )}
 
@@ -255,7 +255,7 @@ export default async function ChildPage({ params }: { params: Promise<{ childId:
             </>
           )}
           {currentDiagnosis?.status === "completed" && (
-            <ParentRetestButton expectedCompletedVersion={completedDiagnosis.version} />
+            <ParentRetestButton childId={child.id} expectedCompletedVersion={completedDiagnosis.version} />
           )}
         </section>
       )}
@@ -286,11 +286,11 @@ export default async function ChildPage({ params }: { params: Promise<{ childId:
         <div className="sectionHeading"><h2 id="plan-heading">六周训练计划</h2><p>{planDashboard.plan ? `第 ${planDashboard.plan.version} 版 · 修订 ${planDashboard.plan.revision} · 第 ${planDashboard.plan.currentWeek} 周` : "完成诊断后生成"}</p></div>
         {planDashboard.plan && <p className="planWeeks">六周目标：{planDashboard.plan.weeks.map((item) => `第${item.week}周 ${item.targets} 项${item.assessment ? "（评估）" : ""}${item.replanAfter ? "（复盘）" : ""}`).join("；")}</p>}
         <PlanCalendar days={planDashboard.nextSevenDays} />
-        <PlanPreferencesForm initial={planDashboard.preferences} />
+        <PlanPreferencesForm childId={child.id} initial={planDashboard.preferences} />
       </section>
       <DosageSummary dosage={learningState.dosage} dueReviews={learningState.dueReviews} />
 
-      <ErrorSummary summary={learningState.errorSummary} errors={learningState.errors} />
+      <ErrorSummary childId={child.id} summary={learningState.errorSummary} errors={learningState.errors} />
 
       <section className="parentSection recentEvidenceSection" aria-labelledby="recent-heading">
         <div className="sectionHeading">

@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 
 type ParentRetestButtonProps = {
+  childId: string;
   expectedCompletedVersion: number;
   refresh?: () => void;
 };
@@ -17,6 +18,7 @@ function responseMessage(value: unknown): string {
 }
 
 export function ParentRetestButton({
+  childId,
   expectedCompletedVersion,
   refresh = () => window.location.reload(),
 }: ParentRetestButtonProps) {
@@ -34,7 +36,7 @@ export function ParentRetestButton({
       const response = await fetch("/api/parent/diagnosis/retest", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ expectedCompletedVersion }),
+        body: JSON.stringify({ expectedCompletedVersion, childId }),
       });
       const data: unknown = await response.json().catch(() => null);
       if (!response.ok) {

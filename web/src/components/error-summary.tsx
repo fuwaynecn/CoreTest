@@ -43,7 +43,7 @@ function responseMessage(value: unknown) {
   return "错因修正没有保存，请稍后再试";
 }
 
-function ErrorCorrection({ error, refresh }: { error: ErrorEvidenceView; refresh: () => void }) {
+function ErrorCorrection({ error, childId, refresh }: { error: ErrorEvidenceView; childId: string; refresh: () => void }) {
   const [cause, setCause] = useState<ErrorCause>(error.effectiveCause);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -60,7 +60,7 @@ function ErrorCorrection({ error, refresh }: { error: ErrorEvidenceView; refresh
       const response = await fetch(`/api/parent/error-observations/${error.rootObservationId}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ cause }),
+        body: JSON.stringify({ cause, childId }),
       });
       const data: unknown = await response.json().catch(() => null);
       if (!response.ok) {
@@ -93,10 +93,12 @@ function ErrorCorrection({ error, refresh }: { error: ErrorEvidenceView; refresh
 }
 
 export function ErrorSummary({
+  childId,
   summary,
   errors,
   refresh = () => window.location.reload(),
 }: {
+  childId: string;
   summary: ErrorSummaryView;
   errors: ErrorEvidenceView[];
   refresh?: () => void;
@@ -152,7 +154,7 @@ export function ErrorSummary({
                   ))}
                 </ol>
               </details>
-              <ErrorCorrection error={error} refresh={refresh} />
+              <ErrorCorrection error={error} childId={childId} refresh={refresh} />
             </article>
           ))}
         </div>
