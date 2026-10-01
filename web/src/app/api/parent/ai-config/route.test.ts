@@ -4,10 +4,11 @@ import { createTestDatabase } from "@/test/test-db";
 
 const state = vi.hoisted(() => ({
   db: undefined as ReturnType<typeof createTestDatabase> | undefined,
-  user: { id: "parent", role: "parent", displayName: "家长" } as {
+  user: { id: "parent", role: "parent", displayName: "家长", isAdmin: true } as {
     id: string;
     role: "parent" | "child";
     displayName: string;
+    isAdmin: boolean;
   } | null,
 }));
 
@@ -32,7 +33,7 @@ function jsonRequest(body: unknown) {
 
 beforeEach(() => {
   state.db = createTestDatabase();
-  state.user = { id: "parent", role: "parent", displayName: "家长" };
+  state.user = { id: "parent", role: "parent", displayName: "家长", isAdmin: true };
   vi.stubEnv("AI_CONFIG_ENCRYPTION_KEY", "0123456789abcdef0123456789abcdef");
 });
 
@@ -124,7 +125,7 @@ test("parent can create, update, retain, disable, and clear a key", async () => 
 });
 
 test("child and anonymous sessions are rejected", async () => {
-  state.user = { id: "child", role: "child", displayName: "孩子" };
+  state.user = { id: "child", role: "child", displayName: "孩子", isAdmin: false };
   const childResponse = await GET(new Request("http://localhost/api/parent/ai-config"));
   expect(childResponse.status).toBe(403);
   expect(await childResponse.json()).toEqual({
@@ -137,6 +138,27 @@ test("child and anonymous sessions are rejected", async () => {
   expect(await anonymousResponse.json()).toEqual({
     error: { code: "authentication_required", message: "请先登录家长账号" },
   });
+});
+
+test("non-admin parent cannot read or write AI provider config", async () => {
+  state.user = { id: "parent-2", role: "parent", displayName: "普通家长", isAdmin: false };
+
+  const getResponse = await GET(new Request("http://localhost/api/parent/ai-config"));
+  expect(getResponse.status).toBe(403);
+  expect(await getResponse.json()).toEqual({
+    error: { code: "admin_access_required", message: "只有管理员可以配置 AI 服务" },
+  });
+
+  const postResponse = await POST(jsonRequest({
+    provider: "openai",
+    baseUrl: "https://api.openai.com/v1",
+    model: "gpt-5",
+    enabled: true,
+    apiKey: "should-not-be-stored",
+  }));
+  expect(postResponse.status).toBe(403);
+  expect(state.db!.select({ provider: aiProviderConfigs.provider }).from(aiProviderConfigs).all())
+    .toHaveLength(0);
 });
 
 test.each([

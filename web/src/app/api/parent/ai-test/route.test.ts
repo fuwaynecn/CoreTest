@@ -2,10 +2,11 @@ import { createTestDatabase } from "@/test/test-db";
 
 const state = vi.hoisted(() => ({
   db: undefined as ReturnType<typeof createTestDatabase> | undefined,
-  user: { id: "parent", role: "parent", displayName: "家长" } as {
+  user: { id: "parent", role: "parent", displayName: "家长", isAdmin: true } as {
     id: string;
     role: "parent" | "child";
     displayName: string;
+    isAdmin: boolean;
   } | null,
 }));
 
@@ -36,7 +37,7 @@ function jsonRequest(body: unknown) {
 
 beforeEach(() => {
   state.db = createTestDatabase();
-  state.user = { id: "parent", role: "parent", displayName: "家长" };
+  state.user = { id: "parent", role: "parent", displayName: "家长", isAdmin: true };
   generateAiEnhancement.mockReset();
 });
 
@@ -109,7 +110,7 @@ test("invalid json returns 400", async () => {
 });
 
 test("child and anonymous sessions are rejected before parsing request json", async () => {
-  state.user = { id: "child", role: "child", displayName: "孩子" };
+  state.user = { id: "child", role: "child", displayName: "孩子", isAdmin: false };
 
   const childResponse = await POST(new Request("http://localhost/api/parent/ai-test", {
     method: "POST",
@@ -134,6 +135,18 @@ test("child and anonymous sessions are rejected before parsing request json", as
   expect(anonymousResponse.status).toBe(401);
   expect(await anonymousResponse.json()).toEqual({
     error: { code: "authentication_required", message: "请先登录家长账号" },
+  });
+  expect(generateAiEnhancement).not.toHaveBeenCalled();
+});
+
+test("non-admin parent is rejected before calling the provider", async () => {
+  state.user = { id: "parent-2", role: "parent", displayName: "普通家长", isAdmin: false };
+
+  const response = await POST(jsonRequest({ provider: "openai" }));
+
+  expect(response.status).toBe(403);
+  expect(await response.json()).toEqual({
+    error: { code: "admin_access_required", message: "只有管理员可以测试 AI 服务" },
   });
   expect(generateAiEnhancement).not.toHaveBeenCalled();
 });

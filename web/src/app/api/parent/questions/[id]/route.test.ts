@@ -1,7 +1,7 @@
 import { questionInstances, questionTemplates, skills, users } from "@/db/schema";
 import { createTestDatabase } from "@/test/test-db";
 
-const state = vi.hoisted(() => ({ db: undefined as ReturnType<typeof createTestDatabase> | undefined, user: null as { id: string; role: "parent" | "child"; displayName: string } | null }));
+const state = vi.hoisted(() => ({ db: undefined as ReturnType<typeof createTestDatabase> | undefined, user: null as { id: string; role: "parent" | "child"; displayName: string; isAdmin: boolean } | null }));
 vi.mock("@/db/client", async (original) => ({ ...(await original<typeof import("@/db/client")>()), getDatabase: () => state.db }));
 vi.mock("@/lib/auth/current-user", () => ({ getCurrentUser: () => state.user }));
 import { PATCH } from "./route";
@@ -13,7 +13,7 @@ const valid = { stem: "3 + 4 = ?", answerSpec: { kind: "number", value: 7, toler
 
 beforeEach(() => {
   state.db = createTestDatabase();
-  state.user = { id: "parent-1", role: "parent", displayName: "家长" };
+  state.user = { id: "parent-1", role: "parent", displayName: "家长", isAdmin: true };
   state.db.insert(users).values([
     { id: "parent-1", role: "parent", displayName: "家长", credentialHash: "x", createdAt: 1 },
     { id: "child-1", role: "child", displayName: "孩子", credentialHash: "x", createdAt: 1 },
@@ -25,7 +25,8 @@ beforeEach(() => {
 
 test.each([
   [null, 401],
-  [{ id: "child-1", role: "child", displayName: "孩子" }, 403],
+  [{ id: "child-1", role: "child", displayName: "孩子", isAdmin: false }, 403],
+  [{ id: "parent-2", role: "parent", displayName: "普通家长", isAdmin: false }, 403],
 ] as const)("protects parent question editing", async (user, status) => {
   state.user = user;
   expect((await PATCH(parentRequest(valid), { params: Promise.resolve({ id: "instance-1" }) })).status).toBe(status);

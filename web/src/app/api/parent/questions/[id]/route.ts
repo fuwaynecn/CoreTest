@@ -30,6 +30,7 @@ export async function PATCH(
   const parent = await getCurrentUser();
   if (!parent) return errorResponse(401, "authentication_required", "请先登录家长账号");
   if (parent.role !== "parent") return errorResponse(403, "parent_access_required", "只有家长可以修改题库");
+  if (!parent.isAdmin) return errorResponse(403, "admin_access_required", "只有管理员可以修改题库");
 
   const input = inputSchema.safeParse(await request.json().catch(() => null));
   if (!input.success) {

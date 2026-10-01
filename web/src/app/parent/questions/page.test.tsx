@@ -6,7 +6,7 @@ import ParentQuestionsPage from "./page";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 const state = vi.hoisted(() => ({ db: undefined as unknown }));
-const requireRole = vi.hoisted(() => vi.fn().mockResolvedValue({ id: "parent", role: "parent", displayName: "家长" }));
+const requireParent = vi.hoisted(() => vi.fn().mockResolvedValue({ id: "parent", role: "parent", displayName: "家长", isAdmin: true }));
 const listQuestionBank = vi.hoisted(() => vi.fn());
 const ensureQuestionBankFresh = vi.hoisted(() => vi.fn());
 
@@ -14,7 +14,7 @@ vi.mock("@/db/client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/db/client")>();
   return { ...actual, getDatabase: () => state.db };
 });
-vi.mock("@/lib/auth/current-user", () => ({ requireRole }));
+vi.mock("@/lib/auth/parent-child", () => ({ requireParent }));
 vi.mock("@/services/parent/question-bank", () => ({ listQuestionBank }));
 vi.mock("@/services/questions/question-bank-refresh", () => ({ ensureQuestionBankFresh }));
 vi.mock("@/components/question-bank-editor", () => ({ QuestionBankEditor: () => <div /> }));
@@ -35,16 +35,25 @@ beforeEach(() => {
   ensureQuestionBankFresh.mockReset();
 });
 
-test("requires parent role, exposes native filters, and caps visible rows at 100", async () => {
+test("requires the parent role, exposes native filters, and caps visible rows at 100", async () => {
   render(await ParentQuestionsPage({ searchParams: Promise.resolve({ skillId: "skill-add", domain: "number_operations", difficulty: "2", status: "inactive" }) }));
 
-  expect(requireRole).toHaveBeenCalledWith("parent");
+  expect(requireParent).toHaveBeenCalled();
   expect(listQuestionBank).toHaveBeenCalledWith(state.db, { skillId: "skill-add", domain: "number_operations", difficulty: 2, status: "inactive" });
   expect(screen.getAllByRole("combobox", { name: "知识点" })[0]).toHaveValue("skill-add");
   expect(screen.getByRole("combobox", { name: "领域" })).toHaveValue("number_operations");
   expect(screen.getAllByRole("combobox", { name: "难度" })[0]).toHaveValue("2");
   expect(screen.getAllByRole("combobox", { name: "状态" })[0]).toHaveValue("inactive");
   expect(screen.getAllByTestId("question-bank-item")).toHaveLength(100);
+});
+
+test("blocks a non-admin parent from the global question bank with 403", async () => {
+  listQuestionBank.mockClear();
+  requireParent.mockResolvedValueOnce({ id: "parent-2", role: "parent", displayName: "普通家长", isAdmin: false });
+
+  await expect(ParentQuestionsPage({ searchParams: Promise.resolve({}) }))
+    .rejects.toMatchObject({ status: 403 });
+  expect(listQuestionBank).not.toHaveBeenCalled();
 });
 
 test("defaults to active questions while an explicit all value includes inactive questions", async () => {

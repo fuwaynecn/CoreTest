@@ -4,7 +4,7 @@ import { QuestionBankEditor } from "@/components/question-bank-editor";
 import { getDatabase } from "@/db/client";
 import { skills } from "@/db/schema";
 import { shanghaiDateKey } from "@/domain/time/shanghai-calendar";
-import { requireRole } from "@/lib/auth/current-user";
+import { requireParent } from "@/lib/auth/parent-child";
 import type { QuestionBankFilters } from "@/services/parent/question-bank";
 import { listQuestionBank } from "@/services/parent/question-bank";
 import { ensureQuestionBankFresh } from "@/services/questions/question-bank-refresh";
@@ -40,7 +40,8 @@ const sessionKindLabels = {
 } as const;
 
 export default async function ParentQuestionsPage({ searchParams }: { searchParams: SearchParams }) {
-  await requireRole("parent");
+  const parent = await requireParent();
+  if (!parent.isAdmin) throw new Response(null, { status: 403 });
   const db = getDatabase();
   let refreshError = false;
   try {

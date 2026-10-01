@@ -26,6 +26,9 @@ async function requireParent() {
   if (user.role !== "parent") {
     return errorResponse(403, "parent_access_required", "只有家长可以测试 AI 服务");
   }
+  if (!user.isAdmin) {
+    return errorResponse(403, "admin_access_required", "只有管理员可以测试 AI 服务");
+  }
 
   return null;
 }
