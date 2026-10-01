@@ -1,5 +1,6 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { pepSkillSchedule } from "@/content/pep-skill-schedule";
 import { phase1DailySkills, phase1DailyTemplates } from "@/content/phase1-daily";
 import { phase2Catalog, phase2Skills } from "@/content/phase2-catalog";
 import { credentialInputSchema, hashCredential } from "@/domain/auth/credentials";
@@ -57,18 +58,27 @@ export async function seedDatabase(options: SeedDatabaseOptions = {}) {
   migrateDatabase(db, path.resolve(process.cwd(), "drizzle"));
   const createdAt = Date.now();
 
+  const childLoginName = process.env.CHILD_LOGIN_NAME ?? "child";
+  const childGrade = Number(process.env.CHILD_GRADE ?? 6);
+
   await db.insert(users).values({
     id: "parent",
     role: "parent",
     displayName: "家长",
     credentialHash: parentCredentialHash,
     createdAt,
+    loginName: "admin",
+    edition: "pep",
+    isAdmin: true,
   }).onConflictDoUpdate({
     target: users.id,
     set: {
       role: "parent",
       displayName: "家长",
       credentialHash: parentCredentialHash,
+      loginName: "admin",
+      edition: "pep",
+      isAdmin: true,
     },
   });
   await db.insert(users).values({
@@ -77,22 +87,44 @@ export async function seedDatabase(options: SeedDatabaseOptions = {}) {
     displayName: "孩子",
     credentialHash: childCredentialHash,
     createdAt,
+    loginName: childLoginName,
+    parentId: "parent",
+    grade: childGrade,
+    edition: "pep",
+    isAdmin: false,
   }).onConflictDoUpdate({
     target: users.id,
     set: {
       role: "child",
       displayName: "孩子",
       credentialHash: childCredentialHash,
+      loginName: childLoginName,
+      parentId: "parent",
+      grade: childGrade,
+      edition: "pep",
+      isAdmin: false,
     },
   });
 
   for (const skill of [...phase2Skills, ...phase1DailySkills]) {
-    await db.insert(skills).values(skill).onConflictDoUpdate({
+    const schedule = pepSkillSchedule[skill.code];
+    if (!schedule) {
+      throw new Error(`seed: 技能 ${skill.code} 在 pepSkillSchedule 中未找到`);
+    }
+    await db.insert(skills).values({
+      ...skill,
+      grade: schedule.grade,
+      semester: schedule.semester,
+      expectedWeek: schedule.expectedWeek,
+    }).onConflictDoUpdate({
       target: skills.id,
       set: {
         code: skill.code,
         name: skill.name,
         domain: skill.domain,
+        grade: schedule.grade,
+        semester: schedule.semester,
+        expectedWeek: schedule.expectedWeek,
       },
     });
   }
