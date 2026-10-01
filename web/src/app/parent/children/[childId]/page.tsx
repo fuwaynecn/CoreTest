@@ -1,5 +1,6 @@
 import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
 import { AbilityMap } from "@/components/ability-map";
+import ChildManageForm from "@/components/child-manage-form";
 import { DosageSummary } from "@/components/dosage-summary";
 import { ErrorSummary } from "@/components/error-summary";
 import { ParentRetestButton } from "@/components/parent-retest-button";
@@ -161,6 +162,8 @@ export default async function ChildPage({ params }: { params: Promise<{ childId:
           <strong>{recommendation(evidence.summary.week.answered, evidence.summary.week.correct)}</strong>
         </aside>
       </header>
+
+      <ChildManageForm childId={child.id} initial={{ displayName: child.displayName, grade: child.grade }} />
 
       {resumableSession && (
         <section className="diagnosisSummary parentResumeCard" aria-labelledby="resume-training-heading">
