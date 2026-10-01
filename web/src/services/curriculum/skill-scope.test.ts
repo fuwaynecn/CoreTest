@@ -88,3 +88,33 @@ test("5. 只返回当前孩子的覆盖：其他孩子设置不影响", () => {
   const rows = listChildSkillScope(db, child, NOW);
   expect(rows.every((r) => r.mode === "auto")).toBe(true);
 });
+
+test("6. null grade 孩子：autoAvailable 全为 true，mode 全为 auto，全 enabled", () => {
+  const db = createTestDatabase();
+  seedSkills(db);
+
+  const rows = listChildSkillScope(db, { id: "c1", grade: null, edition: "pep" }, NOW);
+
+  expect(rows.length).toBeGreaterThan(0);
+  expect(rows.every((r) => r.autoAvailable === true)).toBe(true);
+  expect(rows.every((r) => r.mode === "auto")).toBe(true);
+  expect(rows.every((r) => r.enabled === true)).toBe(true);
+});
+
+test("7. null grade + off 覆盖：被关闭的技能 enabled=false，其余仍 true", () => {
+  const db = createTestDatabase();
+  seedSkills(db);
+  seedChild(db, "c1", 6); // child row must exist for FK, grade on row doesn't matter for this test
+  db.insert(childSkillSettings).values({ childId: "c1", skillId: "skill-low", mode: "off", updatedAt: 1 }).run();
+
+  const rows = listChildSkillScope(db, { id: "c1", grade: null, edition: "pep" }, NOW);
+  const byCode = Object.fromEntries(rows.map((row) => [row.code, row]));
+
+  expect(byCode.low.mode).toBe("off");
+  expect(byCode.low.autoAvailable).toBe(true);
+  expect(byCode.low.enabled).toBe(false);
+
+  expect(byCode["same-open"].mode).toBe("auto");
+  expect(byCode["same-open"].autoAvailable).toBe(true);
+  expect(byCode["same-open"].enabled).toBe(true);
+});

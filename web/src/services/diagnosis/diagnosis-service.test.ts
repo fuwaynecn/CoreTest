@@ -7,6 +7,7 @@ import { createDatabase } from "@/db/client";
 import { migrateDatabase } from "@/db/migrate";
 import {
   attempts,
+  childSkillSettings,
   diagnosticParts,
   diagnosticRuns,
   errorObservations,
@@ -582,5 +583,41 @@ describe("diagnosis service", () => {
       { version: 1, status: "completed" },
       { version: 2, status: "in_progress" },
     ]);
+  });
+
+  it("excludes disabled (off) skills from diagnostic item selection", () => {
+    const db = seedDiagnosisDatabase();
+    // Use all number_operations catalog templates (multiple skills)
+    const catalog = phase2Catalog.filter(({ domain }) => domain === "number_operations");
+    const disabledSkill = "estimate";
+    expect(catalog.some((t) => t.skillCode === disabledSkill)).toBe(true);
+
+    // Disable the estimate skill
+    db.insert(childSkillSettings).values({
+      childId: "child-1", skillId: `skill-${disabledSkill}`, mode: "off", updatedAt: 1,
+    }).run();
+
+    const diagnosis = getOrCreateDiagnosis(db, "child-1", 1, { catalog });
+    expect(diagnosis.currentItem).not.toBeNull();
+
+    // Verify first item is not from the disabled skill
+    const firstSkill = db.select({ skillId: sessionItems.skillIdSnapshot })
+      .from(sessionItems).where(eq(sessionItems.id, diagnosis.currentItem!.id)).get()!.skillId;
+    expect(firstSkill).not.toBe(`skill-${disabledSkill}`);
+
+    // Submit a few items; all should be from enabled skills only
+    for (let i = 1; i <= 3; i += 1) {
+      const view = getDiagnosisView(db, "child-1");
+      expect(view.currentItem).not.toBeNull();
+      const itemSkill = db.select({ skillId: sessionItems.skillIdSnapshot })
+        .from(sessionItems).where(eq(sessionItems.id, view.currentItem!.id)).get()!.skillId;
+      expect(itemSkill).not.toBe(`skill-${disabledSkill}`);
+      submitDiagnosticAttempt(db, {
+        childId: "child-1",
+        sessionItemId: view.currentItem!.id,
+        clientSubmissionId: `50000000-0000-4000-8000-${String(i).padStart(12, "0")}`,
+        answerText: correctAnswerFor(db, view.currentItem!.id),
+      }, 1_700_000_500_000 + i, { catalog });
+    }
   });
 });

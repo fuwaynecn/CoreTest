@@ -11,6 +11,7 @@ import {
   sessionItems,
   skills,
   trainingSessions,
+  users,
 } from "@/db/schema";
 import { deriveInitialReport } from "@/domain/diagnosis/derive-initial-report";
 import { dosageTrackForDomain } from "@/domain/dosage/dosage-track";
@@ -32,6 +33,7 @@ import { scoreAnswer } from "@/domain/questions/score-answer";
 import { normalizeTelemetry } from "@/domain/training/attempt-telemetry";
 import { shanghaiDateKey } from "@/domain/time/shanghai-calendar";
 import { createInitialPlanInTransaction } from "@/services/planning/learning-plan-service";
+import { listChildSkillScope } from "@/services/curriculum/skill-scope";
 import { recordSystemErrorObservation } from "@/services/training/error-observation-service";
 import { recordLearningEvidence } from "@/services/training/record-learning-evidence";
 
@@ -371,6 +373,15 @@ function createNextItem(
     .from(questionTemplates)
     .innerJoin(skills, eq(questionTemplates.skillId, skills.id))
     .where(eq(questionTemplates.active, true)).all();
+  const childRow = tx.select({ grade: users.grade, edition: users.edition })
+    .from(users).where(eq(users.id, run.childId)).get();
+  const enabledSkillIds = new Set(
+    listChildSkillScope(
+      tx as unknown as AppDatabase,
+      { id: run.childId, grade: childRow?.grade ?? null, edition: childRow?.edition ?? "pep" },
+      new Date(now),
+    ).filter((row) => row.enabled).map((row) => row.skillId),
+  );
   const activeById = new Map(activeRows.map((row) => [row.id, row]));
   const catalogById = new Map(runtime.catalog.map((template) => [template.id, template]));
   const skipped = new Set<string>();
@@ -385,7 +396,7 @@ function createNextItem(
 
   while (!selected) {
     const eligibleCatalog: DiagnosticTemplateSummary[] = runtime.catalog
-      .filter((template) => activeById.has(template.id) && !skipped.has(template.id))
+      .filter((template) => activeById.has(template.id) && !skipped.has(template.id) && enabledSkillIds.has(`skill-${template.skillCode}`))
       .map((template) => ({
         templateId: template.id,
         skillId: `skill-${template.skillCode}`,

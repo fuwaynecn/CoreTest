@@ -19,15 +19,19 @@ export type SkillScopeRow = {
 
 export function listChildSkillScope(
   db: AppDatabase,
-  child: { id: string; grade: number; edition: EditionCode },
+  child: { id: string; grade: number | null; edition: EditionCode },
   now: Date = new Date(),
 ): SkillScopeRow[] {
-  const calRow = db.select()
-    .from(academicCalendar)
-    .where(eq(academicCalendar.schoolYear, currentSchoolYear(now)))
-    .get();
+  const calRow = child.grade != null
+    ? db.select()
+      .from(academicCalendar)
+      .where(eq(academicCalendar.schoolYear, currentSchoolYear(now)))
+      .get()
+    : undefined;
 
-  const context = resolveAcademicCalendar(calRow ?? undefined, now);
+  const context = child.grade != null
+    ? resolveAcademicCalendar(calRow, now)
+    : undefined;
 
   const overrides = new Map<string, OverrideMode>();
   const settingsRows = db.select({ skillId: childSkillSettings.skillId, mode: childSkillSettings.mode })
@@ -51,7 +55,9 @@ export function listChildSkillScope(
 
   return allSkills.map((skill) => {
     const schedule = { grade: skill.grade, semester: skill.semester as 1 | 2, expectedWeek: skill.expectedWeek };
-    const auto = autoAvailable(schedule, { id: child.id, grade: child.grade, edition: child.edition }, context);
+    const auto = child.grade == null
+      ? true
+      : autoAvailable(schedule, { id: child.id, grade: child.grade, edition: child.edition }, context!);
     const mode: OverrideMode = overrides.get(skill.id) ?? "auto";
     return {
       skillId: skill.id,

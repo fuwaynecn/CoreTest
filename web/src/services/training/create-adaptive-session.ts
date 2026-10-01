@@ -2,11 +2,12 @@ import { randomUUID } from "node:crypto";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { phase2Catalog } from "@/content/phase2-catalog";
 import type { AppDatabase } from "@/db/client";
-import { attempts, diagnosticRuns, learningPlans, masteryStates, parentPreferences, planTargets, questionInstances, questionTemplates, reviewSchedules, sessionItems, skills, trainingSessions } from "@/db/schema";
+import { attempts, diagnosticRuns, learningPlans, masteryStates, parentPreferences, planTargets, questionInstances, questionTemplates, reviewSchedules, sessionItems, skills, trainingSessions, users } from "@/db/schema";
 import { allocateComposition, type SpecialistFocus } from "@/domain/scheduling/allocate-composition";
 import { selectDailyItems } from "@/domain/scheduling/select-daily-items";
 import { REVIEW_DAYS } from "@/domain/review/next-review";
 import { ensureQuestionBankFresh } from "@/services/questions/question-bank-refresh";
+import { listChildSkillScope } from "@/services/curriculum/skill-scope";
 import type { SessionView } from "@/domain/training/types";
 
 export class DiagnosisRequiredError extends Error {
@@ -34,7 +35,7 @@ function isAssessmentDay(date: string, week: number, weekdays: number[]) {
   return week === 4 && new Date(`${date}T12:00:00+08:00`).getUTCDay() === weekdays.at(-1);
 }
 
-function schedulingTargetSkills(db: AppDatabase, childId: string, date: string) {
+function schedulingTargetSkills(db: AppDatabase, childId: string, date: string, enabledSkillIds: Set<string>) {
   return db.transaction((tx) => {
     const diagnosis = tx.select({ id: diagnosticRuns.id }).from(diagnosticRuns).where(and(eq(diagnosticRuns.childId, childId), eq(diagnosticRuns.status, "completed"))).orderBy(desc(diagnosticRuns.version)).get();
     if (!diagnosis) throw new DiagnosisRequiredError();
@@ -44,7 +45,7 @@ function schedulingTargetSkills(db: AppDatabase, childId: string, date: string) 
     const week = weekNumber(plan.startsOn, date);
     const due = tx.select({ skillId: reviewSchedules.skillId, dueOn: reviewSchedules.dueOn }).from(reviewSchedules).where(eq(reviewSchedules.childId, childId)).all();
     const planned = tx.select({ skillId: planTargets.skillId }).from(planTargets).where(and(eq(planTargets.planId, plan.id), eq(planTargets.weekNumber, week))).all();
-    return { existingId: existing?.id ?? null, skillIds: [...new Set([...due.filter((row) => row.dueOn <= date).map((row) => row.skillId), ...planned.flatMap((row) => row.skillId ? [row.skillId] : [])])] };
+    return { existingId: existing?.id ?? null, skillIds: [...new Set([...due.filter((row) => row.dueOn <= date).map((row) => row.skillId), ...planned.flatMap((row) => row.skillId ? [row.skillId] : [])])].filter((id) => enabledSkillIds.has(id)) };
   });
 }
 
@@ -60,7 +61,15 @@ function sessionView(db: AppDatabase, sessionId: string): SessionView {
 }
 
 export function getOrCreateAdaptiveSession(db: AppDatabase, childId: string, date: string, now: Date | number = Date.now()): SessionView {
-  const preflight = schedulingTargetSkills(db, childId, date);
+  const childRow = db.select({ grade: users.grade, edition: users.edition })
+    .from(users).where(eq(users.id, childId)).get();
+  const scope = listChildSkillScope(
+    db,
+    { id: childId, grade: childRow?.grade ?? null, edition: childRow?.edition ?? "pep" },
+    new Date(now),
+  );
+  const enabledSkillIds = new Set(scope.filter((row) => row.enabled).map((row) => row.skillId));
+  const preflight = schedulingTargetSkills(db, childId, date, enabledSkillIds);
   if (preflight.existingId) return sessionView(db, preflight.existingId);
   const timestamp = new Date(now).getTime();
   try { ensureQuestionBankFresh(db, date, { now: timestamp }); } catch { /* Existing active inventory remains usable when refresh fails. */ }
@@ -85,7 +94,9 @@ export function getOrCreateAdaptiveSession(db: AppDatabase, childId: string, dat
     const catalogIds = new Set(phase2Catalog.map((template) => template.id));
     const candidates = tx.select({ questionInstanceId: questionInstances.id, templateId: questionTemplates.id, skillId: questionInstances.skillId, structureTag: questionTemplates.structureTag, difficulty: questionInstances.difficulty, estimatedSeconds: questionTemplates.estimatedSeconds, domain: skills.domain, lastUsedAt: questionInstances.lastUsedAt, stem: questionInstances.stem, answerSpec: questionInstances.answerSpec, explanation: questionInstances.explanation, contentTier: questionTemplates.contentTier, hintLadder: questionTemplates.hintLadder, readingCard: questionTemplates.readingCard })
       .from(questionInstances).innerJoin(questionTemplates, eq(questionInstances.templateId, questionTemplates.id)).innerJoin(skills, eq(questionInstances.skillId, skills.id)).where(and(eq(questionInstances.active, true), eq(questionTemplates.active, true))).all()
-      .filter((row) => catalogIds.has(row.templateId)).map((row) => ({
+      .filter((row) => catalogIds.has(row.templateId))
+      .filter((row) => enabledSkillIds.has(row.skillId))
+      .map((row) => ({
         ...row, difficulty: row.difficulty as 1 | 2 | 3 | 4,
         dueOn: dueBySkill.get(row.skillId)?.dueOn ?? null, masteryRank: ranks.get(row.skillId) ?? 4, targetDifficulty: Math.min(4, (ranks.get(row.skillId) ?? 3) + 1) as 1 | 2 | 3 | 4,
         category: dueBySkill.has(row.skillId) ? "review" as const : targetSkillIds.has(row.skillId) ? "weakness" as const : row.domain === "thinking_habits" ? "reading" as const : "extension" as const,

@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { expect, test, vi } from "vitest";
 import { phase2Catalog, phase2Skills } from "@/content/phase2-catalog";
-import { diagnosticRuns, learningPlans, masteryEvidence, parentPreferences, planTargets, questionBankRefreshes, questionInstances, questionTemplates, sessionItems, skills, trainingSessions, users, reviewSchedules, masteryStates } from "@/db/schema";
+import { diagnosticRuns, learningPlans, masteryEvidence, parentPreferences, planTargets, questionBankRefreshes, questionInstances, questionTemplates, sessionItems, skills, trainingSessions, users, reviewSchedules, masteryStates, childSkillSettings } from "@/db/schema";
 import * as questionBank from "@/services/questions/question-bank-refresh";
 import { shanghaiWeekKey } from "@/domain/time/shanghai-calendar";
 import { createTestDatabase } from "@/test/test-db";
@@ -192,4 +192,76 @@ test("treats Sunday as the final configured Shanghai training day", () => {
   db.insert(parentPreferences).values({ childId: "child", trainingWeekdays: "[1,2,3,4,5,0]", targetMinutes: 20, specialistFocus: "none", updatedAt: 1 }).run();
   const session = getOrCreateAdaptiveSession(db, "child", "2026-09-13");
   expect(db.select().from(trainingSessions).where(eq(trainingSessions.id, session.id)).get()?.kind).toBe("assessment");
+});
+
+test("excludes disabled (off) skills from daily session items", () => {
+  const db = seed();
+  db.insert(diagnosticRuns).values({ id: "diagnosis", childId: "child", version: 1, status: "completed", currentPart: 3, seed: "seed", startedAt: 1, completedAt: 2, reportSnapshot: "{}" }).run();
+  db.insert(learningPlans).values({ id: "plan", childId: "child", diagnosisRunId: "diagnosis", version: 1, revision: 1, status: "active", startsOn: "2026-08-17", endsOn: "2026-09-27", reasonSnapshot: "{}", createdAt: 1 }).run();
+  db.insert(parentPreferences).values({ childId: "child", trainingWeekdays: "[1,2,3,4,5]", targetMinutes: 20, specialistFocus: "none", updatedAt: 1 }).run();
+
+  // Insert instances for two distinct skills
+  const equationTemplates = ["eq-l1-balance-01", "eq-l1-balance-02", "eq-l1-balance-03"];
+  db.insert(questionInstances).values(equationTemplates.flatMap((templateId, tagIndex) => Array.from({ length: 5 }, (_, index) => ({
+    id: `eq-instance-${tagIndex}-${index}`, templateId, skillId: "skill-equation-l1", variantSeed: `eq-${tagIndex}-${index}`, variables: "{}",
+    stem: `方程题 ${tagIndex}-${index}`, answerSpec: JSON.stringify({ kind: "equation", value: "4" }), explanation: "方程解析",
+    difficulty: 1, fingerprint: `eq-fp-${tagIndex}-${index}`, active: true, generatedAt: 1, updatedAt: 1, lastUsedAt: null,
+  })))).run();
+
+  const mentalTemplates = ["num-int-mental-01"];
+  db.insert(questionInstances).values(mentalTemplates.flatMap((templateId, tagIndex) => Array.from({ length: 10 }, (_, index) => ({
+    id: `mental-instance-${tagIndex}-${index}`, templateId, skillId: "skill-integer-mental", variantSeed: `mental-${tagIndex}-${index}`, variables: "{}",
+    stem: `口算题 ${tagIndex}-${index}`, answerSpec: JSON.stringify({ kind: "number", value: 7, tolerance: 0, unit: null }), explanation: "口算解析",
+    difficulty: 1, fingerprint: `mental-fp-${tagIndex}-${index}`, active: true, generatedAt: 1, updatedAt: 1, lastUsedAt: null,
+  })))).run();
+
+  // Disable equation skill
+  db.insert(childSkillSettings).values({ childId: "child", skillId: "skill-equation-l1", mode: "off", updatedAt: 1 }).run();
+
+  const refresh = vi.spyOn(questionBank, "ensureQuestionBankFresh").mockReturnValue({ skipped: true, generated: 0, errors: [] });
+  try {
+    const session = getOrCreateAdaptiveSession(db, "child", "2026-08-20");
+    const items = db.select({ skillId: sessionItems.skillIdSnapshot }).from(sessionItems).where(eq(sessionItems.sessionId, session.id)).all();
+    expect(items.length).toBeGreaterThan(0);
+    expect(items.every((item) => item.skillId !== "skill-equation-l1")).toBe(true);
+  } finally {
+    refresh.mockRestore();
+  }
+});
+
+test("removes disabled skills from scheduling target set (no force-refresh for off skill)", () => {
+  const db = seed();
+  db.insert(diagnosticRuns).values({ id: "diagnosis", childId: "child", version: 1, status: "completed", currentPart: 3, seed: "seed", startedAt: 1, completedAt: 2, reportSnapshot: "{}" }).run();
+  db.insert(learningPlans).values({ id: "plan", childId: "child", diagnosisRunId: "diagnosis", version: 1, revision: 1, status: "active", startsOn: "2026-08-17", endsOn: "2026-09-27", reasonSnapshot: "{}", createdAt: 1 }).run();
+
+  // Only one due skill: equation-l1, and it's disabled
+  db.insert(reviewSchedules).values({ childId: "child", skillId: "skill-equation-l1", level: 1, dueOn: "2026-08-19", lastResult: null, updatedAt: 1 }).run();
+  db.insert(planTargets).values({ planId: "plan", weekNumber: 1, targetKey: "weakness:skill-equation-l1", skillId: "skill-equation-l1", track: null, category: "weakness", minimum: 1, target: 2, maximum: 3, reasonCode: "mastery_needs_support" }).run();
+  db.insert(masteryStates).values({ childId: "child", skillId: "skill-equation-l1", status: "needs_support", evidenceCount: 0, correctCount: 0, reasonCode: "test", updatedAt: 1 }).run();
+
+  // Disable the targeted skill
+  db.insert(childSkillSettings).values({ childId: "child", skillId: "skill-equation-l1", mode: "off", updatedAt: 1 }).run();
+
+  // Pre-existing weekly refresh entry (so general refresh skips)
+  db.insert(questionBankRefreshes).values({ weekKey: shanghaiWeekKey(new Date("2026-08-20T12:00:00+08:00")), completedAt: 1, generatedCount: 0, errors: "[]" }).run();
+
+  const refreshCalls: Array<{ skillIds?: readonly string[]; force?: boolean }> = [];
+  const refresh = vi.spyOn(questionBank, "ensureQuestionBankFresh").mockImplementation((_db, _date, opts) => {
+    refreshCalls.push({ skillIds: opts?.skillIds, force: opts?.force });
+    return { skipped: true, generated: 0, errors: [] };
+  });
+
+  try {
+    getOrCreateAdaptiveSession(db, "child", "2026-08-20");
+    // The scoped force-refresh call should NOT include the off skill
+    const forceCall = refreshCalls.find((call) => call.force === true);
+    if (forceCall) {
+      expect(forceCall.skillIds).not.toContain("skill-equation-l1");
+    }
+    // If the only targeted skill is off, no force refresh at all
+    const hasForceRefresh = refreshCalls.some((call) => call.force === true);
+    expect(hasForceRefresh).toBe(false);
+  } finally {
+    refresh.mockRestore();
+  }
 });
