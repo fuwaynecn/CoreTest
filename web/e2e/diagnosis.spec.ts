@@ -46,6 +46,7 @@ test("@tablet child resumes and completes all three diagnosis parts", async ({ p
   const tabletViewport = page.viewportSize();
   await page.goto("/login");
   await page.getByRole("button", { name: /我是孩子/ }).click();
+  await page.getByLabel("登录名").fill("child");
   await page.getByLabel("PIN").fill("2468");
   await Promise.all([
     page.waitForURL("**/child"),
@@ -123,11 +124,13 @@ test("@tablet child resumes and completes all three diagnosis parts", async ({ p
 test("@tablet parent diagnosis report is available in the tablet browser", async ({ page }) => {
   await page.goto("/login");
   await page.getByRole("button", { name: /我是家长/ }).click();
+  await page.getByLabel("登录名").fill("admin");
   await page.getByLabel("家长密码").fill("parent-test-1234");
   await Promise.all([
     page.waitForURL("**/parent"),
     page.getByRole("button", { name: "登录", exact: true }).click(),
   ]);
+  await page.goto("/parent/children/child");
 
   await expect(page.getByRole("heading", { name: "初始诊断报告 · 第 1 版 · 45/45" })).toBeVisible();
   await expect(page.getByTestId("diagnosis-domain-status")).toHaveCount(6);
@@ -138,11 +141,13 @@ test("@tablet parent diagnosis report is available in the tablet browser", async
 test("@tablet parent starts version two and the child continues while version one remains visible", async ({ page }) => {
   await page.goto("/login");
   await page.getByRole("button", { name: /我是家长/ }).click();
+  await page.getByLabel("登录名").fill("admin");
   await page.getByLabel("家长密码").fill("parent-test-1234");
   await Promise.all([
     page.waitForURL("**/parent"),
     page.getByRole("button", { name: "登录", exact: true }).click(),
   ]);
+  await page.goto("/parent/children/child");
   await page.getByRole("button", { name: "发起第 2 版诊断" }).click();
   await expect(page.getByRole("heading", { name: "诊断进行中 · 第 2 版 · 0/45" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "最近完成报告 · 第 1 版 · 45/45" })).toBeVisible();
@@ -152,6 +157,7 @@ test("@tablet parent starts version two and the child continues while version on
   await page.context().clearCookies();
   await page.goto("/login");
   await page.getByRole("button", { name: /我是孩子/ }).click();
+  await page.getByLabel("登录名").fill("child");
   await page.getByLabel("PIN").fill("2468");
   await Promise.all([
     page.waitForURL("**/child"),
@@ -168,11 +174,13 @@ test("@tablet parent starts version two and the child continues while version on
   await page.context().clearCookies();
   await page.goto("/login");
   await page.getByRole("button", { name: /我是家长/ }).click();
+  await page.getByLabel("登录名").fill("admin");
   await page.getByLabel("家长密码").fill("parent-test-1234");
   await Promise.all([
     page.waitForURL("**/parent"),
     page.getByRole("button", { name: "登录", exact: true }).click(),
   ]);
+  await page.goto("/parent/children/child");
   await expect(page.getByRole("heading", { name: "诊断进行中 · 第 2 版 · 1/45" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "最近完成报告 · 第 1 版 · 45/45" })).toBeVisible();
   await expectNoHorizontalOverflow(page);
@@ -181,11 +189,13 @@ test("@tablet parent starts version two and the child continues while version on
 test("@parent parent sees the versioned provisional diagnosis report", async ({ page }) => {
   await page.goto("/login");
   await page.getByRole("button", { name: /我是家长/ }).click();
+  await page.getByLabel("登录名").fill("admin");
   await page.getByLabel("家长密码").fill("parent-test-1234");
   await Promise.all([
     page.waitForURL("**/parent"),
     page.getByRole("button", { name: "登录", exact: true }).click(),
   ]);
+  await page.goto("/parent/children/child");
 
   await expect(page.getByRole("heading", { name: "最近完成报告 · 第 1 版 · 45/45" })).toBeVisible();
   await expect(page.getByText("这些是暂定状态，会随之后的跨日练习更新。")).toBeVisible();

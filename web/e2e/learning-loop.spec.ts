@@ -116,6 +116,7 @@ test("@phase2 overdue equation review refreshes, edits, and preserves evidence",
   try {
     await page.goto("/login");
     await page.getByRole("button", { name: /我是孩子/ }).click();
+    await page.getByLabel("登录名").fill("child");
     await page.getByLabel("PIN").fill("2468");
     await Promise.all([
       page.waitForURL("**/child"),
@@ -154,6 +155,7 @@ test("@phase2 overdue equation review refreshes, edits, and preserves evidence",
     await page.context().clearCookies();
     await page.goto("/login");
     await page.getByRole("button", { name: /我是家长/ }).click();
+    await page.getByLabel("登录名").fill("admin");
     await page.getByLabel("家长密码").fill("parent-test-1234");
     await Promise.all([
       page.waitForURL("**/parent"),
@@ -182,7 +184,9 @@ test("@phase2 overdue equation review refreshes, edits, and preserves evidence",
     const editedRow = page.getByTestId("question-bank-item").filter({ hasText: editedStem });
     await expect(editedRow).toHaveCount(1);
 
-    await page.goto("/parent");
+    // A successful save calls router.refresh(), whose soft navigation to this same route can still be
+    // in flight here and would interrupt page.goto. Retry instead of depending on its exact timing.
+    await expect(async () => { await page.goto("/parent/children/child"); }).toPass({ timeout: 15_000 });
     const evidence = page.getByRole("region", { name: "最近作答" });
     await expect(evidence.getByText(originalStem, { exact: true })).toBeVisible();
     await expect(evidence.getByText(editedStem, { exact: true })).toBeHidden();
@@ -198,11 +202,13 @@ test("@phase2 overdue equation review refreshes, edits, and preserves evidence",
 test("@parent parent sees the supporting evidence", async ({ page }) => {
   await page.goto("/login");
   await page.getByRole("button", { name: /我是家长/ }).click();
+  await page.getByLabel("登录名").fill("admin");
   await page.getByLabel("家长密码").fill("parent-test-1234");
   await Promise.all([
     page.waitForURL("**/parent"),
     page.getByRole("button", { name: "登录", exact: true }).click(),
   ]);
+  await page.goto("/parent/children/child");
 
   await expect(page.getByRole("heading", { name: "孩子的学习证据" })).toBeVisible();
   await expect(page.getByText("首次作答证据")).toBeVisible();

@@ -71,6 +71,7 @@ test("@tablet @parent missing unit becomes traceable evidence and a parent corre
   await page.goto("/");
   await page.getByRole("link", { name: "进入系统" }).click();
   await page.getByRole("button", { name: /我是孩子/ }).click();
+  await page.getByLabel("登录名").fill("child");
   await page.getByLabel("PIN").fill("2468");
   await page.getByRole("button", { name: "登录", exact: true }).click();
   await page.getByRole("link", { name: "开始今天的训练" }).click();
@@ -136,11 +137,13 @@ test("@tablet @parent missing unit becomes traceable evidence and a parent corre
   await context.clearCookies();
   await page.goto("/login");
   await page.getByRole("button", { name: /我是家长/ }).click();
+  await page.getByLabel("登录名").fill("admin");
   await page.getByLabel("家长密码").fill("parent-test-1234");
   await Promise.all([
     page.waitForURL("**/parent"),
     page.getByRole("button", { name: "登录", exact: true }).click(),
   ]);
+  await page.goto("/parent/children/child");
 
   await expect(page.getByRole("heading", { name: "六领域能力地图" })).toBeVisible();
   await expect(page.getByRole("region", { name: "本周学习报告" })).toBeVisible();

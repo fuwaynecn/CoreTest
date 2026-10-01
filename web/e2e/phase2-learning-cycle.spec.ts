@@ -134,6 +134,7 @@ test("@tablet @parent @phase2 @full-diagnosis phase 2 creates a plan after a res
   resetCleanFixture();
   await page.goto("/login");
   await page.getByRole("button", { name: /我是孩子/ }).click();
+  await page.getByLabel("登录名").fill("child");
   await page.getByLabel("PIN").fill("2468");
   await Promise.all([
     page.waitForURL("**/child"),
@@ -170,12 +171,12 @@ test("@tablet @parent @phase2 @full-diagnosis phase 2 creates a plan after a res
     const session = scheduled.prepare("SELECT composition_snapshot AS composition, target_seconds AS target FROM training_sessions WHERE child_id = 'child' AND session_date = $date AND kind = 'daily'").get({ date: todayInShanghai() }) as { composition: string; target: number };
     const items = scheduled.prepare("SELECT question_template_id AS template, structure_tag_snapshot AS structure, selection_reason_snapshot AS reason FROM session_items WHERE session_id = (SELECT id FROM training_sessions WHERE child_id = 'child' AND session_date = $date AND kind = 'daily')").all({ date: todayInShanghai() }) as Array<{ template: string; structure: string; reason: string }>;
     const composition = JSON.parse(session.composition);
-    expect(composition.composition).toEqual({ review: 3, weakness: 6, reading: 3, extension: 1 });
+    expect(composition.composition).toEqual({ review: 5, weakness: 9, reading: 4, extension: 2 });
     expect(items.every(({ reason }) => "selectionReason" in JSON.parse(reason))).toBe(true);
     expect(new Set(items.map(({ template }) => template)).size).toBe(items.length);
     const structureCounts = items.reduce<Record<string, number>>((counts, { structure }) => ({ ...counts, [structure]: (counts[structure] ?? 0) + 1 }), {});
     expect(Math.max(...Object.values(structureCounts))).toBeLessThanOrEqual(6);
-    expect(session.target).toBe(1200);
+    expect(session.target).toBe(1800);
   } finally { scheduled.close(); }
   let usedHint = false; let reflected = false; let equationDue: string | null = null; let equationReviewed = false; let usedReadingCard = false;
   while (currentDailyItem()) {
@@ -208,7 +209,7 @@ test("@tablet @parent @phase2 @full-diagnosis phase 2 creates a plan after a res
       await page.getByLabel("你的答案").fill(answerText(item.answer_spec));
       await page.getByRole("button", { name: "提交答案" }).click();
     }
-    const reviewedEquation = item.template === "eq-l1-balance-01" && ["due_review", "overdue_review"].includes(metadata.selectionReason ?? "");
+    const reviewedEquation = item.skillId === "skill-equation-l1" && ["due_review", "overdue_review"].includes(metadata.selectionReason ?? "");
     await page.getByRole("button", { name: "下一题" }).click();
     if (reviewedEquation) {
       const review = new DatabaseSync(".tmp/e2e.sqlite", { readOnly: true });
@@ -216,12 +217,20 @@ test("@tablet @parent @phase2 @full-diagnosis phase 2 creates a plan after a res
       equationReviewed = true;
     }
   }
-  expect(usedHint).toBe(true); expect(reflected).toBe(true); expect(usedReadingCard).toBe(true); expect(equationReviewed).toBe(true); expect(equationDue).toBe(addShanghaiDays(todayInShanghai(), 3));
+  // The fixture schedules exactly two review skills, and the scheduler caps reviews at two per skill,
+  // so equation-l1 is reviewed twice in this session. Each independent correct answer advances the
+  // level ladder: 0 -> 1 (REVIEW_DAYS[1] = 3 days) and then 1 -> 2 (REVIEW_DAYS[2] = 7 days).
+  expect(usedHint).toBe(true); expect(reflected).toBe(true); expect(usedReadingCard).toBe(true); expect(equationReviewed).toBe(true); expect(equationDue).toBe(addShanghaiDays(todayInShanghai(), 7));
   await page.context().clearCookies();
   await page.goto("/login");
   await page.getByRole("button", { name: /我是家长/ }).click();
+  await page.getByLabel("登录名").fill("admin");
   await page.getByLabel("家长密码").fill("parent-test-1234");
-  await page.getByRole("button", { name: "登录", exact: true }).click();
+  await Promise.all([
+    page.waitForURL("**/parent"),
+    page.getByRole("button", { name: "登录", exact: true }).click(),
+  ]);
+  await page.goto("/parent/children/child");
   await expect(page.getByRole("heading", { name: "六周训练计划" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "本周学习报告" })).toContainText("本周学习报告");
   await page.getByLabel("重点方向").selectOption("equation");
@@ -239,6 +248,7 @@ async function runMigratedPhase1Scenario(page: Page, context: BrowserContext) {
   prepareMigratedLegacyPresentation();
   await page.goto("/login");
   await page.getByRole("button", { name: /我是孩子/ }).click();
+  await page.getByLabel("登录名").fill("child");
   await page.getByLabel("PIN").fill("2468");
   await Promise.all([
     page.waitForURL("**/child"),
@@ -248,8 +258,13 @@ async function runMigratedPhase1Scenario(page: Page, context: BrowserContext) {
   await context.clearCookies();
   await page.goto("/login");
   await page.getByRole("button", { name: /我是家长/ }).click();
+  await page.getByLabel("登录名").fill("admin");
   await page.getByLabel("家长密码").fill("parent-test-1234");
-  await page.getByRole("button", { name: "登录", exact: true }).click();
+  await Promise.all([
+    page.waitForURL("**/parent"),
+    page.getByRole("button", { name: "登录", exact: true }).click(),
+  ]);
+  await page.goto("/parent/children/child");
   const evidence = page.getByRole("region", { name: "最近作答" });
   await expect(evidence.getByText("9 + 3 = ?").first()).toBeVisible();
   await expect(evidence.getByText("11", { exact: true })).toBeVisible();
@@ -272,6 +287,7 @@ async function runAdaptiveChildRouteScenario(page: Page) {
   } finally { database.close(); }
   await page.goto("/login");
   await page.getByRole("button", { name: /我是孩子/ }).click();
+  await page.getByLabel("登录名").fill("child");
   await page.getByLabel("PIN").fill("2468");
   await page.getByRole("button", { name: "登录", exact: true }).click();
   await page.getByRole("link", { name: /开始今天的训练/ }).click();
@@ -279,7 +295,7 @@ async function runAdaptiveChildRouteScenario(page: Page) {
   try {
     const session = snapshot.prepare("SELECT composition_snapshot AS composition, rule_version AS ruleVersion FROM training_sessions WHERE child_id = 'child' ORDER BY started_at DESC LIMIT 1").get() as { composition: string; ruleVersion: string };
     const reasons = snapshot.prepare("SELECT selection_reason_snapshot AS reason FROM session_items WHERE session_id = (SELECT id FROM training_sessions WHERE child_id = 'child' ORDER BY started_at DESC LIMIT 1)").all() as Array<{ reason: string }>;
-    expect(session.ruleVersion).toBe("phase2c-v1");
+    expect(session.ruleVersion).toBe("phase2c-v2");
     expect(JSON.parse(session.composition)).toMatchObject({ composition: expect.any(Object), shortages: expect.any(Object) });
     expect(reasons.length).toBeGreaterThan(0);
     expect(reasons.every(({ reason }) => "selectionReason" in JSON.parse(reason))).toBe(true);
