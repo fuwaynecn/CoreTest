@@ -4,7 +4,9 @@ import { createTestDatabase } from "@/test/test-db";
 
 const state = vi.hoisted(() => ({
   db: undefined as unknown,
-  parent: { id: "parent", role: "parent", displayName: "家长", isAdmin: false } as unknown,
+  parent: { id: "parent", role: "parent", displayName: "家长", isAdmin: false } as
+    | { id: string; role: string; displayName: string; isAdmin: boolean }
+    | null,
 }));
 
 vi.mock("@/db/client", async (original) => ({
@@ -14,12 +16,12 @@ vi.mock("@/db/client", async (original) => ({
 
 vi.mock("@/lib/auth/parent-child", () => ({
   requireParent: () => {
-    if (!state.parent || (state.parent as any).role !== "parent") {
+    if (!state.parent || state.parent.role !== "parent") {
       throw new Response(null, { status: 403 });
     }
     return state.parent;
   },
-  getOwnedChild: (db: any, parentId: string, childId: string) => {
+  getOwnedChild: (_db: unknown, parentId: string, childId: string) => {
     if (parentId === "parent" && childId === "c1") {
       return { id: "c1", displayName: "大宝", loginName: "kid1", grade: 6, edition: "pep" };
     }

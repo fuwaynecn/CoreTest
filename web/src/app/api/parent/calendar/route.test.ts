@@ -6,7 +6,9 @@ import { DEFAULT_CALENDAR } from "@/domain/curriculum/skill-availability";
 
 const state = vi.hoisted(() => ({
   db: undefined as unknown,
-  parent: { id: "admin", role: "parent", displayName: "管理员", isAdmin: true } as unknown,
+  parent: { id: "admin", role: "parent", displayName: "管理员", isAdmin: true } as
+    | { id: string; role: string; displayName: string; isAdmin: boolean }
+    | null,
 }));
 
 vi.mock("@/db/client", async (original) => ({
@@ -16,7 +18,7 @@ vi.mock("@/db/client", async (original) => ({
 
 vi.mock("@/lib/auth/parent-child", () => ({
   requireParent: () => {
-    if (!state.parent || (state.parent as any).role !== "parent") {
+    if (!state.parent || state.parent.role !== "parent") {
       throw new Response(null, { status: 403 });
     }
     return state.parent;
