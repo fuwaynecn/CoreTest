@@ -1,19 +1,22 @@
-const CACHE_NAME = "math-trainer-shell-v1";
+const CACHE_NAME = "math-trainer-shell-v2";
 
-self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(["/", "/login"])));
+self.addEventListener("install", () => {
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(Promise.all([
+    caches.keys().then((names) => Promise.all(names
+      .filter((name) => name.startsWith("math-trainer-shell-") && name !== CACHE_NAME)
+      .map((name) => caches.delete(name)))),
+    self.clients.claim(),
+  ]));
 });
 
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   const url = new URL(request.url);
-  const cacheable = url.pathname === "/"
-    || url.pathname === "/favicon.ico"
+  const cacheable = url.pathname === "/favicon.ico"
     || url.pathname.startsWith("/_next/static/");
   if (request.method !== "GET" || url.origin !== self.location.origin || !cacheable) return;
 

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { DiagnosisAnswerForm } from "@/components/diagnosis-answer-form";
 import { DiagnosisProgress } from "@/components/diagnosis-progress";
 import { QuestionCard } from "@/components/question-card";
+import { SessionProgress } from "@/components/session-progress";
 import { getDatabase } from "@/db/client";
 import { requireRole } from "@/lib/auth/current-user";
 import { getDiagnosisView } from "@/services/diagnosis/diagnosis-service";
@@ -30,6 +31,7 @@ export default async function DiagnosisRunPage({ params }: { params: Promise<{ r
   return (
     <main className="trainingPage diagnosisPage">
       <DiagnosisProgress part={diagnosis.currentPart} completedInPart={completedInPart} totalInPart={15} />
+      <SessionProgress completed={diagnosis.completedSlots} total={diagnosis.totalSlots} />
       <p className="diagnosisNote">不用赶时间。读清题目，按自己的理解作答。</p>
       <QuestionCard stem={diagnosis.currentItem.stem} />
       <DiagnosisAnswerForm

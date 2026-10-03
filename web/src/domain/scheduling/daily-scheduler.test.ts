@@ -77,3 +77,100 @@ test("prefers the least recently used persistent instance, including never-used 
   expect(result.items.map((item) => item.questionInstanceId)).toEqual(["never-a", "never-b", "never-used", "used-earlier", "used-later"]);
   expect(new Set(result.items.map((item) => item.questionInstanceId)).size).toBe(result.items.length);
 });
+
+// The recently used candidates are deliberately given an earlier dueOn so that they outrank the
+// fresh ones in the existing ordering. Without recentlyUsedCutoff they would be picked first, which
+// makes these two tests discriminate the strict-then-fallback behaviour instead of passing either way.
+test("reuses the least recently used questions only after the fresh pool is exhausted", () => {
+  const recentlyUsedCutoff = 1_000;
+  const fresh = Array.from({ length: 5 }, (_, index): ScheduledCandidate => ({
+    templateId: `fresh-${index}`, questionInstanceId: `fresh-${index}`, lastUsedAt: null, skillId: `weak-${index}`,
+    structureTag: `fresh-tag-${index}`, category: "weakness", difficulty: 1, estimatedSeconds: 60, dueOn: null,
+  }));
+  const recent = Array.from({ length: 5 }, (_, index): ScheduledCandidate => ({
+    templateId: `recent-${index}`, questionInstanceId: `recent-${index}`, lastUsedAt: recentlyUsedCutoff + 100 + index,
+    skillId: `recent-skill-${index}`, structureTag: `recent-tag-${index}`, category: "weakness", difficulty: 1, estimatedSeconds: 60, dueOn: "2026-08-10",
+  }));
+
+  const result = selectDailyItems({
+    candidates: [...recent, ...fresh],
+    composition: { weakness: 8, review: 0, reading: 0, extension: 0 },
+    targetSeconds: 600,
+    date: "2026-08-20",
+    seed: "starved",
+    recentlyUsedCutoff,
+  });
+
+  expect(result.items.map((item) => item.questionInstanceId)).toEqual([
+    "fresh-0", "fresh-1", "fresh-2", "fresh-3", "fresh-4", "recent-0", "recent-1", "recent-2",
+  ]);
+  expect(new Set(result.items.map((item) => item.questionInstanceId)).size).toBe(result.items.length);
+});
+
+test("never reuses a recently used question while fresh candidates can fill the composition", () => {
+  const recentlyUsedCutoff = 1_000;
+  const fresh = Array.from({ length: 4 }, (_, index): ScheduledCandidate => ({
+    templateId: `fresh-${index}`, questionInstanceId: `fresh-${index}`, lastUsedAt: null, skillId: `weak-${index}`,
+    structureTag: `fresh-tag-${index}`, category: "weakness", difficulty: 1, estimatedSeconds: 60, dueOn: null,
+  }));
+  const recent = Array.from({ length: 4 }, (_, index): ScheduledCandidate => ({
+    templateId: `recent-${index}`, questionInstanceId: `recent-${index}`, lastUsedAt: recentlyUsedCutoff + 100 + index,
+    skillId: `recent-skill-${index}`, structureTag: `recent-tag-${index}`, category: "weakness", difficulty: 1, estimatedSeconds: 60, dueOn: "2026-08-10",
+  }));
+
+  const result = selectDailyItems({
+    candidates: [...recent, ...fresh],
+    composition: { weakness: 4, review: 0, reading: 0, extension: 0 },
+    targetSeconds: 600,
+    date: "2026-08-20",
+    seed: "fresh-enough",
+    recentlyUsedCutoff,
+  });
+
+  expect(result.items.map((item) => item.questionInstanceId)).toEqual(["fresh-0", "fresh-1", "fresh-2", "fresh-3"]);
+  expect(result.shortages).toEqual({});
+});
+
+test("treats every candidate as available when no reuse cutoff is supplied", () => {
+  const fresh: ScheduledCandidate[] = [{ templateId: "fresh", questionInstanceId: "fresh", lastUsedAt: null, skillId: "weak", structureTag: "fresh-tag", category: "weakness", difficulty: 1, estimatedSeconds: 60, dueOn: null }];
+  const recent: ScheduledCandidate[] = [{ templateId: "recent", questionInstanceId: "recent", lastUsedAt: 5_000, skillId: "recent-skill", structureTag: "recent-tag", category: "weakness", difficulty: 1, estimatedSeconds: 60, dueOn: "2026-08-10" }];
+
+  const result = selectDailyItems({
+    candidates: [...recent, ...fresh],
+    composition: { weakness: 1, review: 0, reading: 0, extension: 0 },
+    targetSeconds: 600,
+    date: "2026-08-20",
+    seed: "no-cutoff",
+  });
+
+  expect(result.items.map((item) => item.questionInstanceId)).toEqual(["recent"]);
+});
+
+// One template can now contribute several distinct stems, so a session must still prefer one item per
+// template; only a template shortage may fall back to sibling variants.
+test("prefers one item per template over sibling variants of the same template", () => {
+  const siblings = Array.from({ length: 3 }, (_, index): ScheduledCandidate => ({
+    templateId: "shared", questionInstanceId: `shared-${index}`, lastUsedAt: null, skillId: "weak",
+    structureTag: `shared-tag-${index}`, category: "weakness", difficulty: 1, estimatedSeconds: 60, dueOn: null,
+  }));
+  const other: ScheduledCandidate = { templateId: "other", questionInstanceId: "other", lastUsedAt: null, skillId: "weak-two", structureTag: "other-tag", category: "weakness", difficulty: 1, estimatedSeconds: 60, dueOn: null };
+
+  const result = selectDailyItems({ candidates: [...siblings, other], composition: { weakness: 2, review: 0, reading: 0, extension: 0 }, targetSeconds: 600, date: "2026-08-20", seed: "diverse" });
+
+  expect(result.items.map((item) => item.templateId)).toEqual(["other", "shared"]);
+  expect(new Set(result.items.map((item) => item.templateId)).size).toBe(result.items.length);
+});
+
+test("falls back to sibling variants rather than shortening when templates run out", () => {
+  const siblings = Array.from({ length: 3 }, (_, index): ScheduledCandidate => ({
+    templateId: "shared", questionInstanceId: `shared-${index}`, lastUsedAt: null, skillId: "weak",
+    structureTag: `shared-tag-${index}`, category: "weakness", difficulty: 1, estimatedSeconds: 60, dueOn: null,
+  }));
+
+  const result = selectDailyItems({ candidates: siblings, composition: { weakness: 3, review: 0, reading: 0, extension: 0 }, targetSeconds: 600, date: "2026-08-20", seed: "short-supply" });
+
+  expect(result.items).toHaveLength(3);
+  expect(result.items.map((item) => item.templateId)).toEqual(["shared", "shared", "shared"]);
+  expect(new Set(result.items.map((item) => item.variantSeed)).size).toBe(3);
+  expect(result.shortages).toEqual(expect.objectContaining({ weakness: 2 }));
+});

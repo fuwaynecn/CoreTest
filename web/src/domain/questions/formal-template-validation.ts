@@ -700,12 +700,74 @@ function choiceErrors(stem: string, answer: Extract<AnswerSpec, { kind: "choice"
   }
 }
 
+// Every rule below pins the exact wording of one reviewed question form. The catalog also carries a
+// bounded set of surface variants per form: a task label or a context noun that never touches the
+// numbers, the numeric lockstep or the answer. canonicalStem maps those recognised variants back onto
+// the reviewed wording, so each form is still proved from the numbers it actually contains. Adding a
+// variant value without teaching it here makes the catalog fail validateCatalog(), never pass silently.
+const surfaceVariants: readonly (readonly [RegExp, string])[] = [
+  // task labels that replace the reviewed lead-in
+  [/^(?:口算|直接写出得数|算一算|填一填|练一练)[：:]/, "口算："],
+  [/^(?:计算|笔算|用竖式算|先算再化|先通分再算)[：:]/, "计算 "],
+  [/^(?:用简便方法计算|用运算律简算|简便计算)[：:]/, "用简便方法计算 "],
+  [/^(?:解方程|求未知数 x|求 x 的值|解出 x)[：:]/, "解方程："],
+  // task labels that carry nothing the rule needs
+  [/^(?:想一想|看一看|试一试|做一做|画一画|查一查|读懂题目|仔细读题|先看要求|读题时|审题时|先看问题|再看条件|选条件|找条件|整理条件时|读题之后|列式之前|动笔之前|整理图书时|归档资料时|装订手册时|清点作业时|整理试卷时|装订材料时|列方程求解|先列式再计算)[：:，,]/, ""],
+  // context nouns
+  [/^(?:长方形卡片|长方形照片|长方形书签|长方形桌垫|长方形画框|长方形垫板|长方形地砖|长方形书皮|长方形桌面|长方形画纸|长方形餐垫)(?=长 )/, "长方形"],
+  [/^长方形(?:卡纸|木板)的周长/, "一个长方形周长"],
+  [/^三角形(?:小红旗|三角尺)的底是/, "三角形底"],
+  [/^长方体(?:木块|纸盒|砖块|橡皮|收纳盒|包装箱|冰格)(?=长 )/, "长方体"],
+  [/^一块 L 形(?:纸板|铁皮|木板|塑料板|卡纸|铝板|地毯)(?=可看成)/, "一块 L 形纸板"],
+  [/^(用 \d+ 个)相同(?:小正方体|小积木|小方块|小木块|小立方体)(?=排成一列)/, "$1相同小正方体"],
+  [/^(?:步道的|小路的|跑道的|绳子的|彩带的|泳道的|管道的)第一段长/, "步道前段长"],
+  [/第二段长/, "后段长"],
+  [/^(?:废纸回收|塑料瓶回收|旧书回收|废电池回收|旧衣物回收|易拉罐回收|旧报纸回收|纸箱回收)(?=记录显示：)/, "条形图文字"],
+  [/^(?:读书|练字|背单词|做口算|做题|记笔记|看课外书)(?=折线记录中，)/, ""],
+  [/^四次(?:数学|语文|英语|科学|体育|音乐|书法|美术|信息)(?=练习得分依次为)/, "四次"],
+  [/(甲组|乙组)(?:成绩|身高|跳远距离|握力|每日做题数|每天阅读时间|每周锻炼次数)(?=是 )/g, "$1数据"],
+  [/^(?:阅读记录|值日记录|训练记录|兴趣小组记录|社团活动记录|研学记录|实践记录|调查记录)(?=：)/, "阅读记录"],
+  [/^(?:袋|盒|箱|抽屉|抽奖箱|收纳盒|纸盒)中有/, "袋中有"],
+  [/^(?:练习册|笔记本|图画本|故事书|作业本|草稿本)(?= \d)/, "每本练习册"],
+  [/^(?:小车|客车|货车|面包车|越野车|校车)(?=先以每小时)/, "小车"],
+  [/^(?:整理图书时|归档资料时|装订手册时|清点作业时|整理试卷时|装订材料时)(?=：)/, ""],
+  [/^(?:红、蓝卡片|红、蓝贴纸|红、蓝小球|黄、绿卡片|白、蓝棋子|红、蓝发圈)(?=数量比是)/, "红、蓝卡片"],
+  [/(数量比是 -?\d+(?:\.\d+)?:-?\d+(?:\.\d+)?，共有 )(-?\d+(?:\.\d+)?) (?:张|个|枚)。/, "$1$2 张。"],
+  [/(?:红卡片|红贴纸|红球|黄卡片|白棋子|红发圈)有多少(?:张|个|枚)/, "红卡片有多少张"],
+  [/^(?:一件文具|一本字典|一个书包|一套画笔|一个文具盒|一副球拍)(?=原价)/, "一件文具"],
+  [/箱(?:练习本|粉笔|彩纸|图画纸|卡纸)，每箱/, "箱纸，每箱"],
+  [/^一批(?:书|绘本|杂志|故事书|童话集|科普读物)(?=先借出)/, "一批书"],
+  [/^(?:图书角|阅览室|班级书架|校图书馆|读书角|流动书箱)有/, "图书角有"],
+  [/(?<=有)(?:童话书|连环画|寓言书|童话集|名人故事)(?= \d+ 本、)/, "故事书"],
+  [/(?<=今天借出)(?:童话书|连环画|寓言书|童话集|名人故事)(?= \d+ 本)/, "故事书"],
+  [/(?:童话书|连环画|寓言书|童话集|名人故事)(?=还剩多少本)/, "故事书"],
+  [/(?:大巴|中巴|客车|旅游车|校车|商务车)(?=每辆坐)/, "大巴"],
+  [/(?<=多少辆)(?:中巴|客车|旅游车|校车|商务车)(?=？)/, "大巴"],
+  // equation wording
+  [/^(?:小禾|小安|小宁)(?=检查方程)/, ""],
+  [/^(?:小舟|小星)(?=检查方程)/, ""],
+  [/^(?:小舟|小宁)(?=解 )/, ""],
+  [/时，(?:小舟|小宁)写成/, "时，小禾写成"],
+  [/^(两种装盒方案数量相同：方案甲每组 \d+ )[盒袋箱筐](并另加括号内的 \d+ )[盒袋箱筐](，方案乙有 \d+x )[盒袋箱筐](再加 \d+ )[盒袋箱筐](。根据 .+ 求 x。)$/, "$1盒$2盒$3盒$4盒$5"],
+  [/^(?:袋|箱)(?=中原有 x 枚棋子)/, "盒"],
+  // angle wording
+  [/(?<=，)已知一个角是/, "其中一个是"],
+  [/求另一个角的度数/, "另一个是多少度"],
+  [/另一个角是多少度/, "另一个是多少度"],
+  [/^把一个 (-?\d+(?:\.\d+)?) 度的角与另一个角拼在一起正好是一个平角/, "一个平角被分成两个角，其中一个是 $1 度"],
+];
+
+function canonicalStem(stem: string): string {
+  return surfaceVariants.reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), stem);
+}
+
 export function renderedQuestionErrors(input: {
   answerMode: "mental" | "written" | "choice" | "fill" | "expression" | "equation";
   stem: string;
   answerSpec: AnswerSpec;
 }): string[] {
-  const { answerMode, stem, answerSpec } = input;
+  const { answerMode, answerSpec } = input;
+  const stem = canonicalStem(input.stem);
   if ((answerMode === "choice") !== (answerSpec.kind === "choice")) {
     return ["answer_mode_mismatch"];
   }

@@ -171,11 +171,10 @@ export function AiProviderConfigForm({ initial }: Props) {
 
   return (
     <section className="parentSection aiConfigSection" aria-labelledby="ai-config-heading">
-      <div className="sectionHeading">
-        <h2 id="ai-config-heading">AI 服务配置</h2>
-        <p>测试连接会向所选服务商发送固定的连接测试消息，不会发送孩子作答数据。</p>
-      </div>
-      <div className="aiConfigGrid">
+      <details className="aiConfigDisclosure">
+        <summary className="aiConfigSummary"><h2 id="ai-config-heading">AI 服务配置</h2></summary>
+        <p className="aiConfigNotice">测试连接会向所选服务商发送固定的连接测试消息，不会发送孩子作答数据。</p>
+        <div className="aiConfigGrid">
         {providerOrder(providers).map((provider) => {
           const item = providers[provider];
           const labels = providerLabels[provider];
@@ -264,7 +263,8 @@ export function AiProviderConfigForm({ initial }: Props) {
             </form>
           );
         })}
-      </div>
+        </div>
+      </details>
     </section>
   );
 }

@@ -9,7 +9,12 @@ import { createDatabase } from "@/db/client";
 import { migrateDatabase } from "@/db/migrate";
 import { createTestDatabase } from "@/test/test-db";
 import { questionInstances, questionTemplates, skills, questionBankRefreshes } from "@/db/schema";
-import { ensureQuestionBankFresh } from "./question-bank-refresh";
+import { ensureQuestionBankFresh, questionSimilarityKey } from "./question-bank-refresh";
+
+test("groups numeric variants of the same question wording together", () => {
+  expect(questionSimilarityKey("skill-angle", "一个平角被分成两个角，其中一个是 128 度，另一个是多少度？"))
+    .toBe(questionSimilarityKey("skill-angle", "一个平角被分成两个角，其中一个是 35 度，另一个是多少度？"));
+});
 
 function seedCatalog() {
   const db = createTestDatabase();
@@ -108,7 +113,7 @@ test("refreshes the reviewed bank once per Shanghai week and deduplicates finger
     skipped: false,
     generated: expect.any(Number),
   });
-  expect(first.generated).toBeLessThanOrEqual(40);
+  expect(first.generated).toBeGreaterThanOrEqual(100);
   expect(db.select().from(questionInstances).where(eq(questionInstances.active, true)).all().length)
     .toBeGreaterThan(0);
   expect(ensureQuestionBankFresh(db, "2026-09-05", { now: 2 }))
@@ -118,7 +123,7 @@ test("refreshes the reviewed bank once per Shanghai week and deduplicates finger
   expect(db.select().from(questionBankRefreshes).all()).toHaveLength(1);
 });
 
-test("scoped refreshes only replenish the requested skill and never exceed forty inserts", () => {
+test("scoped refreshes only replenish the requested skill", () => {
   const db = seedCatalog();
   const skillId = `skill-${phase2Catalog[0].skillCode}`;
 
@@ -186,9 +191,9 @@ test("stops at the unique reviewed supply when it is below twelve", () => {
   const rows = db.select().from(questionInstances).where(and(
     eq(questionInstances.skillId, skillId), eq(questionInstances.difficulty, 2),
   )).all();
-  expect(result).toEqual({ skipped: false, generated: 9, errors: [] });
-  expect(rows).toHaveLength(9);
-  expect(new Set(rows.map((row) => row.fingerprint)).size).toBe(9);
+  expect(result).toEqual({ skipped: false, generated: 8, errors: [] });
+  expect(rows).toHaveLength(8);
+  expect(new Set(rows.map((row) => row.fingerprint)).size).toBe(8);
 });
 
 test("does not bypass the weekly ledger for a full force refresh", () => {
@@ -205,7 +210,7 @@ test("records invalid reviewed variants and does not persist them", () => {
   const original = phase2Catalog[index];
   phase2Catalog[index] = {
     ...target,
-    variantSpec: { variables: { left: [38], right: [7], answer: [999] } },
+    variantSpec: { variables: { prompt: ["口算"], left: [38], right: [7], answer: [999] } },
   };
 
   try {

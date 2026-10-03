@@ -81,6 +81,22 @@ test("shows completed state instead of another daily training link", async () =>
   expect(screen.queryByRole("link", { name: /今天的训练/ })).not.toBeInTheDocument();
 });
 
+test("does not report a session with no questions as completed", async () => {
+  getDiagnosisLearningGate.mockReturnValue({ formalDailyUnlocked: true, activeDiagnosis: null });
+  getOrCreateDailySession.mockReturnValue({
+    id: "daily-1",
+    status: "in_progress",
+    questions: [],
+  });
+
+  render(await ChildHomePage());
+
+  expect(screen.queryByRole("heading", { name: "今天的训练已经完成" })).not.toBeInTheDocument();
+  expect(screen.queryByText(/今天安排了 0 道题/)).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: /今天的训练/ })).not.toBeInTheDocument();
+  expect(screen.getByText("今天的题目正在准备中，请稍后再来。")).toBeVisible();
+});
+
 test("shows lifetime points and earned badges on the child home", async () => {
   getDiagnosisLearningGate.mockReturnValue({ formalDailyUnlocked: true, activeDiagnosis: null });
   getOrCreateDailySession.mockReturnValue({ id: "daily-1", questions: [{ answered: false }] });

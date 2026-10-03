@@ -36,8 +36,22 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test("renders both providers, editable address/model, masked key, and enabled switch", () => {
+async function renderExpanded() {
+  const user = userEvent.setup();
   render(<AiProviderConfigForm initial={initialViews} />);
+  await user.click(screen.getByText("AI 服务配置"));
+  return user;
+}
+
+test("keeps provider controls collapsed until the parent expands them", async () => {
+  const user = userEvent.setup();
+  render(<AiProviderConfigForm initial={initialViews} />);
+  const disclosure = screen.getByText("AI 服务配置").closest("details");
+  expect(disclosure).not.toHaveAttribute("open");
+
+  await user.click(screen.getByText("AI 服务配置"));
+
+  expect(disclosure).toHaveAttribute("open");
   expect(screen.getByRole("group", { name: "OpenAI" })).toBeInTheDocument();
   expect(screen.getByRole("group", { name: "DeepSeek" })).toBeInTheDocument();
   expect(screen.getByDisplayValue("gpt-5")).toBeInTheDocument();
@@ -46,12 +60,11 @@ test("renders both providers, editable address/model, masked key, and enabled sw
 });
 
 test("submits a replacement key without pre-filling the old key", async () => {
-  const user = userEvent.setup();
   const fetchMock = vi.fn().mockResolvedValue(jsonResponse({
     provider: { ...initialViews[0], hasApiKey: true, apiKeyMasked: "••••••new" },
   }));
   vi.stubGlobal("fetch", fetchMock);
-  render(<AiProviderConfigForm initial={initialViews} />);
+  const user = await renderExpanded();
   const keyInput = screen.getByLabelText("OpenAI API Key（更换时填写）");
   expect(keyInput).toHaveValue("");
   await user.type(keyInput, "new-key");
@@ -64,9 +77,8 @@ test("submits a replacement key without pre-filling the old key", async () => {
 });
 
 test("clears the replacement key after a non-OK response", async () => {
-  const user = userEvent.setup();
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({}, { status: 400 })));
-  render(<AiProviderConfigForm initial={initialViews} />);
+  const user = await renderExpanded();
   const keyInput = screen.getByLabelText("OpenAI API Key（更换时填写）");
   await user.type(keyInput, "replacement");
   await user.click(screen.getByRole("button", { name: "保存 OpenAI" }));
@@ -76,10 +88,9 @@ test("clears the replacement key after a non-OK response", async () => {
 });
 
 test("supports clearing a key and clears replacement input after a network failure", async () => {
-  const user = userEvent.setup();
   const fetchMock = vi.fn().mockRejectedValue(new Error("offline"));
   vi.stubGlobal("fetch", fetchMock);
-  render(<AiProviderConfigForm initial={initialViews} />);
+  const user = await renderExpanded();
   const keyInput = screen.getByLabelText("OpenAI API Key（更换时填写）");
   await user.type(keyInput, "replacement");
   await user.click(screen.getByLabelText("清除 OpenAI API Key"));
@@ -92,14 +103,13 @@ test("supports clearing a key and clears replacement input after a network failu
 });
 
 test("test button posts only provider and shows success", async () => {
-  const user = userEvent.setup();
   const fetchMock = vi.fn().mockResolvedValue(jsonResponse({
     ok: true,
     provider: "openai",
     model: "gpt-5",
   }));
   vi.stubGlobal("fetch", fetchMock);
-  render(<AiProviderConfigForm initial={initialViews} />);
+  const user = await renderExpanded();
 
   await user.click(screen.getByRole("button", { name: "测试 OpenAI" }));
 
@@ -111,12 +121,11 @@ test("test button posts only provider and shows success", async () => {
 });
 
 test("test button shows safe failure and does not send a key", async () => {
-  const user = userEvent.setup();
   const fetchMock = vi.fn().mockResolvedValue(jsonResponse({
     error: { code: "ai_unavailable" },
   }, { status: 502 }));
   vi.stubGlobal("fetch", fetchMock);
-  render(<AiProviderConfigForm initial={initialViews} />);
+  const user = await renderExpanded();
 
   await user.type(screen.getByLabelText("OpenAI API Key（更换时填写）"), "opaque-test-token");
   await user.click(screen.getByRole("button", { name: "测试 OpenAI" }));
@@ -132,13 +141,12 @@ test("test button shows safe failure and does not send a key", async () => {
 });
 
 test("only the active provider test button is disabled while pending", async () => {
-  const user = userEvent.setup();
   let resolveFetch: ((value: Response) => void) | undefined;
   const fetchMock = vi.fn().mockImplementation(() => new Promise<Response>((resolve) => {
     resolveFetch = resolve;
   }));
   vi.stubGlobal("fetch", fetchMock);
-  render(<AiProviderConfigForm initial={initialViews} />);
+  const user = await renderExpanded();
 
   const openAiTestButton = screen.getByRole("button", { name: "测试 OpenAI" });
   const deepSeekTestButton = screen.getByRole("button", { name: "测试 DeepSeek" });

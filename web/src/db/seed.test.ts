@@ -42,7 +42,9 @@ test.each([
   }
 });
 
-test("seeds 120 reviewed templates plus the stable three-question Phase 1 daily pool idempotently", () => {
+// This is the only test that spawns subprocesses (two `node --import tsx src/db/seed.ts` runs), so the
+// default 5s budget has no headroom when the whole suite runs with one worker per core.
+test("seeds 120 reviewed templates plus the stable three-question Phase 1 daily pool idempotently", { timeout: 20_000 }, () => {
   const directory = mkdtempSync(join(tmpdir(), "math-trainer-valid-seed-"));
   const filename = join(directory, "seed.sqlite");
   const env = {

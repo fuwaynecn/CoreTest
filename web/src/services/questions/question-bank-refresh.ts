@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { phase2Catalog } from "@/content/phase2-catalog";
 import type { AppDatabase } from "@/db/client";
 import { questionBankRefreshes, questionInstances, questionTemplates } from "@/db/schema";
@@ -24,9 +24,18 @@ export type QuestionBankRefreshResult = {
   errors: string[];
 };
 
-const MAX_INSERTS = 40;
+const MAX_WEEKLY_INSERTS = 400;
+const MAX_SCOPED_INSERTS = 40;
 const MIN_INVENTORY = 8;
 const TARGET_INVENTORY = 12;
+const MAX_SIMILAR_ACTIVE = 1;
+
+export function questionSimilarityKey(skillId: string, stem: string) {
+  const normalizedStem = stem
+    .replace(/-?\d+(?:\.\d+)?/g, "#")
+    .replace(/[\s，。！？、：；,.!?]/g, "");
+  return `${skillId}:${normalizedStem}`;
+}
 
 function dateAtShanghaiMidnight(date: string) {
   return Date.parse(`${date}T00:00:00+08:00`);
@@ -58,26 +67,46 @@ export function ensureQuestionBankFresh(
 ): QuestionBankRefreshResult {
   const weekKey = shanghaiWeekKey(new Date(`${date}T12:00:00+08:00`));
   const scoped = options.skillIds !== undefined;
+  const maxInserts = scoped ? MAX_SCOPED_INSERTS : MAX_WEEKLY_INSERTS;
   const now = options.now ?? Date.now();
 
   db.$client.exec("PRAGMA busy_timeout = 5000");
   try {
     return db.transaction((tx) => {
-    if (!scoped && tx.select({ weekKey: questionBankRefreshes.weekKey })
-      .from(questionBankRefreshes).where(eq(questionBankRefreshes.weekKey, weekKey)).get()) {
-      return { skipped: true, generated: 0, errors: [] };
-    }
-
     const allowedSkills = options.skillIds ? new Set(options.skillIds) : null;
     const activeTemplateIds = new Set(tx.select({ id: questionTemplates.id })
       .from(questionTemplates).where(eq(questionTemplates.active, true)).all().map((row) => row.id));
     const cutoff = dateAtShanghaiMidnight(addShanghaiDays(date, -30));
     const inventory = new Map<string, number>();
-    for (const row of tx.select({ skillId: questionInstances.skillId, difficulty: questionInstances.difficulty, lastUsedAt: questionInstances.lastUsedAt })
-      .from(questionInstances).where(eq(questionInstances.active, true)).all()) {
+    const similarityCounts = new Map<string, number>();
+    const duplicateIds: string[] = [];
+    const activeRows = tx.select({
+      id: questionInstances.id,
+      skillId: questionInstances.skillId,
+      difficulty: questionInstances.difficulty,
+      stem: questionInstances.stem,
+      variantSeed: questionInstances.variantSeed,
+      lastUsedAt: questionInstances.lastUsedAt,
+    }).from(questionInstances).where(eq(questionInstances.active, true)).all();
+    for (const row of activeRows) {
+      if (row.variantSeed.startsWith("question-bank:")) {
+        const similarityKey = questionSimilarityKey(row.skillId, row.stem);
+        const count = similarityCounts.get(similarityKey) ?? 0;
+        if (count >= MAX_SIMILAR_ACTIVE) duplicateIds.push(row.id);
+        else similarityCounts.set(similarityKey, count + 1);
+      }
+      if (duplicateIds.includes(row.id)) continue;
       if (row.lastUsedAt !== null && row.lastUsedAt >= cutoff) continue;
       const key = `${row.skillId}:${row.difficulty}`;
       inventory.set(key, (inventory.get(key) ?? 0) + 1);
+    }
+    if (duplicateIds.length) {
+      tx.update(questionInstances).set({ active: false, updatedAt: now })
+        .where(inArray(questionInstances.id, duplicateIds)).run();
+    }
+    if (!scoped && tx.select({ weekKey: questionBankRefreshes.weekKey })
+      .from(questionBankRefreshes).where(eq(questionBankRefreshes.weekKey, weekKey)).get()) {
+      return { skipped: true, generated: 0, errors: [] };
     }
 
     const catalogErrors = validateCatalog(phase2Catalog);
@@ -132,6 +161,8 @@ export function ensureQuestionBankFresh(
           }
 
           const fingerprint = questionFingerprint(instance);
+          const similarityKey = questionSimilarityKey(skillId, instance.stem);
+          if ((similarityCounts.get(similarityKey) ?? 0) >= MAX_SIMILAR_ACTIVE) continue;
           const result = tx.insert(questionInstances).values({
             id: randomUUID(),
             templateId: instance.templateId,
@@ -148,9 +179,10 @@ export function ensureQuestionBankFresh(
             updatedAt: now,
           }).onConflictDoNothing({ target: questionInstances.fingerprint }).run();
           if (Number(result.changes) > 0) {
+            similarityCounts.set(similarityKey, (similarityCounts.get(similarityKey) ?? 0) + 1);
             generated += 1;
             inventory.set(cell, (inventory.get(cell) ?? 0) + 1);
-            if (generated >= MAX_INSERTS) {
+            if (generated >= maxInserts) {
               stop = true;
               break;
             }

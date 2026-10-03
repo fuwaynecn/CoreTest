@@ -92,6 +92,9 @@ button, input { min-height: 48px; }
 .parentRecommendation { padding: 1.25rem; border-left: .5rem solid var(--brand); background: #edf5f2; }
 .parentRecommendation p { margin: 0 0 .5rem; color: #57635f; font-size: .85rem; font-weight: 700; letter-spacing: .08em; }
 .parentRecommendation strong { line-height: 1.55; }
+.parentPrimaryAction { display: inline-flex; min-height: 48px; align-items: center; margin-top: 1rem; padding: .75rem 1.15rem; border-radius: .7rem; background: var(--brand); color: white; font-weight: 700; text-decoration: none; }
+.parentPrimaryAction:hover { filter: brightness(.92); }
+.parentPrimaryAction:focus-visible { outline: 3px solid color-mix(in srgb, var(--brand) 35%, white); outline-offset: 3px; }
 .diagnosisSummary { margin: 2rem 0; padding: clamp(1.25rem, 4vw, 2.5rem); border: 2px solid var(--ink); border-radius: 1rem; background: white; }
 .diagnosisSummaryHeading { align-items: end; }
 .diagnosisSummaryHeading h2 { margin: .2rem 0 0; }
@@ -126,6 +129,11 @@ button, input { min-height: 48px; }
 .summaryMetrics dd span { display: block; margin-top: .35rem; color: #57635f; font-family: var(--font-geist-sans); font-size: .78rem; white-space: normal; }
 .parentSection { margin-top: 2.5rem; }
 .aiConfigSection { padding: clamp(1.25rem, 4vw, 2rem); border: 1px solid var(--sand); border-radius: 1rem; background: white; box-shadow: 0 .75rem 2rem rgb(36 49 47 / .06); }
+.aiConfigSummary { display: flex; align-items: center; justify-content: space-between; gap: 1rem; cursor: pointer; }
+.aiConfigSummary h2 { margin: 0; font-family: Georgia, "Noto Serif SC", serif; font-size: 1.75rem; }
+.aiConfigSummary::after { content: "展开设置"; color: var(--brand); font-size: .9rem; font-weight: 700; }
+.aiConfigDisclosure[open] .aiConfigSummary::after { content: "收起设置"; }
+.aiConfigNotice { margin: 1rem 0; color: #57635f; font-size: .9rem; }
 .aiConfigGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .aiProviderCard fieldset { display: grid; gap: .8rem; min-width: 0; margin: 0; padding: 1rem; border: 1px solid var(--sand); border-radius: .85rem; }
 .aiProviderCard legend { padding: 0 .3rem; color: var(--brand); font-family: Georgia, "Noto Serif SC", serif; font-size: 1.15rem; font-weight: 700; }

@@ -32,7 +32,9 @@ async function flushQueuedSubmissions() {
 }
 
 export function OfflineStatus() {
-  const [syncState, setSyncState] = useState<SyncState>(() => (getOnlineStatus() ? { kind: "online" } : { kind: "offline" }));
+  // The server cannot read navigator.onLine, so the first render must not depend on it or hydration
+  // would mismatch on every page; the effect below corrects this as soon as the component mounts.
+  const [syncState, setSyncState] = useState<SyncState>({ kind: "offline" });
 
   useEffect(() => {
     let active = true;

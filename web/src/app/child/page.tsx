@@ -95,6 +95,16 @@ export default async function ChildHomePage() {
   if (session.status === "completed_early") {
     return <main className="trainingPage completionCard"><p className="eyebrow">今天先到这里</p><h1>已经保存好今天完成的部分</h1><p>下次训练会从适合你的内容继续开始。</p><AchievementCard rewards={rewards} /></main>;
   }
+  if (session.questions.length === 0) {
+    return (
+      <main className="trainingPage">
+        <p className="eyebrow">你好，{child.displayName}</p>
+        <h1>今天的数学训练</h1>
+        <p>今天的题目正在准备中，请稍后再来。</p>
+        <AchievementCard rewards={rewards} />
+      </main>
+    );
+  }
   const label = session.questions.some((question) => question.answered)
     ? "继续今天的训练"
     : "开始今天的训练";

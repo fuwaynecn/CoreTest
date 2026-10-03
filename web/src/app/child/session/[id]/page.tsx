@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { AnswerForm } from "@/components/answer-form";
 import { QuestionCard } from "@/components/question-card";
 import { Scratchpad } from "@/components/scratchpad";
+import { SessionProgress } from "@/components/session-progress";
 import { StopSessionButton, TrainingSegments, type TrainingSegment } from "@/components/training-segments";
 import { getDatabase } from "@/db/client";
 import { sessionItems, trainingSessions } from "@/db/schema";
@@ -39,6 +40,17 @@ export default async function ChildSessionPage({ params }: { params: Promise<{ i
     return <main className="trainingPage completionCard"><p className="eyebrow">今天先到这里</p><h1>已经保存好今天完成的部分</h1><Link className="primaryButton" href="/child">回到今天的训练</Link></main>;
   }
 
+  if (session.questions.length === 0) {
+    return (
+      <main className="trainingPage completionCard">
+        <p className="eyebrow">题目准备中</p>
+        <h1>今天的题目正在准备中</h1>
+        <p>今天还没有安排好题目，请稍后再来。</p>
+        <Link className="primaryButton" href="/child">回到今天的训练</Link>
+      </main>
+    );
+  }
+
   if (!question) {
     return (
       <main className="trainingPage completionCard">
@@ -52,6 +64,7 @@ export default async function ChildSessionPage({ params }: { params: Promise<{ i
 
   return (
     <main className="trainingPage">
+      <SessionProgress completed={session.questions.filter((item) => item.answered).length} total={session.questions.length} />
       <TrainingSegments current={categoryToSegment(metadataById.get(question.id)?.category, metadataById.get(question.id)?.selectionReason)} composition={(["warmup", "core", "reading", "correction"] as TrainingSegment[]).reduce((counts, segment) => ({ ...counts, [segment]: session.questions.filter((item) => categoryToSegment(metadataById.get(item.id)?.category, metadataById.get(item.id)?.selectionReason) === segment).length }), { warmup: 0, core: 0, reading: 0, correction: 0 })} />
       <QuestionCard stem={question.stem} />
       <AnswerForm sessionItemId={question.id} sessionItemIds={session.questions.map((item) => item.id)} readingCard={metadataById.get(question.id)?.readingCard === true} nextHref={`/child/session/${session.id}`} />
