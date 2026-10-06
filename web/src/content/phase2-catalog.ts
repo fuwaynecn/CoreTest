@@ -1472,6 +1472,62 @@ const catalogInputs: TemplateInput[] = [
     explanationPattern: "按有理数加减法则计算，结果是 {{answer}}。",
     variables: { expression: ["(-3) + (-5)", "(-8) - (-3)", "12 + (-7)"], answer: [-8, -5, 5] },
   },
+  {
+    id: "geo-cyl-lateral-c", skillCode: "cylinder-cone", domain: "geometry_space",
+    difficulty: 2, structureTag: "cylinder-lateral-base",
+    stemPattern: "圆柱底面周长是 {{c}} 厘米，高是 {{h}} 厘米，它的侧面积是多少平方厘米？",
+    answerSpecPattern: numberAnswer("平方厘米"),
+    explanationPattern: "圆柱侧面积 = 底面周长 × 高：{{c}} × {{h}} = {{answer}} 平方厘米。",
+    variables: { c: [12.56, 18.84], h: [5, 10], answer: [62.8, 188.4] },
+  },
+  {
+    id: "geo-cyl-lateral-d", skillCode: "cylinder-cone", domain: "geometry_space",
+    difficulty: 2, structureTag: "cylinder-lateral-diameter",
+    stemPattern: "圆柱底面直径是 {{d}} 厘米，高是 {{h}} 厘米（π 取 3.14），它的侧面积是多少平方厘米？",
+    answerSpecPattern: numberAnswer("平方厘米"),
+    explanationPattern: "侧面积 = πdh：3.14 × {{d}} × {{h}} = {{answer}} 平方厘米。",
+    variables: { d: [4, 10], h: [5, 8], answer: [62.8, 251.2] },
+  },
+  {
+    id: "geo-cyl-surface", skillCode: "cylinder-cone", domain: "geometry_space",
+    difficulty: 3, structureTag: "cylinder-surface",
+    stemPattern: "圆柱底面半径是 {{r}} 厘米，高是 {{h}} 厘米（π 取 3.14），它的表面积是多少平方厘米？",
+    answerSpecPattern: numberAnswer("平方厘米"),
+    explanationPattern: "表面积 = 侧面积 + 两个底面积：2×3.14×{{r}}×{{h}} + 2×3.14×{{r}}² = {{answer}} 平方厘米。",
+    variables: { r: [2, 5], h: [5, 4], answer: [87.92, 282.6] },
+  },
+  {
+    id: "geo-cyl-volume-s", skillCode: "cylinder-cone", domain: "geometry_space",
+    difficulty: 2, structureTag: "cylinder-volume-base",
+    stemPattern: "圆柱的底面积是 {{s}} 平方厘米，高是 {{h}} 厘米，它的体积是多少立方厘米？",
+    answerSpecPattern: numberAnswer("立方厘米"),
+    explanationPattern: "圆柱体积 = 底面积 × 高：{{s}} × {{h}} = {{answer}} 立方厘米。",
+    variables: { s: [28.26, 50.24], h: [8, 5], answer: [226.08, 251.2] },
+  },
+  {
+    id: "geo-cyl-volume-r", skillCode: "cylinder-cone", domain: "geometry_space",
+    difficulty: 2, structureTag: "cylinder-volume-radius",
+    stemPattern: "圆柱底面半径是 {{r}} 厘米，高是 {{h}} 厘米（π 取 3.14），它的体积是多少立方厘米？",
+    answerSpecPattern: numberAnswer("立方厘米"),
+    explanationPattern: "圆柱体积 = πr²h：3.14 × {{r}}² × {{h}} = {{answer}} 立方厘米。",
+    variables: { r: [2, 5], h: [5, 4], answer: [62.8, 314] },
+  },
+  {
+    id: "geo-cone-volume-s", skillCode: "cylinder-cone", domain: "geometry_space",
+    difficulty: 2, structureTag: "cone-volume-base",
+    stemPattern: "圆锥的底面积是 {{s}} 平方厘米，高是 {{h}} 厘米，它的体积是多少立方厘米？",
+    answerSpecPattern: numberAnswer("立方厘米"),
+    explanationPattern: "圆锥体积 = 底面积 × 高 ÷ 3：{{s}} × {{h}} ÷ 3 = {{answer}} 立方厘米。",
+    variables: { s: [30, 75], h: [6, 4], answer: [60, 100] },
+  },
+  {
+    id: "geo-cone-volume-r", skillCode: "cylinder-cone", domain: "geometry_space",
+    difficulty: 3, structureTag: "cone-volume-radius",
+    stemPattern: "圆锥底面半径是 {{r}} 厘米，高是 {{h}} 厘米（π 取 3.14），它的体积是多少立方厘米？",
+    answerSpecPattern: numberAnswer("立方厘米"),
+    explanationPattern: "圆锥体积 = πr²h ÷ 3：3.14 × {{r}}² × {{h}} ÷ 3 = {{answer}} 立方厘米。",
+    variables: { r: [3, 5], h: [5, 12], answer: [47.1, 314] },
+  },
 ];
 
 export const phase2Catalog: ReviewedTemplate[] = catalogInputs.map(reviewed);
@@ -1522,6 +1578,7 @@ const skillDefinitions = {
   "check-strategy": ["检查策略", "thinking_habits"],
   "number-shape": ["数与形", "thinking_habits"],
   "negative-numbers": ["负数", "number_operations"],
+  "cylinder-cone": ["圆柱与圆锥", "geometry_space"],
 } as const satisfies Record<string, readonly [string, LearningDomain]>;
 
 export const phase2Skills = Object.entries(skillDefinitions).map(([code, [name, domain]]) => ({

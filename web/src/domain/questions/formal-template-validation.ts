@@ -501,6 +501,41 @@ const numericRules: NumericRule[] = [
     unit: "元",
     calculate: ([a, b, c]) => Number(a) + Number(b) - Number(c),
   },
+  {
+    pattern: /^圆柱底面周长是 (-?\d+(?:\.\d+)?) 厘米，高是 (-?\d+(?:\.\d+)?) 厘米，它的侧面积是多少平方厘米？$/,
+    unit: "平方厘米",
+    calculate: ([c, h]) => Number(c) * Number(h),
+  },
+  {
+    pattern: /^圆柱底面直径是 (-?\d+(?:\.\d+)?) 厘米，高是 (-?\d+(?:\.\d+)?) 厘米（π 取 3.14），它的侧面积是多少平方厘米？$/,
+    unit: "平方厘米",
+    calculate: ([d, h]) => 3.14 * Number(d) * Number(h),
+  },
+  {
+    pattern: /^圆柱底面半径是 (-?\d+(?:\.\d+)?) 厘米，高是 (-?\d+(?:\.\d+)?) 厘米（π 取 3.14），它的表面积是多少平方厘米？$/,
+    unit: "平方厘米",
+    calculate: ([r, h]) => 2 * 3.14 * Number(r) * Number(h) + 2 * 3.14 * Number(r) ** 2,
+  },
+  {
+    pattern: /^圆柱的底面积是 (-?\d+(?:\.\d+)?) 平方厘米，高是 (-?\d+(?:\.\d+)?) 厘米，它的体积是多少立方厘米？$/,
+    unit: "立方厘米",
+    calculate: ([s, h]) => Number(s) * Number(h),
+  },
+  {
+    pattern: /^圆柱底面半径是 (-?\d+(?:\.\d+)?) 厘米，高是 (-?\d+(?:\.\d+)?) 厘米（π 取 3.14），它的体积是多少立方厘米？$/,
+    unit: "立方厘米",
+    calculate: ([r, h]) => 3.14 * Number(r) ** 2 * Number(h),
+  },
+  {
+    pattern: /^圆锥的底面积是 (-?\d+(?:\.\d+)?) 平方厘米，高是 (-?\d+(?:\.\d+)?) 厘米，它的体积是多少立方厘米？$/,
+    unit: "立方厘米",
+    calculate: ([s, h]) => Number(s) * Number(h) / 3,
+  },
+  {
+    pattern: /^圆锥底面半径是 (-?\d+(?:\.\d+)?) 厘米，高是 (-?\d+(?:\.\d+)?) 厘米（π 取 3.14），它的体积是多少立方厘米？$/,
+    unit: "立方厘米",
+    calculate: ([r, h]) => 3.14 * Number(r) ** 2 * Number(h) / 3,
+  },
 ];
 
 function numberProof(stem: string): NumberProof | null {

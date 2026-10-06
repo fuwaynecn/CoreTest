@@ -62,6 +62,9 @@ const expectedIds = [
   "app-pcta-interest", "app-pcta-total",
   "app-neg-01", "app-neg-02", "app-neg-03", "app-neg-04",
   "app-neg-05", "app-neg-06", "app-neg-07",
+  "geo-cyl-lateral-c", "geo-cyl-lateral-d", "geo-cyl-surface",
+  "geo-cyl-volume-s", "geo-cyl-volume-r",
+  "geo-cone-volume-s", "geo-cone-volume-r",
 ];
 
 const regionalIds = [
@@ -85,19 +88,19 @@ function countBy<K extends "contentTier" | "domain" | "difficulty">(key: K) {
   }, {});
 }
 
-test("contains the approved exact 171-template blueprint", () => {
+test("contains the approved exact 178-template blueprint", () => {
   expect(phase2Catalog.map((template) => template.id)).toEqual(expectedIds);
-  expect(countBy("contentTier")).toEqual({ core: 146, regional: 18, transition: 7 });
-  expect(phase2Skills).toHaveLength(45);
+  expect(countBy("contentTier")).toEqual({ core: 153, regional: 18, transition: 7 });
+  expect(phase2Skills).toHaveLength(46);
   expect(countBy("domain")).toEqual({
     number_operations: 36,
     equation_algebra: 25,
-    geometry_space: 32,
+    geometry_space: 39,
     data_statistics: 22,
     application_modeling: 33,
     thinking_habits: 23,
   });
-  expect(countBy("difficulty")).toEqual({ 1: 31, 2: 68, 3: 51, 4: 21 });
+  expect(countBy("difficulty")).toEqual({ 1: 31, 2: 73, 3: 53, 4: 21 });
   expect(phase2Catalog.filter(({ contentTier }) => contentTier === "regional")
     .map(({ id }) => id)).toEqual(regionalIds);
   expect(phase2Catalog.filter(({ contentTier }) => contentTier === "transition")
@@ -237,7 +240,7 @@ test("rejects a wrong generated answer for every supported numeric template", ()
     && (template.answerSpecPattern as { kind?: string }).kind === "number"
   ));
 
-  expect(numberTemplates).toHaveLength(108);
+  expect(numberTemplates).toHaveLength(115);
   for (const template of numberTemplates) {
     const answers = template.variantSpec.variables.answer;
     const mutated = {
@@ -290,7 +293,7 @@ test("rejects a wrong unit for every canonical numeric target without metadata d
     (template.answerSpecPattern as { kind?: string }).kind === "number"
   ));
 
-  expect(numericTemplates).toHaveLength(123);
+  expect(numericTemplates).toHaveLength(130);
   for (const template of numericTemplates) {
     const answer = template.answerSpecPattern as {
       kind: "number"; value: unknown; tolerance: number; unit: string | null;
@@ -726,4 +729,31 @@ test("negative-numbers 锚定：温差错误答案与数 0 错误选项均被拒
   expect(validateCatalog([swappedChoice])).toEqual(expect.arrayContaining([
     expect.stringContaining("incorrect_choice_answer"),
   ]));
+});
+
+test("cylinder-cone 骨架与六下周序 5 schedule 对齐", () => {
+  expect(phase2Skills.map((skill) => skill.code)).toContain("cylinder-cone");
+  expect(pepSkillSchedule["cylinder-cone"]).toMatchObject({
+    grade: 6, semester: 2, expectedWeek: 5,
+  });
+});
+
+test("cylinder-cone 锚定：圆柱表面积与圆锥半径体积的错误答案均被拒绝", () => {
+  for (const id of ["geo-cyl-surface", "geo-cone-volume-r"]) {
+    const template = phase2Catalog.find((item) => item.id === id)!;
+    const wrongAnswer = {
+      ...template,
+      variantSpec: {
+        variables: {
+          ...template.variantSpec.variables,
+          answer: template.variantSpec.variables.answer
+            .map((value) => Number(value) + 999),
+        },
+      },
+    };
+
+    expect(validateCatalog([wrongAnswer]), id).toEqual(expect.arrayContaining([
+      expect.stringContaining("incorrect_number_answer"),
+    ]));
+  }
 });

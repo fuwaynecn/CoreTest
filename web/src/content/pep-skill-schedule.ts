@@ -62,4 +62,6 @@ export const pepSkillSchedule: Record<string, PepSkillScheduleEntry> = {
   equation: { grade: 5, semester: 1, expectedWeek: 12 },
   // 六下：负数。
   "negative-numbers": { grade: 6, semester: 2, expectedWeek: 1 },
+  // 六下：圆柱与圆锥。
+  "cylinder-cone": { grade: 6, semester: 2, expectedWeek: 5 },
 };
