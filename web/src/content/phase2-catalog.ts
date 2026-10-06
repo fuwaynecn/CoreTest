@@ -1084,12 +1084,15 @@ const skillDefinitions = {
   "composite-geometry": ["组合图形", "geometry_space"],
   spatial: ["空间观察", "geometry_space"],
   "length-conversion": ["长度单位换算", "geometry_space"],
+  "position-direction": ["位置与方向（二）", "geometry_space"],
+  circle: ["圆", "geometry_space"],
   "data-table": ["表格阅读", "data_statistics"],
   "data-bar": ["条形图", "data_statistics"],
   "data-line": ["折线图", "data_statistics"],
   "data-average": ["平均数", "data_statistics"],
   "data-compare": ["数据比较", "data_statistics"],
   possibility: ["可能性", "data_statistics"],
+  "pie-chart": ["扇形统计图", "data_statistics"],
   "price-model": ["价格模型", "application_modeling"],
   "distance-model": ["行程模型", "application_modeling"],
   "work-model": ["工程模型", "application_modeling"],
@@ -1102,6 +1105,7 @@ const skillDefinitions = {
   "unit-awareness": ["单位意识", "thinking_habits"],
   "estimate-check": ["估算检查", "thinking_habits"],
   "check-strategy": ["检查策略", "thinking_habits"],
+  "number-shape": ["数与形", "thinking_habits"],
 } as const satisfies Record<string, readonly [string, LearningDomain]>;
 
 export const phase2Skills = Object.entries(skillDefinitions).map(([code, [name, domain]]) => ({

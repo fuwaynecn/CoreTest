@@ -2,6 +2,7 @@ import { answerSpecSchema } from "@/domain/questions/answer-spec";
 import { instantiateTemplate } from "@/domain/questions/instantiate-template";
 import { validateCatalog } from "@/domain/questions/template-schema";
 import { phase2Catalog, phase2Skills } from "./phase2-catalog";
+import { pepSkillSchedule } from "./pep-skill-schedule";
 
 const expectedIds = [
   "num-int-mental-01", "num-int-mental-02",
@@ -67,7 +68,7 @@ function countBy<K extends "contentTier" | "domain" | "difficulty">(key: K) {
 test("contains the approved exact 120-template blueprint", () => {
   expect(phase2Catalog.map((template) => template.id)).toEqual(expectedIds);
   expect(countBy("contentTier")).toEqual({ core: 95, regional: 18, transition: 7 });
-  expect(phase2Skills).toHaveLength(38);
+  expect(phase2Skills).toHaveLength(42);
   expect(countBy("domain")).toEqual({
     number_operations: 23,
     equation_algebra: 25,
@@ -82,6 +83,24 @@ test("contains the approved exact 120-template blueprint", () => {
   expect(phase2Catalog.filter(({ contentTier }) => contentTier === "transition")
     .map(({ id }) => id)).toEqual(transitionIds);
   expect(validateCatalog(phase2Catalog)).toEqual([]);
+});
+
+test("includes the four grade-6 semester-1 skeleton skills with aligned schedule", () => {
+  const newCodes = ["position-direction", "circle", "pie-chart", "number-shape"];
+  expect(phase2Skills.map((skill) => skill.code)).toEqual(
+    expect.arrayContaining(newCodes),
+  );
+
+  const expectedSchedule = {
+    "position-direction": { grade: 6, semester: 1, expectedWeek: 4 },
+    circle: { grade: 6, semester: 1, expectedWeek: 9 },
+    "pie-chart": { grade: 6, semester: 1, expectedWeek: 16 },
+    "number-shape": { grade: 6, semester: 1, expectedWeek: 17 },
+  } as const;
+
+  for (const [code, expected] of Object.entries(expectedSchedule)) {
+    expect(pepSkillSchedule[code]).toMatchObject(expected);
+  }
 });
 
 test("declares reviewed incomplete-reading targets on actual reading templates", () => {

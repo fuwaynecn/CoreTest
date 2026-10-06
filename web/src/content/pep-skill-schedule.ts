@@ -28,12 +28,18 @@ export const pepSkillSchedule: Record<string, PepSkillScheduleEntry> = {
   "composite-geometry": { grade: 5, semester: 1, expectedWeek: 15 },
   spatial: { grade: 4, semester: 2, expectedWeek: 3 },
   "length-conversion": { grade: 3, semester: 1, expectedWeek: 5 },
+  // 六上：位置与方向（二）。
+  "position-direction": { grade: 6, semester: 1, expectedWeek: 4 },
+  // 六上：圆。
+  circle: { grade: 6, semester: 1, expectedWeek: 9 },
   "data-table": { grade: 3, semester: 2, expectedWeek: 7 },
   "data-bar": { grade: 4, semester: 1, expectedWeek: 14 },
   "data-line": { grade: 5, semester: 2, expectedWeek: 15 },
   "data-average": { grade: 4, semester: 2, expectedWeek: 15 },
   "data-compare": { grade: 4, semester: 2, expectedWeek: 17 },
   possibility: { grade: 5, semester: 1, expectedWeek: 9 },
+  // 六上：扇形统计图。
+  "pie-chart": { grade: 6, semester: 1, expectedWeek: 16 },
   "price-model": { grade: 4, semester: 1, expectedWeek: 8 },
   "distance-model": { grade: 4, semester: 1, expectedWeek: 9 },
   "work-model": { grade: 6, semester: 1, expectedWeek: 9 },
@@ -46,6 +52,8 @@ export const pepSkillSchedule: Record<string, PepSkillScheduleEntry> = {
   "unit-awareness": { grade: 2, semester: 2, expectedWeek: 8 },
   "estimate-check": { grade: 3, semester: 2, expectedWeek: 6 },
   "check-strategy": { grade: 3, semester: 2, expectedWeek: 8 },
+  // 六上：数学广角——数与形。
+  "number-shape": { grade: 6, semester: 1, expectedWeek: 17 },
   reading: { grade: 3, semester: 1, expectedWeek: 10 },
   equation: { grade: 5, semester: 1, expectedWeek: 12 },
 };
