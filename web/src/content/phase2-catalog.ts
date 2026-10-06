@@ -803,7 +803,7 @@ const catalogInputs: TemplateInput[] = [
     variables: { first: [2, 3, 5], second: [3, 5, 7], total: [500, 640, 720], drink: [40, 60, 75], answer: [160, 180, 225] },
   },
   {
-    id: "app-percent-01", skillCode: "percent-model", domain: "application_modeling",
+    id: "app-percent-01", skillCode: "percent-apply", domain: "application_modeling",
     difficulty: 3, structureTag: "percent-of", answerMode: "written",
     stemPattern: "{{object}}原价 {{original}} 元，按 {{percent}}% 计算折后价，折后是多少元？",
     answerSpecPattern: numberAnswer("元"),
@@ -883,7 +883,7 @@ const catalogInputs: TemplateInput[] = [
     variables: { object: ["黄、绿卡片", "白、蓝棋子", "红、蓝发圈"], unit: ["张", "枚", "个"], label: ["黄卡片", "白棋子", "红发圈"], redPart: [3, 4, 7], bluePart: [5, 6, 9], total: [32, 50, 80], answer: [12, 20, 35] },
   },
   {
-    id: "app-percent-03", skillCode: "percent-model", domain: "application_modeling",
+    id: "app-percent-03", skillCode: "percent-apply", domain: "application_modeling",
     difficulty: 3, structureTag: "percent-of", answerMode: "written",
     stemPattern: "{{object}}原价 {{original}} 元，按 {{percent}}% 计算折后价，折后是多少元？",
     answerSpecPattern: numberAnswer("元"),
@@ -1324,6 +1324,55 @@ const catalogInputs: TemplateInput[] = [
     explanationPattern: "求一个数的几分之几用乘法：{{n}} × {{fraction}} = {{answer}} 棵。",
     variables: { n: [200, 160, 240], fraction: ["2/5", "3/8", "3/4"], answer: [80, 60, 180] },
   },
+
+  {
+    id: "num-pctm-decimal", skillCode: "percent-model", domain: "number_operations",
+    difficulty: 1, structureTag: "decimal-to-percent",
+    stemPattern: "把 {{d}} 化成百分数，结果是百分之多少？",
+    answerSpecPattern: numberAnswer(),
+    explanationPattern: "小数化百分数，小数点右移两位：{{d}} = {{answer}}%。",
+    variables: { d: [0.75, 0.08, 1.2], answer: [75, 8, 120] },
+  },
+  {
+    id: "num-pctm-percent", skillCode: "percent-model", domain: "number_operations",
+    difficulty: 1, structureTag: "percent-to-decimal",
+    stemPattern: "把 {{p}}% 化成小数，结果是多少？",
+    answerSpecPattern: numberAnswer(),
+    explanationPattern: "百分数化小数，小数点左移两位：{{p}}% = {{answer}}。",
+    variables: { p: [25, 150, 8], answer: [0.25, 1.5, 0.08] },
+  },
+  {
+    id: "app-pctm-qualified", skillCode: "percent-model", domain: "application_modeling",
+    difficulty: 2, structureTag: "qualified-rate",
+    stemPattern: "抽检 {{total}} 个零件，其中 {{qualified}} 个合格，合格率是百分之多少？",
+    answerSpecPattern: numberAnswer(),
+    explanationPattern: "合格率 = 合格数 ÷ 总数 ×100 = {{answer}}%。",
+    variables: { total: [200, 80, 250], qualified: [190, 76, 240], answer: [95, 95, 96] },
+  },
+  {
+    id: "app-pctm-attendance", skillCode: "percent-model", domain: "application_modeling",
+    difficulty: 2, structureTag: "attendance-rate",
+    stemPattern: "班级应到 {{total}} 人，实到 {{present}} 人，出勤率是百分之多少？",
+    answerSpecPattern: numberAnswer(),
+    explanationPattern: "出勤率 = 实到人数 ÷ 应到人数 ×100 = {{answer}}%。",
+    variables: { total: [40, 50], present: [38, 49], answer: [95, 98] },
+  },
+  {
+    id: "num-pctm-of", skillCode: "percent-model", domain: "number_operations",
+    difficulty: 1, structureTag: "percent-of-number",
+    stemPattern: "{{n}} 的 {{p}}% 是多少？",
+    answerSpecPattern: numberAnswer(),
+    explanationPattern: "求一个数的百分之几用乘法：{{n}} × {{p}}% = {{answer}}。",
+    variables: { n: [80, 200, 60], p: [25, 15, 70], answer: [20, 30, 42] },
+  },
+  {
+    id: "app-pctm-choice", skillCode: "percent-model", domain: "application_modeling",
+    difficulty: 2, structureTag: "percent-inequality-choice", answerMode: "choice",
+    stemPattern: "下面哪一个数与 25% 不相等？ A. 2.5 B. 1/4 C. 0.25 D. 25/100",
+    answerSpecPattern: choiceAnswer("A"),
+    explanationPattern: "25% = 0.25 = 1/4 = 25/100；2.5 = 250%。",
+    variables: {},
+  },
 ];
 
 export const phase2Catalog: ReviewedTemplate[] = catalogInputs.map(reviewed);
@@ -1364,6 +1413,7 @@ const skillDefinitions = {
   "work-model": ["工程模型", "application_modeling"],
   "ratio-model": ["比与分配", "application_modeling"],
   "percent-model": ["百分数模型", "application_modeling"],
+  "percent-apply": ["百分数应用", "application_modeling"],
   "multi-step-model": ["多步应用", "application_modeling"],
   "extra-information": ["信息筛选", "application_modeling"],
   "read-question": ["辨认问题", "thinking_habits"],

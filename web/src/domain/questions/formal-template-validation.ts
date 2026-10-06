@@ -436,6 +436,26 @@ const numericRules: NumericRule[] = [
     unit: "棵",
     calculate: ([n, fraction]) => Number(n) * arithmeticValue(fraction),
   },
+  {
+    pattern: /^把 (-?\d+(?:\.\d+)?) 化成百分数，结果是百分之多少？$/, unit: null,
+    calculate: ([d]) => Number(d) * 100,
+  },
+  {
+    pattern: /^把 (-?\d+(?:\.\d+)?)% 化成小数，结果是多少？$/, unit: null,
+    calculate: ([p]) => Number(p) / 100,
+  },
+  {
+    pattern: /^抽检 (-?\d+(?:\.\d+)?) 个零件，其中 (-?\d+(?:\.\d+)?) 个合格，合格率是百分之多少？$/, unit: null,
+    calculate: ([total, qualified]) => Number(qualified) / Number(total) * 100,
+  },
+  {
+    pattern: /^班级应到 (-?\d+(?:\.\d+)?) 人，实到 (-?\d+(?:\.\d+)?) 人，出勤率是百分之多少？$/, unit: null,
+    calculate: ([total, present]) => Number(present) / Number(total) * 100,
+  },
+  {
+    pattern: /^(-?\d+(?:\.\d+)?) 的 (-?\d+(?:\.\d+)?)% 是多少？$/, unit: null,
+    calculate: ([n, p]) => Number(n) * Number(p) / 100,
+  },
 ];
 
 function numberProof(stem: string): NumberProof | null {
@@ -790,6 +810,9 @@ function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOptio
 
   match = question.match(/^按规律，第 4 个图形中一共有多少个小正方形？$/);
   if (match) return optionsEqualTo(options, "16 个（每边 4 个的正方形）");
+
+  match = question.match(/^下面哪一个数与 25% 不相等？$/);
+  if (match) return optionsEqualTo(options, "2.5");
 
   return null;
 }
