@@ -336,6 +336,36 @@ const numericRules: NumericRule[] = [
     unit: "厘米",
     calculate: ([meters, centimeters]) => Number(meters) * 100 - Number(centimeters),
   },
+  {
+    pattern: /^圆形纸片的半径是 (-?\d+(?:\.\d+)?) 厘米，直径是多少厘米？$/,
+    unit: "厘米",
+    calculate: ([r]) => 2 * Number(r),
+  },
+  {
+    pattern: /^圆形水池的直径是 (-?\d+(?:\.\d+)?) 米，半径是多少米？$/,
+    unit: "米",
+    calculate: ([d]) => Number(d) / 2,
+  },
+  {
+    pattern: /^圆形花坛的直径是 (-?\d+(?:\.\d+)?) 米（π 取 3.14），花坛的周长是多少米？$/,
+    unit: "米",
+    calculate: ([d]) => 3.14 * Number(d),
+  },
+  {
+    pattern: /^圆形钟面的半径是 (-?\d+(?:\.\d+)?) 厘米（π 取 3.14），钟面的周长是多少厘米？$/,
+    unit: "厘米",
+    calculate: ([r]) => 2 * 3.14 * Number(r),
+  },
+  {
+    pattern: /^圆形草坪的半径是 (-?\d+(?:\.\d+)?) 米（π 取 3.14），草坪的面积是多少平方米？$/,
+    unit: "平方米",
+    calculate: ([r]) => 3.14 * Number(r) ** 2,
+  },
+  {
+    pattern: /^圆形铁片外半径是 (-?\d+(?:\.\d+)?) 米、内半径是 (-?\d+(?:\.\d+)?) 米（π 取 3.14），圆环的面积是多少平方米？$/,
+    unit: "平方米",
+    calculate: ([R, r]) => 3.14 * (Number(R) ** 2 - Number(r) ** 2),
+  },
 ];
 
 function numberProof(stem: string): NumberProof | null {
@@ -658,6 +688,9 @@ function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOptio
       && checkIsTrue(evidence);
     return optionsEqualTo(options, evidenceSupports ? "两项检查都支持答案" : "证据互相矛盾，需重算");
   }
+
+  match = question.match(/^关于圆，下面哪一个说法是正确的？$/);
+  if (match) return optionsEqualTo(options, "同一个圆的直径长度是半径的2倍");
 
   return null;
 }
