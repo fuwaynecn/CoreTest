@@ -66,4 +66,6 @@ export const pepSkillSchedule: Record<string, PepSkillScheduleEntry> = {
   "cylinder-cone": { grade: 6, semester: 2, expectedWeek: 5 },
   // 六下：比例与比例尺。
   "proportion-scale": { grade: 6, semester: 2, expectedWeek: 10 },
+  // 六下：数学广角——鸽巢问题。
+  pigeonhole: { grade: 6, semester: 2, expectedWeek: 13 },
 };

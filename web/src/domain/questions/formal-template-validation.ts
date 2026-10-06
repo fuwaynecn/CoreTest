@@ -561,6 +561,36 @@ const numericRules: NumericRule[] = [
     unit: "厘米",
     calculate: ([n, km]) => Number(km) * 100000 / Number(n),
   },
+  {
+    pattern: /^把 (-?\d+(?:\.\d+)?) 个苹果放进 (-?\d+(?:\.\d+)?) 个抽屉，总有一个抽屉里至少放多少个苹果？$/,
+    unit: "个",
+    calculate: ([n, k]) => Math.ceil(Number(n) / Number(k)),
+  },
+  {
+    pattern: /^(-?\d+(?:\.\d+)?) 只鸽子飞回 (-?\d+(?:\.\d+)?) 个鸽巢，总有一个鸽巢至少飞回多少只鸽子？$/,
+    unit: "只",
+    calculate: ([n, k]) => Math.ceil(Number(n) / Number(k)),
+  },
+  {
+    pattern: /^(-?\d+(?:\.\d+)?) 名学生中，至少有多少名学生的生日在同一个月份？$/,
+    unit: "名",
+    calculate: ([n]) => Math.ceil(Number(n) / 12),
+  },
+  {
+    pattern: /^盒子里有 (-?\d+(?:\.\d+)?) 种不同颜色的球，至少摸出多少个球，才能保证摸出的球中有 2 个同色？$/,
+    unit: "个",
+    calculate: ([colors]) => Number(colors) + 1,
+  },
+  {
+    pattern: /^一副扑克牌去掉大小王后还有 4 种花色，至少抽出多少张牌，才能保证抽出的牌中有 (-?\d+(?:\.\d+)?) 张同一花色？$/,
+    unit: "张",
+    calculate: ([m]) => 4 * (Number(m) - 1) + 1,
+  },
+  {
+    pattern: /^把 (-?\d+(?:\.\d+)?) 本书分给 (-?\d+(?:\.\d+)?) 个班，总有一个班至少分到多少本书？$/,
+    unit: "本",
+    calculate: ([n, k]) => Math.ceil(Number(n) / Number(k)),
+  },
 ];
 
 function numberProof(stem: string): NumberProof | null {
@@ -927,6 +957,9 @@ function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOptio
 
   match = question.match(/^下面哪一组中的两个比可以组成比例？$/);
   if (match) return optionsEqualTo(options, "3：5 和 6：10");
+
+  match = question.match(/^把 5 支铅笔放进 4 个笔筒，下面哪个说法一定正确？$/);
+  if (match) return optionsEqualTo(options, "总有一个笔筒里至少有 2 支铅笔");
 
   return null;
 }

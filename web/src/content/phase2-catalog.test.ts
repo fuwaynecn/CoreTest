@@ -68,6 +68,9 @@ const expectedIds = [
   "num-prop-solve-1", "num-prop-solve-2", "num-prop-find-scale",
   "num-prop-real-distance", "num-prop-map-distance",
   "app-prop-direct", "app-prop-compose",
+  "app-pigeon-apple", "app-pigeon-bird", "app-pigeon-month",
+  "app-pigeon-colors", "app-pigeon-cards", "app-pigeon-books",
+  "app-pigeon-choice",
 ];
 
 const regionalIds = [
@@ -91,19 +94,19 @@ function countBy<K extends "contentTier" | "domain" | "difficulty">(key: K) {
   }, {});
 }
 
-test("contains the approved exact 185-template blueprint", () => {
+test("contains the approved exact 192-template blueprint", () => {
   expect(phase2Catalog.map((template) => template.id)).toEqual(expectedIds);
-  expect(countBy("contentTier")).toEqual({ core: 160, regional: 18, transition: 7 });
-  expect(phase2Skills).toHaveLength(47);
+  expect(countBy("contentTier")).toEqual({ core: 167, regional: 18, transition: 7 });
+  expect(phase2Skills).toHaveLength(48);
   expect(countBy("domain")).toEqual({
     number_operations: 43,
     equation_algebra: 25,
     geometry_space: 39,
     data_statistics: 22,
     application_modeling: 33,
-    thinking_habits: 23,
+    thinking_habits: 30,
   });
-  expect(countBy("difficulty")).toEqual({ 1: 31, 2: 76, 3: 57, 4: 21 });
+  expect(countBy("difficulty")).toEqual({ 1: 31, 2: 82, 3: 58, 4: 21 });
   expect(phase2Catalog.filter(({ contentTier }) => contentTier === "regional")
     .map(({ id }) => id)).toEqual(regionalIds);
   expect(phase2Catalog.filter(({ contentTier }) => contentTier === "transition")
@@ -221,7 +224,7 @@ test("rejects a wrong answer label for every canonical choice template", () => {
   const nextLabel = { A: "B", B: "C", C: "D", D: "A" } as const;
   const choiceTemplates = phase2Catalog.filter(({ answerMode }) => answerMode === "choice");
 
-  expect(choiceTemplates).toHaveLength(50);
+  expect(choiceTemplates).toHaveLength(51);
   for (const template of choiceTemplates) {
     const answer = template.answerSpecPattern as { kind: "choice"; value: keyof typeof nextLabel };
     const mutated = {
@@ -243,7 +246,7 @@ test("rejects a wrong generated answer for every supported numeric template", ()
     && (template.answerSpecPattern as { kind?: string }).kind === "number"
   ));
 
-  expect(numberTemplates).toHaveLength(120);
+  expect(numberTemplates).toHaveLength(126);
   for (const template of numberTemplates) {
     const answers = template.variantSpec.variables.answer;
     const mutated = {
@@ -296,7 +299,7 @@ test("rejects a wrong unit for every canonical numeric target without metadata d
     (template.answerSpecPattern as { kind?: string }).kind === "number"
   ));
 
-  expect(numericTemplates).toHaveLength(135);
+  expect(numericTemplates).toHaveLength(141);
   for (const template of numericTemplates) {
     const answer = template.answerSpecPattern as {
       kind: "number"; value: unknown; tolerance: number; unit: string | null;
@@ -777,6 +780,40 @@ test("proportion-scale 锚定：解比例错误答案与组成比例换项均被
   const composeTemplate = phase2Catalog.find(({ id }) => id === "app-prop-compose")!;
   const swappedChoice = {
     ...composeTemplate,
+    answerSpecPattern: { kind: "choice", value: "B" },
+  };
+
+  expect(validateCatalog([wrongNumber])).toEqual(expect.arrayContaining([
+    expect.stringContaining("incorrect_number_answer"),
+  ]));
+  expect(validateCatalog([swappedChoice])).toEqual(expect.arrayContaining([
+    expect.stringContaining("incorrect_choice_answer"),
+  ]));
+});
+
+test("pigeonhole 骨架与六下周序 13 schedule 对齐", () => {
+  expect(phase2Skills.map((skill) => skill.code)).toContain("pigeonhole");
+  expect(pepSkillSchedule.pigeonhole).toMatchObject({
+    grade: 6, semester: 2, expectedWeek: 13,
+  });
+});
+
+test("pigeonhole 锚定：月份错误答案与铅笔笔筒换项均被拒绝", () => {
+  const monthTemplate = phase2Catalog.find(({ id }) => id === "app-pigeon-month")!;
+  const wrongNumber = {
+    ...monthTemplate,
+    variantSpec: {
+      variables: {
+        ...monthTemplate.variantSpec.variables,
+        answer: monthTemplate.variantSpec.variables.answer
+          .map((value) => Number(value) + 1),
+      },
+    },
+  };
+
+  const choiceTemplate = phase2Catalog.find(({ id }) => id === "app-pigeon-choice")!;
+  const swappedChoice = {
+    ...choiceTemplate,
     answerSpecPattern: { kind: "choice", value: "B" },
   };
 

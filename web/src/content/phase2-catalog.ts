@@ -1584,6 +1584,62 @@ const catalogInputs: TemplateInput[] = [
     explanationPattern: "3：5 = 6：10，两外项积 3×10 = 两内项积 5×6 = 30，可以组成比例。",
     variables: {},
   },
+  {
+    id: "app-pigeon-apple", skillCode: "pigeonhole", domain: "thinking_habits",
+    difficulty: 2, structureTag: "pigeonhole-apples",
+    stemPattern: "把 {{n}} 个苹果放进 {{k}} 个抽屉，总有一个抽屉里至少放多少个苹果？",
+    answerSpecPattern: numberAnswer("个"),
+    explanationPattern: "平均分后有余数，余下的苹果还要放入抽屉，至少数 = ⌈{{n}}÷{{k}}⌉ = {{answer}} 个。",
+    variables: { n: [7, 10, 13], k: [3, 4, 4], answer: [3, 3, 4] },
+  },
+  {
+    id: "app-pigeon-bird", skillCode: "pigeonhole", domain: "thinking_habits",
+    difficulty: 2, structureTag: "pigeonhole-birds",
+    stemPattern: "{{n}} 只鸽子飞回 {{k}} 个鸽巢，总有一个鸽巢至少飞回多少只鸽子？",
+    answerSpecPattern: numberAnswer("只"),
+    explanationPattern: "至少数 = ⌈{{n}}÷{{k}}⌉ = {{answer}} 只。",
+    variables: { n: [11, 8], k: [4, 3], answer: [3, 3] },
+  },
+  {
+    id: "app-pigeon-month", skillCode: "pigeonhole", domain: "thinking_habits",
+    difficulty: 2, structureTag: "pigeonhole-months",
+    stemPattern: "{{n}} 名学生中，至少有多少名学生的生日在同一个月份？",
+    answerSpecPattern: numberAnswer("名"),
+    explanationPattern: "一年有 12 个月份，看作 12 个抽屉：⌈{{n}}÷12⌉ = {{answer}} 名。",
+    variables: { n: [13, 25, 40], answer: [2, 3, 4] },
+  },
+  {
+    id: "app-pigeon-colors", skillCode: "pigeonhole", domain: "thinking_habits",
+    difficulty: 2, structureTag: "pigeonhole-colors",
+    stemPattern: "盒子里有 {{colors}} 种不同颜色的球，至少摸出多少个球，才能保证摸出的球中有 2 个同色？",
+    answerSpecPattern: numberAnswer("个"),
+    explanationPattern: "最坏情况先每种颜色各摸 1 个，再摸 1 个必与其中一个同色：{{colors}} + 1 = {{answer}} 个。",
+    variables: { colors: [3, 4, 5], answer: [4, 5, 6] },
+  },
+  {
+    id: "app-pigeon-cards", skillCode: "pigeonhole", domain: "thinking_habits",
+    difficulty: 3, structureTag: "pigeonhole-cards",
+    stemPattern: "一副扑克牌去掉大小王后还有 4 种花色，至少抽出多少张牌，才能保证抽出的牌中有 {{m}} 张同一花色？",
+    answerSpecPattern: numberAnswer("张"),
+    explanationPattern: "最坏情况每种花色各抽到 {{m}}−1 张，再抽 1 张：4×({{m}}−1)+1 = {{answer}} 张。",
+    variables: { m: [2, 3, 4], answer: [5, 9, 13] },
+  },
+  {
+    id: "app-pigeon-books", skillCode: "pigeonhole", domain: "thinking_habits",
+    difficulty: 2, structureTag: "pigeonhole-books",
+    stemPattern: "把 {{n}} 本书分给 {{k}} 个班，总有一个班至少分到多少本书？",
+    answerSpecPattern: numberAnswer("本"),
+    explanationPattern: "至少数 = ⌈{{n}}÷{{k}}⌉ = {{answer}} 本。",
+    variables: { n: [10, 16], k: [3, 6], answer: [4, 3] },
+  },
+  {
+    id: "app-pigeon-choice", skillCode: "pigeonhole", domain: "thinking_habits",
+    difficulty: 2, structureTag: "pigeonhole-pencil-holders", answerMode: "choice",
+    stemPattern: "把 5 支铅笔放进 4 个笔筒，下面哪个说法一定正确？ A. 总有一个笔筒里至少有 2 支铅笔 B. 每个笔筒里都有 2 支铅笔 C. 一定有一个笔筒是空的 D. 铅笔最多的笔筒里有 5 支",
+    answerSpecPattern: choiceAnswer("A"),
+    explanationPattern: "5 支铅笔平均分进 4 个笔筒还余 1 支，所以总有一个笔筒至少有 2 支。",
+    variables: {},
+  },
 ];
 
 export const phase2Catalog: ReviewedTemplate[] = catalogInputs.map(reviewed);
@@ -1636,6 +1692,7 @@ const skillDefinitions = {
   "negative-numbers": ["负数", "number_operations"],
   "cylinder-cone": ["圆柱与圆锥", "geometry_space"],
   "proportion-scale": ["比例与比例尺", "number_operations"],
+  pigeonhole: ["鸽巢问题", "thinking_habits"],
 } as const satisfies Record<string, readonly [string, LearningDomain]>;
 
 export const phase2Skills = Object.entries(skillDefinitions).map(([code, [name, domain]]) => ({
