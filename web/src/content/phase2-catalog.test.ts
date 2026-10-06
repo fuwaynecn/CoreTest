@@ -71,6 +71,8 @@ const expectedIds = [
   "app-pigeon-apple", "app-pigeon-bird", "app-pigeon-month",
   "app-pigeon-colors", "app-pigeon-cards", "app-pigeon-books",
   "app-pigeon-choice",
+  "app-work-04", "app-work-05", "app-work-06", "app-work-07",
+  "app-ratio-04", "app-ratio-05", "app-ratio-06", "app-ratio-07",
 ];
 
 const regionalIds = [
@@ -94,19 +96,19 @@ function countBy<K extends "contentTier" | "domain" | "difficulty">(key: K) {
   }, {});
 }
 
-test("contains the approved exact 192-template blueprint", () => {
+test("contains the approved exact 200-template blueprint", () => {
   expect(phase2Catalog.map((template) => template.id)).toEqual(expectedIds);
-  expect(countBy("contentTier")).toEqual({ core: 167, regional: 18, transition: 7 });
+  expect(countBy("contentTier")).toEqual({ core: 175, regional: 18, transition: 7 });
   expect(phase2Skills).toHaveLength(48);
   expect(countBy("domain")).toEqual({
     number_operations: 43,
     equation_algebra: 25,
     geometry_space: 39,
     data_statistics: 22,
-    application_modeling: 33,
+    application_modeling: 41,
     thinking_habits: 30,
   });
-  expect(countBy("difficulty")).toEqual({ 1: 31, 2: 82, 3: 58, 4: 21 });
+  expect(countBy("difficulty")).toEqual({ 1: 31, 2: 85, 3: 63, 4: 21 });
   expect(phase2Catalog.filter(({ contentTier }) => contentTier === "regional")
     .map(({ id }) => id)).toEqual(regionalIds);
   expect(phase2Catalog.filter(({ contentTier }) => contentTier === "transition")
@@ -224,7 +226,7 @@ test("rejects a wrong answer label for every canonical choice template", () => {
   const nextLabel = { A: "B", B: "C", C: "D", D: "A" } as const;
   const choiceTemplates = phase2Catalog.filter(({ answerMode }) => answerMode === "choice");
 
-  expect(choiceTemplates).toHaveLength(51);
+  expect(choiceTemplates).toHaveLength(53);
   for (const template of choiceTemplates) {
     const answer = template.answerSpecPattern as { kind: "choice"; value: keyof typeof nextLabel };
     const mutated = {
@@ -246,7 +248,7 @@ test("rejects a wrong generated answer for every supported numeric template", ()
     && (template.answerSpecPattern as { kind?: string }).kind === "number"
   ));
 
-  expect(numberTemplates).toHaveLength(126);
+  expect(numberTemplates).toHaveLength(132);
   for (const template of numberTemplates) {
     const answers = template.variantSpec.variables.answer;
     const mutated = {
@@ -299,7 +301,7 @@ test("rejects a wrong unit for every canonical numeric target without metadata d
     (template.answerSpecPattern as { kind?: string }).kind === "number"
   ));
 
-  expect(numericTemplates).toHaveLength(141);
+  expect(numericTemplates).toHaveLength(147);
   for (const template of numericTemplates) {
     const answer = template.answerSpecPattern as {
       kind: "number"; value: unknown; tolerance: number; unit: string | null;
@@ -823,4 +825,36 @@ test("pigeonhole 锚定：月份错误答案与铅笔笔筒换项均被拒绝", 
   expect(validateCatalog([swappedChoice])).toEqual(expect.arrayContaining([
     expect.stringContaining("incorrect_choice_answer"),
   ]));
+});
+
+test("work-model 与 ratio-model 周序修正对齐六上分数除法例 7 与比单元", () => {
+  expect(pepSkillSchedule["work-model"]).toMatchObject({
+    grade: 6, semester: 1, expectedWeek: 7,
+  });
+  expect(pepSkillSchedule["ratio-model"]).toMatchObject({
+    grade: 6, semester: 1, expectedWeek: 8,
+  });
+});
+
+test("新模板锚定：app-work-04 与 app-ratio-05 的错误数字答案均被拒绝", () => {
+  for (const id of ["app-work-04", "app-ratio-05"]) {
+    const template = phase2Catalog.find((item) => item.id === id);
+    expect(template, id).toBeDefined();
+    if (!template) continue;
+
+    const wrongAnswer = {
+      ...template,
+      variantSpec: {
+        variables: {
+          ...template.variantSpec.variables,
+          answer: template.variantSpec.variables.answer
+            .map((value) => Number(value) + 999),
+        },
+      },
+    };
+
+    expect(validateCatalog([wrongAnswer]), id).toEqual(expect.arrayContaining([
+      expect.stringContaining("incorrect_number_answer"),
+    ]));
+  }
 });

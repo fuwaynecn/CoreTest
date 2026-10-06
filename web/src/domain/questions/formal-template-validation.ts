@@ -591,6 +591,41 @@ const numericRules: NumericRule[] = [
     unit: "本",
     calculate: ([n, k]) => Math.ceil(Number(n) / Number(k)),
   },
+  {
+    pattern: /^一项工程，甲队单独做 (-?\d+(?:\.\d+)?) 天完成，乙队单独做 (-?\d+(?:\.\d+)?) 天完成。两队合作，多少天可以完成？$/,
+    unit: "天",
+    calculate: ([a, b]) => Number(a) * Number(b) / (Number(a) + Number(b)),
+  },
+  {
+    pattern: /^一项工程，甲队单独做 (-?\d+(?:\.\d+)?) 天完成，乙队单独做 (-?\d+(?:\.\d+)?) 天完成。两队合作 (-?\d+(?:\.\d+)?) 天完成了这项工程的多少（把结果写成小数）？$/,
+    unit: null,
+    calculate: ([a, b, t]) => Number(t) * (1 / Number(a) + 1 / Number(b)),
+  },
+  {
+    pattern: /^一个水池单开进水管 (-?\d+(?:\.\d+)?) 小时可将空池注满，单开出水管 (-?\d+(?:\.\d+)?) 小时可将满池水排空。两管同时打开，多少小时能把空池注满？$/,
+    unit: "小时",
+    calculate: ([a, b]) => 1 / (1 / Number(a) - 1 / Number(b)),
+  },
+  {
+    pattern: /^用一根长 (-?\d+(?:\.\d+)?) 厘米的铁丝围成一个三角形，三条边的长度比是 (-?\d+(?:\.\d+)?):(-?\d+(?:\.\d+)?):(-?\d+(?:\.\d+)?)，最短的一条边长多少厘米？$/,
+    unit: "厘米",
+    calculate: ([total, p1, p2, p3]) => {
+      const parts = [Number(p1), Number(p2), Number(p3)];
+      return Number(total) * Math.min(...parts) / parts.reduce((s, v) => s + v, 0);
+    },
+  },
+  {
+    pattern: /^甲、乙两个数的比是 (-?\d+(?:\.\d+)?):(-?\d+(?:\.\d+)?)，甲数比乙数大 (-?\d+(?:\.\d+)?)，甲数是多少？$/,
+    unit: null,
+    calculate: ([a, b, diff]) => Number(diff) * Number(a) / (Number(a) - Number(b)),
+  },
+  {
+    pattern: /^学校把一批图书按 (-?\d+(?:\.\d+)?):(-?\d+(?:\.\d+)?):(-?\d+(?:\.\d+)?) 分给四、五、六年级，五年级分到 (-?\d+(?:\.\d+)?) 本，这批图书共有多少本？$/,
+    unit: "本",
+    calculate: ([p1, p2, p3, known]) => (
+      Number(known) * (Number(p1) + Number(p2) + Number(p3)) / Number(p2)
+    ),
+  },
 ];
 
 function numberProof(stem: string): NumberProof | null {
@@ -960,6 +995,12 @@ function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOptio
 
   match = question.match(/^把 5 支铅笔放进 4 个笔筒，下面哪个说法一定正确？$/);
   if (match) return optionsEqualTo(options, "总有一个笔筒里至少有 2 支铅笔");
+
+  match = question.match(/^解决工程问题时，通常把这项工程的工作总量看作什么？$/);
+  if (match) return optionsEqualTo(options, "单位 1");
+
+  match = question.match(/^比的前项和后项同时乘同一个不为 0 的数，比值会怎样？$/);
+  if (match) return optionsEqualTo(options, "不变");
 
   return null;
 }

@@ -44,8 +44,8 @@ export const pepSkillSchedule: Record<string, PepSkillScheduleEntry> = {
   "pie-chart": { grade: 6, semester: 1, expectedWeek: 16 },
   "price-model": { grade: 4, semester: 1, expectedWeek: 8 },
   "distance-model": { grade: 4, semester: 1, expectedWeek: 9 },
-  "work-model": { grade: 6, semester: 1, expectedWeek: 9 },
-  "ratio-model": { grade: 6, semester: 1, expectedWeek: 11 },
+  "work-model": { grade: 6, semester: 1, expectedWeek: 7 },
+  "ratio-model": { grade: 6, semester: 1, expectedWeek: 8 },
   "percent-model": { grade: 6, semester: 1, expectedWeek: 15 },
   // 六下：百分数（二）——折扣、成数、税率、利率等应用。
   "percent-apply": { grade: 6, semester: 2, expectedWeek: 3 },
