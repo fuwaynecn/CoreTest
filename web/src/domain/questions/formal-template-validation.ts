@@ -366,6 +366,16 @@ const numericRules: NumericRule[] = [
     unit: "平方米",
     calculate: ([R, r]) => 3.14 * (Number(R) ** 2 - Number(r) ** 2),
   },
+  {
+    pattern: /^小丽从家出发，先向正东走 (-?\d+(?:\.\d+)?) 米，再向正北走 (-?\d+(?:\.\d+)?) 米到达公园。她一共走了多少米？$/,
+    unit: "米",
+    calculate: ([a, b]) => Number(a) + Number(b),
+  },
+  {
+    pattern: /^研学路线的三段路分别长 (-?\d+(?:\.\d+)?) 米、(-?\d+(?:\.\d+)?) 米、(-?\d+(?:\.\d+)?) 米，路线全长多少米？$/,
+    unit: "米",
+    calculate: ([a, b, c]) => Number(a) + Number(b) + Number(c),
+  },
 ];
 
 function numberProof(stem: string): NumberProof | null {
@@ -691,6 +701,23 @@ function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOptio
 
   match = question.match(/^关于圆，下面哪一个说法是正确的？$/);
   if (match) return optionsEqualTo(options, "同一个圆的直径长度是半径的2倍");
+
+  match = question.match(/^学校在小明家(北|南|东|西)偏(东|西|北|南) (\d+)° 方向上，那么小明家在学校的什么方向？$/);
+  if (match) {
+    const opposite = { 北: "南", 南: "北", 东: "西", 西: "东" } as const;
+    const first = match[1] as keyof typeof opposite;
+    const second = match[2] as keyof typeof opposite;
+    return optionsEqualTo(options, `${opposite[first]}偏${opposite[second]} ${match[3]}°`);
+  }
+
+  match = question.match(/^小丽从家出发，先向正东走 \d+ 米，再向正北走 \d+ 米到达学校。学校在小丽家的什么方向？$/);
+  if (match) return optionsEqualTo(options, "东北方向");
+
+  match = question.match(/^小丽从家出发，先向正东走 \d+ 米，再向正北走 \d+ 米到达学校。她从学校原路返回家时，先走的方向是？$/);
+  if (match) return optionsEqualTo(options, "正南");
+
+  match = question.match(/^公园在学校的北偏西 (\d+)° 方向，书店在学校的南偏东 (\d+)° 方向。公园和书店分别在学校的哪一侧？$/);
+  if (match) return optionsEqualTo(options, "西北侧和东南侧");
 
   return null;
 }

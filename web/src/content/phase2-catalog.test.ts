@@ -45,6 +45,9 @@ const expectedIds = [
   "geo-circle-radius-diameter", "geo-circle-diameter-radius",
   "geo-circle-circumference-d", "geo-circle-circumference-r",
   "geo-circle-area", "geo-circle-ring-area", "geo-circle-concept-choice",
+  "geo-pd-relative-1", "geo-pd-relative-2", "geo-pd-sides",
+  "geo-pd-route", "geo-pd-return", "geo-pd-route-length",
+  "geo-pd-three-length",
 ];
 
 const regionalIds = [
@@ -68,19 +71,19 @@ function countBy<K extends "contentTier" | "domain" | "difficulty">(key: K) {
   }, {});
 }
 
-test("contains the approved exact 127-template blueprint", () => {
+test("contains the approved exact 134-template blueprint", () => {
   expect(phase2Catalog.map((template) => template.id)).toEqual(expectedIds);
-  expect(countBy("contentTier")).toEqual({ core: 102, regional: 18, transition: 7 });
+  expect(countBy("contentTier")).toEqual({ core: 109, regional: 18, transition: 7 });
   expect(phase2Skills).toHaveLength(42);
   expect(countBy("domain")).toEqual({
     number_operations: 23,
     equation_algebra: 25,
-    geometry_space: 25,
+    geometry_space: 32,
     data_statistics: 15,
     application_modeling: 23,
     thinking_habits: 16,
   });
-  expect(countBy("difficulty")).toEqual({ 1: 18, 2: 44, 3: 44, 4: 21 });
+  expect(countBy("difficulty")).toEqual({ 1: 21, 2: 48, 3: 44, 4: 21 });
   expect(phase2Catalog.filter(({ contentTier }) => contentTier === "regional")
     .map(({ id }) => id)).toEqual(regionalIds);
   expect(phase2Catalog.filter(({ contentTier }) => contentTier === "transition")
@@ -198,7 +201,7 @@ test("rejects a wrong answer label for every canonical choice template", () => {
   const nextLabel = { A: "B", B: "C", C: "D", D: "A" } as const;
   const choiceTemplates = phase2Catalog.filter(({ answerMode }) => answerMode === "choice");
 
-  expect(choiceTemplates).toHaveLength(37);
+  expect(choiceTemplates).toHaveLength(42);
   for (const template of choiceTemplates) {
     const answer = template.answerSpecPattern as { kind: "choice"; value: keyof typeof nextLabel };
     const mutated = {
@@ -220,7 +223,7 @@ test("rejects a wrong generated answer for every supported numeric template", ()
     && (template.answerSpecPattern as { kind?: string }).kind === "number"
   ));
 
-  expect(numberTemplates).toHaveLength(75);
+  expect(numberTemplates).toHaveLength(77);
   for (const template of numberTemplates) {
     const answers = template.variantSpec.variables.answer;
     const mutated = {
@@ -273,7 +276,7 @@ test("rejects a wrong unit for every canonical numeric target without metadata d
     (template.answerSpecPattern as { kind?: string }).kind === "number"
   ));
 
-  expect(numericTemplates).toHaveLength(90);
+  expect(numericTemplates).toHaveLength(92);
   for (const template of numericTemplates) {
     const answer = template.answerSpecPattern as {
       kind: "number"; value: unknown; tolerance: number; unit: string | null;
@@ -498,5 +501,34 @@ test("flags a changed correct option on the circle concept choice template", () 
 
   expect(validateCatalog([changedCorrectOption])).toEqual(expect.arrayContaining([
     expect.stringContaining("incorrect_choice_answer"),
+  ]));
+});
+
+test("flags a changed correct option text on the position relative template", () => {
+  const template = phase2Catalog.find(({ id }) => id === "geo-pd-relative-1")!;
+  const changedCorrectOption = {
+    ...template,
+    stemPattern: template.stemPattern.replace("南偏西 {{deg}}°", "西偏南 {{deg}}°"),
+  };
+
+  expect(validateCatalog([changedCorrectOption])).toEqual(expect.arrayContaining([
+    expect.stringContaining("incorrect_choice_answer"),
+  ]));
+});
+
+test("flags a wrong numeric answer on the position route length template", () => {
+  const template = phase2Catalog.find(({ id }) => id === "geo-pd-route-length")!;
+  const wrongAnswer = {
+    ...template,
+    variantSpec: {
+      variables: {
+        ...template.variantSpec.variables,
+        answer: template.variantSpec.variables.answer.map((value) => Number(value) + 999),
+      },
+    },
+  };
+
+  expect(validateCatalog([wrongAnswer])).toEqual(expect.arrayContaining([
+    expect.stringContaining("incorrect_number_answer"),
   ]));
 });
