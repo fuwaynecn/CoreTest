@@ -58,6 +58,8 @@ const expectedIds = [
   "num-pctm-decimal", "num-pctm-percent",
   "app-pctm-qualified", "app-pctm-attendance",
   "num-pctm-of", "app-pctm-choice",
+  "app-pcta-discount", "app-pcta-cheng", "app-pcta-tax",
+  "app-pcta-interest", "app-pcta-total",
 ];
 
 const regionalIds = [
@@ -81,19 +83,19 @@ function countBy<K extends "contentTier" | "domain" | "difficulty">(key: K) {
   }, {});
 }
 
-test("contains the approved exact 159-template blueprint", () => {
+test("contains the approved exact 164-template blueprint", () => {
   expect(phase2Catalog.map((template) => template.id)).toEqual(expectedIds);
-  expect(countBy("contentTier")).toEqual({ core: 134, regional: 18, transition: 7 });
+  expect(countBy("contentTier")).toEqual({ core: 139, regional: 18, transition: 7 });
   expect(phase2Skills).toHaveLength(44);
   expect(countBy("domain")).toEqual({
     number_operations: 29,
     equation_algebra: 25,
     geometry_space: 32,
     data_statistics: 22,
-    application_modeling: 28,
+    application_modeling: 33,
     thinking_habits: 23,
   });
-  expect(countBy("difficulty")).toEqual({ 1: 28, 2: 62, 3: 48, 4: 21 });
+  expect(countBy("difficulty")).toEqual({ 1: 28, 2: 64, 3: 51, 4: 21 });
   expect(phase2Catalog.filter(({ contentTier }) => contentTier === "regional")
     .map(({ id }) => id)).toEqual(regionalIds);
   expect(phase2Catalog.filter(({ contentTier }) => contentTier === "transition")
@@ -233,7 +235,7 @@ test("rejects a wrong generated answer for every supported numeric template", ()
     && (template.answerSpecPattern as { kind?: string }).kind === "number"
   ));
 
-  expect(numberTemplates).toHaveLength(97);
+  expect(numberTemplates).toHaveLength(102);
   for (const template of numberTemplates) {
     const answers = template.variantSpec.variables.answer;
     const mutated = {
@@ -286,7 +288,7 @@ test("rejects a wrong unit for every canonical numeric target without metadata d
     (template.answerSpecPattern as { kind?: string }).kind === "number"
   ));
 
-  expect(numericTemplates).toHaveLength(112);
+  expect(numericTemplates).toHaveLength(117);
   for (const template of numericTemplates) {
     const answer = template.answerSpecPattern as {
       kind: "number"; value: unknown; tolerance: number; unit: string | null;
@@ -677,5 +679,22 @@ test("flags a swapped choice answer on the percent-model inequality choice templ
 
   expect(validateCatalog([swappedChoice])).toEqual(expect.arrayContaining([
     expect.stringContaining("incorrect_choice_answer"),
+  ]));
+});
+
+test("flags a wrong numeric answer on the percent-apply interest template", () => {
+  const template = phase2Catalog.find((item) => item.id === "app-pcta-interest")!;
+  const wrongAnswer = {
+    ...template,
+    variantSpec: {
+      variables: {
+        ...template.variantSpec.variables,
+        answer: template.variantSpec.variables.answer.map((value) => Number(value) + 999),
+      },
+    },
+  };
+
+  expect(validateCatalog([wrongAnswer])).toEqual(expect.arrayContaining([
+    expect.stringContaining("incorrect_number_answer"),
   ]));
 });

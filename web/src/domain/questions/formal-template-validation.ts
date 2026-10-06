@@ -456,6 +456,26 @@ const numericRules: NumericRule[] = [
     pattern: /^(-?\d+(?:\.\d+)?) 的 (-?\d+(?:\.\d+)?)% 是多少？$/, unit: null,
     calculate: ([n, p]) => Number(n) * Number(p) / 100,
   },
+  {
+    pattern: /^一件商品原价 (-?\d+(?:\.\d+)?) 元，商店打 (-?\d+(?:\.\d+)?) 折出售，现价是多少元？$/, unit: "元",
+    calculate: ([n, zhe]) => Number(n) * Number(zhe) / 10,
+  },
+  {
+    pattern: /^去年产量 (-?\d+(?:\.\d+)?) 吨，今年比去年增产 (-?\d+(?:\.\d+)?) 成，今年产量是多少吨？$/, unit: "吨",
+    calculate: ([n, cheng]) => Number(n) * (1 + Number(cheng) / 10),
+  },
+  {
+    pattern: /^商店五月份营业额为 (-?\d+(?:\.\d+)?) 元，按营业额的 (-?\d+(?:\.\d+)?)% 缴纳增值税，应纳税额是多少元？$/, unit: "元",
+    calculate: ([n, p]) => Number(n) * Number(p) / 100,
+  },
+  {
+    pattern: /^小明把 (-?\d+(?:\.\d+)?) 元压岁钱存入银行，年利率是 (-?\d+(?:\.\d+)?)%，存期 (-?\d+(?:\.\d+)?) 年，到期利息是多少元？$/, unit: "元",
+    calculate: ([n, p, t]) => Number(n) * Number(p) / 100 * Number(t),
+  },
+  {
+    pattern: /^本金 (-?\d+(?:\.\d+)?) 元，年利率 (-?\d+(?:\.\d+)?)%，存 (-?\d+(?:\.\d+)?) 年后，本金和利息一共是多少元？$/, unit: "元",
+    calculate: ([n, p, t]) => Number(n) + Number(n) * Number(p) / 100 * Number(t),
+  },
 ];
 
 function numberProof(stem: string): NumberProof | null {

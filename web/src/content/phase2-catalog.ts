@@ -1373,6 +1373,47 @@ const catalogInputs: TemplateInput[] = [
     explanationPattern: "25% = 0.25 = 1/4 = 25/100；2.5 = 250%。",
     variables: {},
   },
+
+  {
+    id: "app-pcta-discount", skillCode: "percent-apply", domain: "application_modeling",
+    difficulty: 2, structureTag: "discount-zhe",
+    stemPattern: "一件商品原价 {{n}} 元，商店打 {{zhe}} 折出售，现价是多少元？",
+    answerSpecPattern: numberAnswer("元"),
+    explanationPattern: "几折就是十分之几：{{n}} × {{zhe}}/10 = {{answer}} 元。",
+    variables: { n: [200, 80, 150], zhe: [8, 7, 9], answer: [160, 56, 135] },
+  },
+  {
+    id: "app-pcta-cheng", skillCode: "percent-apply", domain: "application_modeling",
+    difficulty: 2, structureTag: "chengshu",
+    stemPattern: "去年产量 {{n}} 吨，今年比去年增产 {{cheng}} 成，今年产量是多少吨？",
+    answerSpecPattern: numberAnswer("吨"),
+    explanationPattern: "增产几成就是增产十分之几：{{n}} × (1 + {{cheng}}/10) = {{answer}} 吨。",
+    variables: { n: [200, 300], cheng: [2, 3], answer: [240, 390] },
+  },
+  {
+    id: "app-pcta-tax", skillCode: "percent-apply", domain: "application_modeling",
+    difficulty: 3, structureTag: "tax",
+    stemPattern: "商店五月份营业额为 {{n}} 元，按营业额的 {{p}}% 缴纳增值税，应纳税额是多少元？",
+    answerSpecPattern: numberAnswer("元"),
+    explanationPattern: "应纳税额 = 营业额 × 税率：{{n}} × {{p}}% = {{answer}} 元。",
+    variables: { n: [80000, 60000], p: [3, 5], answer: [2400, 3000] },
+  },
+  {
+    id: "app-pcta-interest", skillCode: "percent-apply", domain: "application_modeling",
+    difficulty: 3, structureTag: "interest",
+    stemPattern: "小明把 {{n}} 元压岁钱存入银行，年利率是 {{p}}%，存期 {{t}} 年，到期利息是多少元？",
+    answerSpecPattern: numberAnswer("元"),
+    explanationPattern: "利息 = 本金 × 年利率 × 存期：{{n}} × {{p}}% × {{t}} = {{answer}} 元。",
+    variables: { n: [2000, 5000], p: [3, 2], t: [2, 3], answer: [120, 300] },
+  },
+  {
+    id: "app-pcta-total", skillCode: "percent-apply", domain: "application_modeling",
+    difficulty: 3, structureTag: "principal-plus-interest",
+    stemPattern: "本金 {{n}} 元，年利率 {{p}}%，存 {{t}} 年后，本金和利息一共是多少元？",
+    answerSpecPattern: numberAnswer("元"),
+    explanationPattern: "本息合计 = 本金 + 利息 = {{n}} + {{n}}×{{p}}%×{{t}} = {{answer}} 元。",
+    variables: { n: [1000, 4000], p: [2, 3], t: [1, 2], answer: [1020, 4240] },
+  },
 ];
 
 export const phase2Catalog: ReviewedTemplate[] = catalogInputs.map(reviewed);
