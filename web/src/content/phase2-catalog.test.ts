@@ -50,6 +50,9 @@ const expectedIds = [
   "geo-pd-three-length",
   "data-pie-read-people", "data-pie-books", "data-pie-total-reverse",
   "data-pie-diff", "data-pie-expense", "data-pie-choose", "data-pie-judge",
+  "think-ns-odd-sum", "think-ns-square-dots", "think-ns-triangle-dots",
+  "think-ns-fraction-sum", "think-ns-l-layers",
+  "think-ns-dot-explain", "think-ns-next-figure",
 ];
 
 const regionalIds = [
@@ -73,9 +76,9 @@ function countBy<K extends "contentTier" | "domain" | "difficulty">(key: K) {
   }, {});
 }
 
-test("contains the approved exact 141-template blueprint", () => {
+test("contains the approved exact 148-template blueprint", () => {
   expect(phase2Catalog.map((template) => template.id)).toEqual(expectedIds);
-  expect(countBy("contentTier")).toEqual({ core: 116, regional: 18, transition: 7 });
+  expect(countBy("contentTier")).toEqual({ core: 123, regional: 18, transition: 7 });
   expect(phase2Skills).toHaveLength(42);
   expect(countBy("domain")).toEqual({
     number_operations: 23,
@@ -83,9 +86,9 @@ test("contains the approved exact 141-template blueprint", () => {
     geometry_space: 32,
     data_statistics: 22,
     application_modeling: 23,
-    thinking_habits: 16,
+    thinking_habits: 23,
   });
-  expect(countBy("difficulty")).toEqual({ 1: 24, 2: 52, 3: 44, 4: 21 });
+  expect(countBy("difficulty")).toEqual({ 1: 25, 2: 56, 3: 46, 4: 21 });
   expect(phase2Catalog.filter(({ contentTier }) => contentTier === "regional")
     .map(({ id }) => id)).toEqual(regionalIds);
   expect(phase2Catalog.filter(({ contentTier }) => contentTier === "transition")
@@ -203,7 +206,7 @@ test("rejects a wrong answer label for every canonical choice template", () => {
   const nextLabel = { A: "B", B: "C", C: "D", D: "A" } as const;
   const choiceTemplates = phase2Catalog.filter(({ answerMode }) => answerMode === "choice");
 
-  expect(choiceTemplates).toHaveLength(44);
+  expect(choiceTemplates).toHaveLength(46);
   for (const template of choiceTemplates) {
     const answer = template.answerSpecPattern as { kind: "choice"; value: keyof typeof nextLabel };
     const mutated = {
@@ -225,7 +228,7 @@ test("rejects a wrong generated answer for every supported numeric template", ()
     && (template.answerSpecPattern as { kind?: string }).kind === "number"
   ));
 
-  expect(numberTemplates).toHaveLength(82);
+  expect(numberTemplates).toHaveLength(87);
   for (const template of numberTemplates) {
     const answers = template.variantSpec.variables.answer;
     const mutated = {
@@ -278,7 +281,7 @@ test("rejects a wrong unit for every canonical numeric target without metadata d
     (template.answerSpecPattern as { kind?: string }).kind === "number"
   ));
 
-  expect(numericTemplates).toHaveLength(97);
+  expect(numericTemplates).toHaveLength(102);
   for (const template of numericTemplates) {
     const answer = template.answerSpecPattern as {
       kind: "number"; value: unknown; tolerance: number; unit: string | null;
@@ -554,6 +557,35 @@ test("flags a wrong numeric answer on the pie reverse-total template", () => {
 
 test("flags a swapped choice answer on the pie choose template", () => {
   const template = phase2Catalog.find(({ id }) => id === "data-pie-choose")!;
+  const swappedChoice = {
+    ...template,
+    answerSpecPattern: { kind: "choice", value: "B" },
+  };
+
+  expect(validateCatalog([swappedChoice])).toEqual(expect.arrayContaining([
+    expect.stringContaining("incorrect_choice_answer"),
+  ]));
+});
+
+test("flags a wrong numeric answer on the number-shape triangle dots template", () => {
+  const template = phase2Catalog.find(({ id }) => id === "think-ns-triangle-dots")!;
+  const wrongAnswer = {
+    ...template,
+    variantSpec: {
+      variables: {
+        ...template.variantSpec.variables,
+        answer: template.variantSpec.variables.answer.map((value) => Number(value) + 1),
+      },
+    },
+  };
+
+  expect(validateCatalog([wrongAnswer])).toEqual(expect.arrayContaining([
+    expect.stringContaining("incorrect_number_answer"),
+  ]));
+});
+
+test("flags a swapped choice answer on the number-shape dot explain template", () => {
+  const template = phase2Catalog.find(({ id }) => id === "think-ns-dot-explain")!;
   const swappedChoice = {
     ...template,
     answerSpecPattern: { kind: "choice", value: "B" },

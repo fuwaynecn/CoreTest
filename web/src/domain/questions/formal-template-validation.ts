@@ -401,6 +401,31 @@ const numericRules: NumericRule[] = [
     unit: "元",
     calculate: ([n, p]) => Number(n) * Number(p) / 100,
   },
+  {
+    pattern: /^从 1 开始的连续奇数相加：1\+3\+\.\.\.\+(-?\d+(?:\.\d+)?)，共有 (-?\d+(?:\.\d+)?) 个奇数相加，和是多少？$/,
+    unit: null,
+    calculate: ([last, n]) => Number(n) ** 2,
+  },
+  {
+    pattern: /^正方形点阵每边有 (-?\d+(?:\.\d+)?) 个点，点阵中一共有多少个点？$/,
+    unit: null,
+    calculate: ([n]) => Number(n) ** 2,
+  },
+  {
+    pattern: /^三角形点阵第 (-?\d+(?:\.\d+)?) 个图形的最下面一层有 (-?\d+(?:\.\d+)?) 个点，点阵点数一共是多少？$/,
+    unit: null,
+    calculate: ([n]) => Number(n) * (Number(n) + 1) / 2,
+  },
+  {
+    pattern: /^按图形不断等分：1\/2\+1\/4\+\.\.\.\+1\/(-?\d+(?:\.\d+)?)（最后一个分母是 2 的幂），把结果写成小数。$/,
+    unit: null,
+    calculate: ([denom]) => 1 - 1 / Number(denom),
+  },
+  {
+    pattern: /^第 (-?\d+(?:\.\d+)?) 个大正方形由每层折 L 形小正方形拼成（第 1 层 1 个、第 2 层 3 个……），到第 (-?\d+(?:\.\d+)?) 层一共用了多少个小正方形？$/,
+    unit: null,
+    calculate: ([_, n]) => Number(n) ** 2,
+  },
 ];
 
 function numberProof(stem: string): NumberProof | null {
@@ -749,6 +774,12 @@ function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOptio
 
   match = question.match(/^扇形统计图显示：阅读占 40%、运动占 35%、艺术占 25%。下面哪个说法正确？$/);
   if (match) return optionsEqualTo(options, "喜欢阅读的人数占比最大");
+
+  match = question.match(/^用点阵图解释“1\+3\+5=9”，下面哪个图形正确？$/);
+  if (match) return optionsEqualTo(options, "每边 3 个点的正方形点阵");
+
+  match = question.match(/^按规律，第 4 个图形中一共有多少个小正方形？$/);
+  if (match) return optionsEqualTo(options, "16 个（每边 4 个的正方形）");
 
   return null;
 }
