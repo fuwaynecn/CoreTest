@@ -476,6 +476,31 @@ const numericRules: NumericRule[] = [
     pattern: /^本金 (-?\d+(?:\.\d+)?) 元，年利率 (-?\d+(?:\.\d+)?)%，存 (-?\d+(?:\.\d+)?) 年后，本金和利息一共是多少元？$/, unit: "元",
     calculate: ([n, p, t]) => Number(n) + Number(n) * Number(p) / 100 * Number(t),
   },
+  {
+    pattern: /^甲地气温是 (-?\d+(?:\.\d+)?) ℃，乙地气温是 (-?\d+(?:\.\d+)?) ℃，两地气温相差多少摄氏度？$/,
+    unit: "摄氏度",
+    calculate: ([a, b]) => Math.abs(Number(a) - Number(b)),
+  },
+  {
+    pattern: /^数轴上点 A 表示 (-?\d+(?:\.\d+)?)，点 B 表示 (-?\d+(?:\.\d+)?)，A、B 两点相距多少？$/,
+    unit: null,
+    calculate: ([a, b]) => Math.abs(Number(a) - Number(b)),
+  },
+  {
+    pattern: /^珠穆朗玛峰海拔约 (-?\d+(?:\.\d+)?) 米，吐鲁番盆地海拔约 (-?\d+(?:\.\d+)?) 米，两地海拔相差多少米？$/,
+    unit: "米",
+    calculate: ([a, b]) => Number(a) - Number(b),
+  },
+  {
+    pattern: /^在 (-?\d+(?:\.\d+)?(?:、-?\d+(?:\.\d+)?){2,}) 这些数中，负数有多少个？$/,
+    unit: null,
+    calculate: ([list]) => list.split("、").filter((v) => Number(v) < 0).length,
+  },
+  {
+    pattern: /^小明的微信钱包原有 (-?\d+(?:\.\d+)?) 元，收到红包 (-?\d+(?:\.\d+)?) 元后又购物支出 (-?\d+(?:\.\d+)?) 元，余额变化记作多少元？$/,
+    unit: "元",
+    calculate: ([a, b, c]) => Number(a) + Number(b) - Number(c),
+  },
 ];
 
 function numberProof(stem: string): NumberProof | null {
@@ -833,6 +858,9 @@ function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOptio
 
   match = question.match(/^下面哪一个数与 25% 不相等？$/);
   if (match) return optionsEqualTo(options, "2.5");
+
+  match = question.match(/^关于数 0，下面哪一个说法是正确的？$/);
+  if (match) return optionsEqualTo(options, "0 既不是正数，也不是负数");
 
   return null;
 }

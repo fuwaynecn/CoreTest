@@ -1414,6 +1414,64 @@ const catalogInputs: TemplateInput[] = [
     explanationPattern: "本息合计 = 本金 + 利息 = {{n}} + {{n}}×{{p}}%×{{t}} = {{answer}} 元。",
     variables: { n: [1000, 4000], p: [2, 3], t: [1, 2], answer: [1020, 4240] },
   },
+
+  // 六下：负数。
+  {
+    id: "app-neg-01", skillCode: "negative-numbers", domain: "number_operations",
+    difficulty: 1, structureTag: "temperature-diff",
+    stemPattern: "甲地气温是 {{a}} ℃，乙地气温是 {{b}} ℃，两地气温相差多少摄氏度？",
+    answerSpecPattern: numberAnswer("摄氏度"),
+    explanationPattern: "温差是两地气温之差的绝对值：|{{a}} − {{b}}| = {{answer}} 摄氏度。",
+    variables: { a: [8, -5, -3], b: [-2, 12, -12], answer: [10, 17, 9] },
+  },
+  {
+    id: "app-neg-02", skillCode: "negative-numbers", domain: "number_operations",
+    difficulty: 1, structureTag: "number-line-distance",
+    stemPattern: "数轴上点 A 表示 {{a}}，点 B 表示 {{b}}，A、B 两点相距多少？",
+    answerSpecPattern: numberAnswer(null),
+    explanationPattern: "两点距离是坐标之差的绝对值：|{{a}} − {{b}}| = {{answer}}。",
+    variables: { a: [-3, 2], b: [4, -6], answer: [7, 8] },
+  },
+  {
+    id: "app-neg-03", skillCode: "negative-numbers", domain: "number_operations",
+    difficulty: 2, structureTag: "altitude-diff",
+    stemPattern: "珠穆朗玛峰海拔约 {{a}} 米，吐鲁番盆地海拔约 {{b}} 米，两地海拔相差多少米？",
+    answerSpecPattern: numberAnswer("米"),
+    explanationPattern: "海拔差 = 珠峰海拔 − 盆地海拔：{{a}} − ({{b}}) = {{answer}} 米。",
+    variables: { a: [8848, 8844], b: [-155, -154], answer: [9003, 8998] },
+  },
+  {
+    id: "app-neg-04", skillCode: "negative-numbers", domain: "number_operations",
+    difficulty: 2, structureTag: "count-negative",
+    stemPattern: "在 {{list}} 这些数中，负数有多少个？",
+    answerSpecPattern: numberAnswer(null),
+    explanationPattern: "小于 0 的数是负数，逐个检查共有 {{answer}} 个。",
+    variables: { list: ["-3、0、5", "-2、-7、0、9", "-1、3、-5、8、0"], answer: [1, 2, 2] },
+  },
+  {
+    id: "app-neg-05", skillCode: "negative-numbers", domain: "number_operations",
+    difficulty: 2, structureTag: "signed-balance",
+    stemPattern: "小明的微信钱包原有 {{a}} 元，收到红包 {{b}} 元后又购物支出 {{c}} 元，余额变化记作多少元？",
+    answerSpecPattern: numberAnswer("元"),
+    explanationPattern: "余额 = 原有 + 收入 − 支出：{{a}} + {{b}} − {{c}} = {{answer}} 元。",
+    variables: { a: [100, 50], b: [20, 30], c: [45, 80], answer: [75, 0] },
+  },
+  {
+    id: "app-neg-06", skillCode: "negative-numbers", domain: "number_operations",
+    difficulty: 1, structureTag: "zero-concept-choice", answerMode: "choice",
+    stemPattern: "关于数 0，下面哪一个说法是正确的？ A. 0 既不是正数，也不是负数 B. 0 是正数 C. 0 是负数 D. 0 比所有负数都小",
+    answerSpecPattern: choiceAnswer("A"),
+    explanationPattern: "0 是正负数的分界，它本身既不是正数也不是负数。",
+    variables: {},
+  },
+  {
+    id: "app-neg-07", skillCode: "negative-numbers", domain: "number_operations",
+    difficulty: 2, structureTag: "signed-add-sub",
+    stemPattern: "计算 {{expression}}，把结果写成小数。",
+    answerSpecPattern: numberAnswer(null),
+    explanationPattern: "按有理数加减法则计算，结果是 {{answer}}。",
+    variables: { expression: ["(-3) + (-5)", "(-8) - (-3)", "12 + (-7)"], answer: [-8, -5, 5] },
+  },
 ];
 
 export const phase2Catalog: ReviewedTemplate[] = catalogInputs.map(reviewed);
@@ -1463,6 +1521,7 @@ const skillDefinitions = {
   "estimate-check": ["估算检查", "thinking_habits"],
   "check-strategy": ["检查策略", "thinking_habits"],
   "number-shape": ["数与形", "thinking_habits"],
+  "negative-numbers": ["负数", "number_operations"],
 } as const satisfies Record<string, readonly [string, LearningDomain]>;
 
 export const phase2Skills = Object.entries(skillDefinitions).map(([code, [name, domain]]) => ({
