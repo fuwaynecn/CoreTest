@@ -13,8 +13,8 @@
 
 ## 前置确认
 
-- [ ] Wayne 提供现有孩子的正式登录名（小写，匹配 `^[a-z][a-z0-9_.]{1,31}$`）。
-- [ ] 确认孩子年级（迁移时为六年级）。
+- [x] Wayne 提供现有孩子的正式登录名：`daisy`（小写，2026-10-01 确认）。
+- [x] 确认孩子年级：六年级。
 - [ ] 确认维护窗口：迁移期间应用应短暂停服或只读。
 
 ## 上线步骤
@@ -41,10 +41,10 @@ docker cp math-trainer:/app/data/math-trainer.sqlite \
 
 ```bash
 docker exec math-trainer node scripts/migrate-multi-family.ts \
-  --child-login-name=<Wayne提供的登录名> --child-grade=6
+  --child-login-name=daisy --child-grade=6
 ```
 
-预期输出：`多家庭结构升级完成：孩子登录名 <name>，年级 6`。
+预期输出：`多家庭结构升级完成：孩子登录名 daisy，年级 6`。
 
 迁移内容：
 - 家长置为 `login_name='admin'`、管理员；
@@ -64,7 +64,7 @@ docker exec math-trainer node scripts/migrate-multi-family.ts \
 - [ ] `https://math.fubee.cn/login`：家长用 `admin` + 家长密码登录，看到孩子列表。
 - [ ] 点「学习情况」看到原仪表盘全部历史数据（证据、周报、诊断、计划）。
 - [ ] 点「题库设置」看到分组知识点与三态开关；试一次「关闭 → 恢复自动」。
-- [ ] 孩子用新登录名 + PIN 登录，训练与诊断正常出题。
+- [ ] 孩子用 `daisy` + PIN 登录，训练与诊断正常出题。
 - [ ] 被关闭的知识点不出现在当天出题中。
 - [ ] 管理员页：`/parent/calendar`、`/parent/settings` 可访问。
 
