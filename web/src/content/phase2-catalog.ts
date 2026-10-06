@@ -141,7 +141,7 @@ const catalogInputs: TemplateInput[] = [
     variables: { prompt: ["先通分再算"], expression: ["1/2 + 1/4", "2/3 - 1/6", "3/4 - 2/5"], answer: [0.75, 0.5, 0.35] },
   },
   {
-    id: "num-fraction-03", skillCode: "fraction", domain: "number_operations",
+    id: "num-fraction-03", skillCode: "fraction-ops", domain: "number_operations",
     difficulty: 3, structureTag: "fraction-of-quantity", answerMode: "written",
     stemPattern: "求 {{whole}} 的 {{fraction}} 是多少。",
     answerSpecPattern: numberAnswer(),
@@ -231,12 +231,12 @@ const catalogInputs: TemplateInput[] = [
     variables: { left: [7.2, 12.6, 18.9], right: [0.9, 1.4, 2.1], answer: [8, 9, 9] },
   },
   {
-    id: "num-fraction-04", skillCode: "fraction", domain: "number_operations",
+    id: "num-fraction-04", skillCode: "fraction-ops", domain: "number_operations",
     difficulty: 3, structureTag: "fraction-multiply", answerMode: "written",
     stemPattern: "计算 {{expression}}，把结果写成小数。",
     answerSpecPattern: numberAnswer(),
     explanationPattern: "先约分或通分，再完成分数运算，结果等于 {{answer}}。",
-    variables: { expression: ["2/3 × 3/4", "5/6 - 1/3", "7/10 + 1/5"], answer: [0.5, 0.5, 0.9] },
+    variables: { expression: ["2/3 × 3/4", "4/5 × 1/2", "3/8 × 4/5"], answer: [0.5, 0.4, 0.3] },
   },
   {
     id: "num-mixed-03", skillCode: "mixed-operations", domain: "number_operations",
@@ -1284,6 +1284,46 @@ const catalogInputs: TemplateInput[] = [
     explanationPattern: "图形序列为每边 1、2、3、4 个的正方形，第 4 个有 4²=16 个。",
     variables: {},
   },
+  {
+    id: "num-fracops-01", skillCode: "fraction-ops", domain: "number_operations",
+    difficulty: 2, structureTag: "frac-times-int", answerMode: "written",
+    stemPattern: "计算 {{expression}}，把结果写成小数。",
+    answerSpecPattern: numberAnswer(),
+    explanationPattern: "整数与分子相乘、分母不变，再化成小数，结果是 {{answer}}。",
+    variables: { expression: ["2/5 × 3", "3/4 × 2", "5/8 × 4"], answer: [1.2, 1.5, 2.5] },
+  },
+  {
+    id: "num-fracops-02", skillCode: "fraction-ops", domain: "number_operations",
+    difficulty: 2, structureTag: "frac-times-frac", answerMode: "written",
+    stemPattern: "计算 {{expression}}，把结果写成小数。",
+    answerSpecPattern: numberAnswer(),
+    explanationPattern: "分子乘分子、分母乘分母，先约分再化成小数，结果是 {{answer}}。",
+    variables: { expression: ["1/2 × 2/5", "3/4 × 4/5", "2/3 × 3/8"], answer: [0.2, 0.6, 0.25] },
+  },
+  {
+    id: "num-fracops-03", skillCode: "fraction-ops", domain: "number_operations",
+    difficulty: 3, structureTag: "frac-divide", answerMode: "written",
+    stemPattern: "计算 {{expression}}，把结果写成小数。",
+    answerSpecPattern: numberAnswer(),
+    explanationPattern: "除以一个分数等于乘它的倒数，结果是 {{answer}}。",
+    variables: { expression: ["（1/2）÷（1/4）", "（2/3）÷（4/9）", "（3/5）÷（6/5）"], answer: [2, 1.5, 0.5] },
+  },
+  {
+    id: "app-fracops-04", skillCode: "fraction-ops", domain: "application_modeling",
+    difficulty: 3, structureTag: "frac-find-total", answerMode: "written",
+    stemPattern: "果园里梨树有 {{a}} 棵，占果树总棵数的 {{fraction}}，果园共有果树多少棵？",
+    answerSpecPattern: numberAnswer("棵"),
+    explanationPattern: "总棵数 = 梨树棵数 ÷ 对应分率：{{a}} ÷ {{fraction}} = {{answer}} 棵。",
+    variables: { a: [60, 45, 72], fraction: ["3/5", "3/8", "2/3"], answer: [100, 120, 108] },
+  },
+  {
+    id: "app-fracops-05", skillCode: "fraction-ops", domain: "application_modeling",
+    difficulty: 2, structureTag: "frac-of-total", answerMode: "written",
+    stemPattern: "果园共有果树 {{n}} 棵，其中梨树占 {{fraction}}，梨树有多少棵？",
+    answerSpecPattern: numberAnswer("棵"),
+    explanationPattern: "求一个数的几分之几用乘法：{{n}} × {{fraction}} = {{answer}} 棵。",
+    variables: { n: [200, 160, 240], fraction: ["2/5", "3/8", "3/4"], answer: [80, 60, 180] },
+  },
 ];
 
 export const phase2Catalog: ReviewedTemplate[] = catalogInputs.map(reviewed);
@@ -1292,6 +1332,7 @@ const skillDefinitions = {
   "integer-mental": ["整数口算", "number_operations"],
   decimal: ["小数运算", "number_operations"],
   fraction: ["分数运算", "number_operations"],
+  "fraction-ops": ["分数乘除与分数应用题", "number_operations"],
   "mixed-operations": ["混合运算", "number_operations"],
   "operation-law": ["运算律", "number_operations"],
   estimate: ["估算", "number_operations"],

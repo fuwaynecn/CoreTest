@@ -11,6 +11,8 @@ export const pepSkillSchedule: Record<string, PepSkillScheduleEntry> = {
   "integer-mental": { grade: 3, semester: 1, expectedWeek: 3 },
   decimal: { grade: 4, semester: 2, expectedWeek: 14, note: "临时值：含五上小数乘除，Plan 2 拆分" },
   fraction: { grade: 5, semester: 2, expectedWeek: 15, note: "临时值：含六上乘除，Plan 2 拆分" },
+  // 六上：分数乘除与分数应用题。
+  "fraction-ops": { grade: 6, semester: 1, expectedWeek: 7 },
   "mixed-operations": { grade: 4, semester: 1, expectedWeek: 6 },
   "operation-law": { grade: 4, semester: 2, expectedWeek: 10 },
   estimate: { grade: 3, semester: 1, expectedWeek: 12 },

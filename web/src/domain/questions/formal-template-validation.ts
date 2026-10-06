@@ -426,6 +426,16 @@ const numericRules: NumericRule[] = [
     unit: null,
     calculate: ([_, n]) => Number(n) ** 2,
   },
+  {
+    pattern: /^果园里梨树有 (-?\d+(?:\.\d+)?) 棵，占果树总棵数的 ([\d./]+)，果园共有果树多少棵？$/,
+    unit: "棵",
+    calculate: ([a, fraction]) => Number(a) / arithmeticValue(fraction),
+  },
+  {
+    pattern: /^果园共有果树 (-?\d+(?:\.\d+)?) 棵，其中梨树占 ([\d./]+)，梨树有多少棵？$/,
+    unit: "棵",
+    calculate: ([n, fraction]) => Number(n) * arithmeticValue(fraction),
+  },
 ];
 
 function numberProof(stem: string): NumberProof | null {

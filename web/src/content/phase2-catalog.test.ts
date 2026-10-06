@@ -53,6 +53,8 @@ const expectedIds = [
   "think-ns-odd-sum", "think-ns-square-dots", "think-ns-triangle-dots",
   "think-ns-fraction-sum", "think-ns-l-layers",
   "think-ns-dot-explain", "think-ns-next-figure",
+  "num-fracops-01", "num-fracops-02", "num-fracops-03",
+  "app-fracops-04", "app-fracops-05",
 ];
 
 const regionalIds = [
@@ -76,19 +78,19 @@ function countBy<K extends "contentTier" | "domain" | "difficulty">(key: K) {
   }, {});
 }
 
-test("contains the approved exact 148-template blueprint", () => {
+test("contains the approved exact 153-template blueprint", () => {
   expect(phase2Catalog.map((template) => template.id)).toEqual(expectedIds);
-  expect(countBy("contentTier")).toEqual({ core: 123, regional: 18, transition: 7 });
-  expect(phase2Skills).toHaveLength(42);
+  expect(countBy("contentTier")).toEqual({ core: 128, regional: 18, transition: 7 });
+  expect(phase2Skills).toHaveLength(43);
   expect(countBy("domain")).toEqual({
-    number_operations: 23,
+    number_operations: 26,
     equation_algebra: 25,
     geometry_space: 32,
     data_statistics: 22,
-    application_modeling: 23,
+    application_modeling: 25,
     thinking_habits: 23,
   });
-  expect(countBy("difficulty")).toEqual({ 1: 25, 2: 56, 3: 46, 4: 21 });
+  expect(countBy("difficulty")).toEqual({ 1: 25, 2: 59, 3: 48, 4: 21 });
   expect(phase2Catalog.filter(({ contentTier }) => contentTier === "regional")
     .map(({ id }) => id)).toEqual(regionalIds);
   expect(phase2Catalog.filter(({ contentTier }) => contentTier === "transition")
@@ -228,7 +230,7 @@ test("rejects a wrong generated answer for every supported numeric template", ()
     && (template.answerSpecPattern as { kind?: string }).kind === "number"
   ));
 
-  expect(numberTemplates).toHaveLength(87);
+  expect(numberTemplates).toHaveLength(92);
   for (const template of numberTemplates) {
     const answers = template.variantSpec.variables.answer;
     const mutated = {
@@ -281,7 +283,7 @@ test("rejects a wrong unit for every canonical numeric target without metadata d
     (template.answerSpecPattern as { kind?: string }).kind === "number"
   ));
 
-  expect(numericTemplates).toHaveLength(102);
+  expect(numericTemplates).toHaveLength(107);
   for (const template of numericTemplates) {
     const answer = template.answerSpecPattern as {
       kind: "number"; value: unknown; tolerance: number; unit: string | null;
@@ -594,4 +596,41 @@ test("flags a swapped choice answer on the number-shape dot explain template", (
   expect(validateCatalog([swappedChoice])).toEqual(expect.arrayContaining([
     expect.stringContaining("incorrect_choice_answer"),
   ]));
+});
+
+test("拆分后无悬空引用：每个模板的 skillCode 都有对应 skill", () => {
+  const skillCodes = new Set(phase2Skills.map((skill) => skill.code));
+  const dangling = phase2Catalog
+    .filter((template) => !skillCodes.has(template.skillCode))
+    .map((template) => template.id);
+  expect(dangling).toEqual([]);
+});
+
+test("fraction 拆分映射与 schedule 对齐", () => {
+  const skillOf = (id: string) => phase2Catalog.find((template) => template.id === id)?.skillCode;
+  expect(skillOf("num-fraction-01")).toBe("fraction");
+  expect(skillOf("num-fraction-02")).toBe("fraction");
+  expect(skillOf("num-fraction-03")).toBe("fraction-ops");
+  expect(skillOf("num-fraction-04")).toBe("fraction-ops");
+  expect(pepSkillSchedule.fraction).toMatchObject({ grade: 5, semester: 2, expectedWeek: 15 });
+  expect(pepSkillSchedule["fraction-ops"]).toMatchObject({ grade: 6, semester: 1, expectedWeek: 7 });
+});
+
+test("flags wrong numeric answers on the fraction-ops application and calculation templates", () => {
+  for (const id of ["app-fracops-04", "num-fracops-02"]) {
+    const template = phase2Catalog.find((item) => item.id === id)!;
+    const wrongAnswer = {
+      ...template,
+      variantSpec: {
+        variables: {
+          ...template.variantSpec.variables,
+          answer: template.variantSpec.variables.answer.map((value) => Number(value) + 999),
+        },
+      },
+    };
+
+    expect(validateCatalog([wrongAnswer]), id).toEqual(expect.arrayContaining([
+      expect.stringContaining("incorrect_number_answer"),
+    ]));
+  }
 });
