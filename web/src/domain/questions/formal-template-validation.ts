@@ -536,6 +536,31 @@ const numericRules: NumericRule[] = [
     unit: "立方厘米",
     calculate: ([r, h]) => 3.14 * Number(r) ** 2 * Number(h) / 3,
   },
+  {
+    pattern: /^解比例 x：(-?\d+(?:\.\d+)?) = (-?\d+(?:\.\d+)?)：(-?\d+(?:\.\d+)?)，x 等于多少？$/,
+    unit: null,
+    calculate: ([a, b, c]) => Number(a) * Number(b) / Number(c),
+  },
+  {
+    pattern: /^解比例 (-?\d+(?:\.\d+)?)：x = (-?\d+(?:\.\d+)?)：(-?\d+(?:\.\d+)?)，x 等于多少？$/,
+    unit: null,
+    calculate: ([a, b, c]) => Number(a) * Number(c) / Number(b),
+  },
+  {
+    pattern: /^图上 (-?\d+(?:\.\d+)?) 厘米表示实际 (-?\d+(?:\.\d+)?) 千米，这幅图的比例尺是 1 比多少？$/,
+    unit: null,
+    calculate: ([cm, km]) => Number(km) * 100000 / Number(cm),
+  },
+  {
+    pattern: /^一幅地图的比例尺是 1：(-?\d+(?:\.\d+)?)，量得图上距离是 (-?\d+(?:\.\d+)?) 厘米，实际距离是多少千米？$/,
+    unit: "千米",
+    calculate: ([n, cm]) => Number(n) * Number(cm) / 100000,
+  },
+  {
+    pattern: /^一幅地图的比例尺是 1：(-?\d+(?:\.\d+)?)，实际距离是 (-?\d+(?:\.\d+)?) 千米，图上距离是多少厘米？$/,
+    unit: "厘米",
+    calculate: ([n, km]) => Number(km) * 100000 / Number(n),
+  },
 ];
 
 function numberProof(stem: string): NumberProof | null {
@@ -896,6 +921,12 @@ function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOptio
 
   match = question.match(/^关于数 0，下面哪一个说法是正确的？$/);
   if (match) return optionsEqualTo(options, "0 既不是正数，也不是负数");
+
+  match = question.match(/^单价一定时，总价与数量成什么比例？$/);
+  if (match) return optionsEqualTo(options, "正比例");
+
+  match = question.match(/^下面哪一组中的两个比可以组成比例？$/);
+  if (match) return optionsEqualTo(options, "3：5 和 6：10");
 
   return null;
 }

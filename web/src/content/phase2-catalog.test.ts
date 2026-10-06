@@ -65,6 +65,9 @@ const expectedIds = [
   "geo-cyl-lateral-c", "geo-cyl-lateral-d", "geo-cyl-surface",
   "geo-cyl-volume-s", "geo-cyl-volume-r",
   "geo-cone-volume-s", "geo-cone-volume-r",
+  "num-prop-solve-1", "num-prop-solve-2", "num-prop-find-scale",
+  "num-prop-real-distance", "num-prop-map-distance",
+  "app-prop-direct", "app-prop-compose",
 ];
 
 const regionalIds = [
@@ -88,19 +91,19 @@ function countBy<K extends "contentTier" | "domain" | "difficulty">(key: K) {
   }, {});
 }
 
-test("contains the approved exact 178-template blueprint", () => {
+test("contains the approved exact 185-template blueprint", () => {
   expect(phase2Catalog.map((template) => template.id)).toEqual(expectedIds);
-  expect(countBy("contentTier")).toEqual({ core: 153, regional: 18, transition: 7 });
-  expect(phase2Skills).toHaveLength(46);
+  expect(countBy("contentTier")).toEqual({ core: 160, regional: 18, transition: 7 });
+  expect(phase2Skills).toHaveLength(47);
   expect(countBy("domain")).toEqual({
-    number_operations: 36,
+    number_operations: 43,
     equation_algebra: 25,
     geometry_space: 39,
     data_statistics: 22,
     application_modeling: 33,
     thinking_habits: 23,
   });
-  expect(countBy("difficulty")).toEqual({ 1: 31, 2: 73, 3: 53, 4: 21 });
+  expect(countBy("difficulty")).toEqual({ 1: 31, 2: 76, 3: 57, 4: 21 });
   expect(phase2Catalog.filter(({ contentTier }) => contentTier === "regional")
     .map(({ id }) => id)).toEqual(regionalIds);
   expect(phase2Catalog.filter(({ contentTier }) => contentTier === "transition")
@@ -218,7 +221,7 @@ test("rejects a wrong answer label for every canonical choice template", () => {
   const nextLabel = { A: "B", B: "C", C: "D", D: "A" } as const;
   const choiceTemplates = phase2Catalog.filter(({ answerMode }) => answerMode === "choice");
 
-  expect(choiceTemplates).toHaveLength(48);
+  expect(choiceTemplates).toHaveLength(50);
   for (const template of choiceTemplates) {
     const answer = template.answerSpecPattern as { kind: "choice"; value: keyof typeof nextLabel };
     const mutated = {
@@ -240,7 +243,7 @@ test("rejects a wrong generated answer for every supported numeric template", ()
     && (template.answerSpecPattern as { kind?: string }).kind === "number"
   ));
 
-  expect(numberTemplates).toHaveLength(115);
+  expect(numberTemplates).toHaveLength(120);
   for (const template of numberTemplates) {
     const answers = template.variantSpec.variables.answer;
     const mutated = {
@@ -293,7 +296,7 @@ test("rejects a wrong unit for every canonical numeric target without metadata d
     (template.answerSpecPattern as { kind?: string }).kind === "number"
   ));
 
-  expect(numericTemplates).toHaveLength(130);
+  expect(numericTemplates).toHaveLength(135);
   for (const template of numericTemplates) {
     const answer = template.answerSpecPattern as {
       kind: "number"; value: unknown; tolerance: number; unit: string | null;
@@ -756,4 +759,31 @@ test("cylinder-cone 锚定：圆柱表面积与圆锥半径体积的错误答案
       expect.stringContaining("incorrect_number_answer"),
     ]));
   }
+});
+
+test("proportion-scale 锚定：解比例错误答案与组成比例换项均被拒绝", () => {
+  const solveTemplate = phase2Catalog.find(({ id }) => id === "num-prop-solve-1")!;
+  const wrongNumber = {
+    ...solveTemplate,
+    variantSpec: {
+      variables: {
+        ...solveTemplate.variantSpec.variables,
+        answer: solveTemplate.variantSpec.variables.answer
+          .map((value) => Number(value) + 999),
+      },
+    },
+  };
+
+  const composeTemplate = phase2Catalog.find(({ id }) => id === "app-prop-compose")!;
+  const swappedChoice = {
+    ...composeTemplate,
+    answerSpecPattern: { kind: "choice", value: "B" },
+  };
+
+  expect(validateCatalog([wrongNumber])).toEqual(expect.arrayContaining([
+    expect.stringContaining("incorrect_number_answer"),
+  ]));
+  expect(validateCatalog([swappedChoice])).toEqual(expect.arrayContaining([
+    expect.stringContaining("incorrect_choice_answer"),
+  ]));
 });

@@ -1528,6 +1528,62 @@ const catalogInputs: TemplateInput[] = [
     explanationPattern: "圆锥体积 = πr²h ÷ 3：3.14 × {{r}}² × {{h}} ÷ 3 = {{answer}} 立方厘米。",
     variables: { r: [3, 5], h: [5, 12], answer: [47.1, 314] },
   },
+  {
+    id: "num-prop-solve-1", skillCode: "proportion-scale", domain: "number_operations",
+    difficulty: 2, structureTag: "proportion-solve-x-first",
+    stemPattern: "解比例 x：{{a}} = {{b}}：{{c}}，x 等于多少？",
+    answerSpecPattern: numberAnswer(null),
+    explanationPattern: "根据比例的基本性质，两内项之积等于两外项之积：x = {{a}}×{{b}}÷{{c}} = {{answer}}。",
+    variables: { a: [4, 5, 8], b: [3, 6, 1], c: [2, 10, 4], answer: [6, 3, 2] },
+  },
+  {
+    id: "num-prop-solve-2", skillCode: "proportion-scale", domain: "number_operations",
+    difficulty: 2, structureTag: "proportion-solve-x-inner",
+    stemPattern: "解比例 {{a}}：x = {{b}}：{{c}}，x 等于多少？",
+    answerSpecPattern: numberAnswer(null),
+    explanationPattern: "根据比例的基本性质，两内项之积等于两外项之积：x = {{a}}×{{c}}÷{{b}} = {{answer}}。",
+    variables: { a: [3, 8, 6], b: [4, 2, 5], c: [8, 3, 10], answer: [6, 12, 12] },
+  },
+  {
+    id: "num-prop-find-scale", skillCode: "proportion-scale", domain: "number_operations",
+    difficulty: 3, structureTag: "proportion-find-scale",
+    stemPattern: "图上 {{cm}} 厘米表示实际 {{km}} 千米，这幅图的比例尺是 1 比多少？",
+    answerSpecPattern: numberAnswer(null),
+    explanationPattern: "先统一单位：把 {{km}} 千米换算成厘米，再除以图上 {{cm}} 厘米，比例尺 = 1：{{answer}}。",
+    variables: { cm: [5, 4, 20], km: [200, 240, 10], answer: [4000000, 6000000, 50000] },
+  },
+  {
+    id: "num-prop-real-distance", skillCode: "proportion-scale", domain: "number_operations",
+    difficulty: 3, structureTag: "proportion-real-distance",
+    stemPattern: "一幅地图的比例尺是 1：{{n}}，量得图上距离是 {{cm}} 厘米，实际距离是多少千米？",
+    answerSpecPattern: numberAnswer("千米"),
+    explanationPattern: "实际距离 = 图上距离 × {{n}}，再换算成千米：{{answer}} 千米。",
+    variables: { n: [4000000, 6000000], cm: [5, 4], answer: [200, 240] },
+  },
+  {
+    id: "num-prop-map-distance", skillCode: "proportion-scale", domain: "number_operations",
+    difficulty: 3, structureTag: "proportion-map-distance",
+    stemPattern: "一幅地图的比例尺是 1：{{n}}，实际距离是 {{km}} 千米，图上距离是多少厘米？",
+    answerSpecPattern: numberAnswer("厘米"),
+    explanationPattern: "图上距离 = 实际厘米 ÷ {{n}} = {{answer}} 厘米。",
+    variables: { n: [4000000, 50000], km: [200, 10], answer: [5, 20] },
+  },
+  {
+    id: "app-prop-direct", skillCode: "proportion-scale", domain: "number_operations",
+    difficulty: 2, structureTag: "proportion-direct-choice", answerMode: "choice",
+    stemPattern: "单价一定时，总价与数量成什么比例？ A. 正比例 B. 反比例 C. 不成比例 D. 无法确定",
+    answerSpecPattern: choiceAnswer("A"),
+    explanationPattern: "单价一定，总价随数量扩大而同倍扩大，比值一定，成正比例。",
+    variables: {},
+  },
+  {
+    id: "app-prop-compose", skillCode: "proportion-scale", domain: "number_operations",
+    difficulty: 3, structureTag: "proportion-compose-choice", answerMode: "choice",
+    stemPattern: "下面哪一组中的两个比可以组成比例？ A. 3：5 和 6：10 B. 2：3 和 5：6 C. 4：7 和 8：13 D. 1：2 和 3：5",
+    answerSpecPattern: choiceAnswer("A"),
+    explanationPattern: "3：5 = 6：10，两外项积 3×10 = 两内项积 5×6 = 30，可以组成比例。",
+    variables: {},
+  },
 ];
 
 export const phase2Catalog: ReviewedTemplate[] = catalogInputs.map(reviewed);
@@ -1579,6 +1635,7 @@ const skillDefinitions = {
   "number-shape": ["数与形", "thinking_habits"],
   "negative-numbers": ["负数", "number_operations"],
   "cylinder-cone": ["圆柱与圆锥", "geometry_space"],
+  "proportion-scale": ["比例与比例尺", "number_operations"],
 } as const satisfies Record<string, readonly [string, LearningDomain]>;
 
 export const phase2Skills = Object.entries(skillDefinitions).map(([code, [name, domain]]) => ({
