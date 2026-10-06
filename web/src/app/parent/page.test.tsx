@@ -50,6 +50,16 @@ test("卡片含两个链接：学习情况与题库设置", async () => {
   expect(screen.getByRole("link", { name: "题库设置" })).toHaveAttribute("href", "/parent/children/c1/skills");
 });
 
+test("含退出登录表单，提交到 logout API", async () => {
+  render(await ParentPage());
+
+  const button = screen.getByRole("button", { name: "退出登录" });
+  const form = button.closest("form");
+  expect(form).not.toBeNull();
+  expect(form).toHaveAttribute("method", "post");
+  expect(form).toHaveAttribute("action", "/api/auth/logout");
+});
+
 describe("今日状态", () => {
   test("无今日 session → 今天还没开始", async () => {
     render(await ParentPage());

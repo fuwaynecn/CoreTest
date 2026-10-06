@@ -79,6 +79,9 @@ export default async function ParentPage() {
             <p>创建孩子账号后，这里会显示每个孩子的学习情况。</p>
           )}
         </div>
+        <form method="post" action="/api/auth/logout" className="logoutForm">
+          <button type="submit" className="secondaryButton">退出登录</button>
+        </form>
       </header>
 
       {hasChildren && (
