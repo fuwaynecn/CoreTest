@@ -3,7 +3,7 @@
 > 本文档仅记录未来上线步骤。**2026-10-01 的实现工作未部署、未 SSH、未改动生产数据。**
 > 执行本手册前需 Wayne 明确授权，并确认现有孩子的正式登录名。
 
-## 变更内容（对应分支 master，fc80bdf 之后）
+## 变更内容（对应分支 main，fc80bdf 之后；远端 origin = github.com/fuwaynecn/CoreTest）
 
 - users 新增 `login_name`（唯一索引）、`parent_id`（自引用外键）、`grade`、`edition`、`is_admin`。
 - skills 新增 `grade`、`semester`、`expected_week`（人教版 40 个知识点的编排数据）。
@@ -31,7 +31,7 @@ docker cp math-trainer:/app/data/math-trainer.sqlite \
 
 ### 2. 拉取并构建新镜像/代码
 
-- 在服务器更新代码到包含全部多家庭提交的 master。
+- 在服务器更新代码到包含全部多家庭提交的 main：`git fetch origin && git checkout main && git pull --ff-only origin main`（当前主机路径 `/opt/math-trainer`）。
 - 按现有 Docker 方式重新构建镜像（容器名 `math-trainer`，Node 24）。
 - **先不切流量**。可用临时容器挂同一数据卷做构建验证。
 
