@@ -1,12 +1,13 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getDatabase } from "@/db/client";
-import { requireParent } from "@/lib/auth/parent-child";
+import { requireRole } from "@/lib/auth/current-user";
 import { AiProviderConfigForm } from "@/components/ai-provider-config-form";
 import { listAiProviderConfigs } from "@/services/parent/ai-provider-config";
 
 export default async function SettingsPage() {
-  const parent = await requireParent();
-  if (!parent.isAdmin) throw new Response(null, { status: 403 });
+  const parent = await requireRole("parent");
+  if (!parent.isAdmin) redirect("/parent");
 
   const db = getDatabase();
   const configs = listAiProviderConfigs(db);

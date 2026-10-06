@@ -3,10 +3,14 @@ import { createTestDatabase } from "@/test/test-db";
 import { skills } from "@/db/schema";
 import ParentQuestionsPage from "./page";
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
+const redirectMock = vi.hoisted(() => vi.fn<(url: string) => never>(() => { throw new Error("NEXT_REDIRECT"); }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
+  redirect: (url: string) => redirectMock(url),
+}));
 
 const state = vi.hoisted(() => ({ db: undefined as unknown }));
-const requireParent = vi.hoisted(() => vi.fn().mockResolvedValue({ id: "parent", role: "parent", displayName: "家长", isAdmin: true }));
+const requireRole = vi.hoisted(() => vi.fn().mockResolvedValue({ id: "parent", role: "parent", displayName: "家长", isAdmin: true }));
 const listQuestionBank = vi.hoisted(() => vi.fn());
 const ensureQuestionBankFresh = vi.hoisted(() => vi.fn());
 
@@ -14,7 +18,7 @@ vi.mock("@/db/client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/db/client")>();
   return { ...actual, getDatabase: () => state.db };
 });
-vi.mock("@/lib/auth/parent-child", () => ({ requireParent }));
+vi.mock("@/lib/auth/current-user", () => ({ requireRole }));
 vi.mock("@/services/parent/question-bank", () => ({ listQuestionBank }));
 vi.mock("@/services/questions/question-bank-refresh", () => ({ ensureQuestionBankFresh }));
 vi.mock("@/components/question-bank-editor", () => ({ QuestionBankEditor: () => <div /> }));
@@ -38,7 +42,7 @@ beforeEach(() => {
 test("requires the parent role, exposes native filters, and caps visible rows at 100", async () => {
   render(await ParentQuestionsPage({ searchParams: Promise.resolve({ skillId: "skill-add", domain: "number_operations", difficulty: "2", status: "inactive" }) }));
 
-  expect(requireParent).toHaveBeenCalled();
+  expect(requireRole).toHaveBeenCalled();
   expect(listQuestionBank).toHaveBeenCalledWith(state.db, { skillId: "skill-add", domain: "number_operations", difficulty: 2, status: "inactive" });
   expect(screen.getAllByRole("combobox", { name: "知识点" })[0]).toHaveValue("skill-add");
   expect(screen.getByRole("combobox", { name: "领域" })).toHaveValue("number_operations");
@@ -47,12 +51,14 @@ test("requires the parent role, exposes native filters, and caps visible rows at
   expect(screen.getAllByTestId("question-bank-item")).toHaveLength(100);
 });
 
-test("blocks a non-admin parent from the global question bank with 403", async () => {
+test("redirects a non-admin parent away from the global question bank", async () => {
   listQuestionBank.mockClear();
-  requireParent.mockResolvedValueOnce({ id: "parent-2", role: "parent", displayName: "普通家长", isAdmin: false });
+  redirectMock.mockClear();
+  requireRole.mockResolvedValueOnce({ id: "parent-2", role: "parent", displayName: "普通家长", isAdmin: false });
 
   await expect(ParentQuestionsPage({ searchParams: Promise.resolve({}) }))
-    .rejects.toMatchObject({ status: 403 });
+    .rejects.toThrow("NEXT_REDIRECT");
+  expect(redirectMock).toHaveBeenCalledWith("/parent");
   expect(listQuestionBank).not.toHaveBeenCalled();
 });
 

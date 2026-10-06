@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getDatabase } from "@/db/client";
 import { rewardEvents, trainingSessions, users } from "@/db/schema";
 import { shanghaiDateKey } from "@/domain/time/shanghai-calendar";
-import { requireParent } from "@/lib/auth/parent-child";
+import { requireRole } from "@/lib/auth/current-user";
 import AddChildForm from "@/components/add-child-form";
 import ChildCard from "@/components/child-card";
 
@@ -18,7 +18,7 @@ export type ChildSummary = {
 };
 
 export default async function ParentPage() {
-  const parent = await requireParent();
+  const parent = await requireRole("parent");
   const db = getDatabase();
   const rows = db.select().from(users).where(eq(users.parentId, parent.id)).all();
 

@@ -8,14 +8,15 @@ import ChildPage from "./page";
 const state = vi.hoisted(() => ({ db: undefined as unknown }));
 const getParentEvidence = vi.hoisted(() => vi.fn());
 const getLearningState = vi.hoisted(() => vi.fn());
-const requireParent = vi.hoisted(() => vi.fn());
+const requireRole = vi.hoisted(() => vi.fn());
 const getOwnedChild = vi.hoisted(() => vi.fn());
 
 vi.mock("@/db/client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/db/client")>();
   return { ...actual, getDatabase: () => state.db };
 });
-vi.mock("@/lib/auth/parent-child", () => ({ requireParent, getOwnedChild }));
+vi.mock("@/lib/auth/parent-child", () => ({ getOwnedChild }));
+vi.mock("@/lib/auth/current-user", () => ({ requireRole }));
 vi.mock("@/services/training/get-parent-evidence", () => ({ getParentEvidence }));
 vi.mock("@/services/parent/get-learning-state", () => ({ getLearningState }));
 
@@ -40,7 +41,7 @@ beforeEach(() => {
     createdAt: 1,
   }).run();
   state.db = db;
-  requireParent.mockResolvedValue({ id: "parent", role: "parent", displayName: "家长", isAdmin: false });
+  requireRole.mockResolvedValue({ id: "parent", role: "parent", displayName: "家长", isAdmin: false });
   getOwnedChild.mockImplementation((_db: unknown, parentId: string, childId: string) =>
     parentId === "parent" && childId === "child-1"
       ? { id: "child-1", displayName: "小雨", loginName: "kid1", grade: 6, edition: "pep" }
@@ -148,7 +149,7 @@ test("shows all five state labels, reasons, and exact evidence links", async () 
 test("labels first-attempt periods and bases the recommendation on this week", async () => {
   render(await ChildPage({ params: Promise.resolve({ childId: "child-1" }) }));
 
-  expect(requireParent).toHaveBeenCalled();
+  expect(requireRole).toHaveBeenCalled();
   expect(getParentEvidence).toHaveBeenCalledWith(state.db, "child-1");
   expect(screen.getByRole("heading", { name: "小雨的学习证据" })).toBeInTheDocument();
   expect(screen.getByText("首次作答证据")).toBeInTheDocument();
@@ -380,10 +381,10 @@ test("shows active version two progress while preserving version one report and 
   expect(screen.queryByRole("button", { name: /发起第 3 版诊断/ })).not.toBeInTheDocument();
 });
 
-test("returns 403 for a child owned by another parent", async () => {
+test("renders 404 for a child owned by another parent", async () => {
   getOwnedChild.mockImplementationOnce((_db: unknown) => null);
   await expect(ChildPage({ params: Promise.resolve({ childId: "c-other" }) }))
-    .rejects.toMatchObject({ status: 403 });
+    .rejects.toMatchObject({ message: "NEXT_HTTP_ERROR_FALLBACK;404" });
 });
 
 test("links back to the child list and shows the grade", async () => {

@@ -1,4 +1,5 @@
 import { and, asc, count, desc, eq, inArray } from "drizzle-orm";
+import { notFound } from "next/navigation";
 import { AbilityMap } from "@/components/ability-map";
 import ChildManageForm from "@/components/child-manage-form";
 import { DosageSummary } from "@/components/dosage-summary";
@@ -13,7 +14,8 @@ import { getDatabase } from "@/db/client";
 import { shanghaiDateKey } from "@/domain/time/shanghai-calendar";
 import { attempts, diagnosticRuns, sessionItems, trainingSessions } from "@/db/schema";
 import type { InitialDiagnosisReport } from "@/domain/diagnosis/types";
-import { requireParent, getOwnedChild } from "@/lib/auth/parent-child";
+import { requireRole } from "@/lib/auth/current-user";
+import { getOwnedChild } from "@/lib/auth/parent-child";
 import { getLearningState } from "@/services/parent/get-learning-state";
 import { getPlanDashboard } from "@/services/parent/get-plan-dashboard";
 import { getParentEvidence } from "@/services/training/get-parent-evidence";
@@ -83,11 +85,11 @@ function formatSubmittedAt(value: number) {
 }
 
 export default async function ChildPage({ params }: { params: Promise<{ childId: string }> }) {
-  const parent = await requireParent();
+  const parent = await requireRole("parent");
   const { childId } = await params;
   const db = getDatabase();
   const child = getOwnedChild(db, parent.id, childId);
-  if (!child) throw new Response(null, { status: 403 });
+  if (!child) notFound();
 
   const todaySession = db.select({ id: trainingSessions.id, status: trainingSessions.status })
     .from(trainingSessions)

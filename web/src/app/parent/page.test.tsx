@@ -6,19 +6,19 @@ import { createTestDatabase } from "@/test/test-db";
 import ParentPage from "./page";
 
 const state = vi.hoisted(() => ({ db: undefined as unknown }));
-const requireParent = vi.hoisted(() => vi.fn());
+const requireRole = vi.hoisted(() => vi.fn());
 const mockRefresh = vi.hoisted(() => vi.fn());
 
 vi.mock("@/db/client", async (original) => ({
   ...(await original<typeof import("@/db/client")>()),
   getDatabase: () => state.db,
 }));
-vi.mock("@/lib/auth/parent-child", () => ({ requireParent }));
+vi.mock("@/lib/auth/current-user", () => ({ requireRole }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: mockRefresh }) }));
 
 function seedDb(admin: boolean) {
   const db = createTestDatabase();
-  requireParent.mockResolvedValue({ id: "parent", role: "parent", displayName: "家长", isAdmin: admin });
+  requireRole.mockResolvedValue({ id: "parent", role: "parent", displayName: "家长", isAdmin: admin });
   db.insert(users).values([
     { id: "parent", role: "parent", displayName: "家长", credentialHash: "h", createdAt: 1, loginName: "fam1", isAdmin: admin },
     { id: "c1", role: "child", displayName: "大女儿", credentialHash: "h", createdAt: 1, loginName: "kid1", parentId: "parent", grade: 6 },
@@ -201,7 +201,7 @@ describe("管理员链接区", () => {
 
 test("空状态：无孩子时显示引导与添加表单，无我的孩子区", async () => {
   const db = createTestDatabase();
-  requireParent.mockResolvedValue({ id: "parent", role: "parent", displayName: "家长", isAdmin: true });
+  requireRole.mockResolvedValue({ id: "parent", role: "parent", displayName: "家长", isAdmin: true });
   db.insert(users).values({
     id: "parent", role: "parent", displayName: "家长", credentialHash: "h", createdAt: 1, loginName: "fam1", isAdmin: true,
   }).run();

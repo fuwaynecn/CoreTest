@@ -1,10 +1,11 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { asc } from "drizzle-orm";
 import { QuestionBankEditor } from "@/components/question-bank-editor";
 import { getDatabase } from "@/db/client";
 import { skills } from "@/db/schema";
 import { shanghaiDateKey } from "@/domain/time/shanghai-calendar";
-import { requireParent } from "@/lib/auth/parent-child";
+import { requireRole } from "@/lib/auth/current-user";
 import type { QuestionBankFilters } from "@/services/parent/question-bank";
 import { listQuestionBank } from "@/services/parent/question-bank";
 import { ensureQuestionBankFresh } from "@/services/questions/question-bank-refresh";
@@ -40,8 +41,8 @@ const sessionKindLabels = {
 } as const;
 
 export default async function ParentQuestionsPage({ searchParams }: { searchParams: SearchParams }) {
-  const parent = await requireParent();
-  if (!parent.isAdmin) throw new Response(null, { status: 403 });
+  const parent = await requireRole("parent");
+  if (!parent.isAdmin) redirect("/parent");
   const db = getDatabase();
   let refreshError = false;
   try {

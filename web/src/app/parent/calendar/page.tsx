@@ -1,15 +1,16 @@
 import { eq } from "drizzle-orm";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getDatabase } from "@/db/client";
 import { academicCalendar } from "@/db/schema";
 import { currentSchoolYear } from "@/domain/curriculum/academic-calendar";
 import { DEFAULT_CALENDAR } from "@/domain/curriculum/skill-availability";
-import { requireParent } from "@/lib/auth/parent-child";
+import { requireRole } from "@/lib/auth/current-user";
 import { CalendarForm } from "@/components/calendar-form";
 
 export default async function CalendarPage() {
-  const parent = await requireParent();
-  if (!parent.isAdmin) throw new Response(null, { status: 403 });
+  const parent = await requireRole("parent");
+  if (!parent.isAdmin) redirect("/parent");
 
   const db = getDatabase();
   const year = currentSchoolYear(new Date());

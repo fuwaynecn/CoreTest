@@ -1,15 +1,17 @@
-﻿import Link from "next/link";
+import Link from "next/link";
+import { notFound } from "next/navigation";
 import { ChildSkillSettings } from "@/components/child-skill-settings";
 import { getDatabase } from "@/db/client";
-import { requireParent, getOwnedChild } from "@/lib/auth/parent-child";
+import { requireRole } from "@/lib/auth/current-user";
+import { getOwnedChild } from "@/lib/auth/parent-child";
 import { listChildSkillScope } from "@/services/curriculum/skill-scope";
 
 export default async function ChildSkillsPage({ params }: { params: Promise<{ childId: string }> }) {
-  const parent = await requireParent();
+  const parent = await requireRole("parent");
   const { childId } = await params;
   const db = getDatabase();
   const child = getOwnedChild(db, parent.id, childId);
-  if (!child) throw new Response(null, { status: 403 });
+  if (!child) notFound();
 
   const rows = listChildSkillScope(db, { id: child.id, grade: child.grade, edition: child.edition });
 
