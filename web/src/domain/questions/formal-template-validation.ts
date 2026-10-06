@@ -376,6 +376,31 @@ const numericRules: NumericRule[] = [
     unit: "米",
     calculate: ([a, b, c]) => Number(a) + Number(b) + Number(c),
   },
+  {
+    pattern: /^全校共有 (-?\d+(?:\.\d+)?) 名学生，喜欢阅读的占 (-?\d+(?:\.\d+)?)%，喜欢阅读的有多少人？$/,
+    unit: "人",
+    calculate: ([n, p]) => Number(n) * Number(p) / 100,
+  },
+  {
+    pattern: /^班级图书角共有 (-?\d+(?:\.\d+)?) 本书，其中故事书占 (-?\d+(?:\.\d+)?)%，故事书有多少本？$/,
+    unit: "本",
+    calculate: ([n, p]) => Number(n) * Number(p) / 100,
+  },
+  {
+    pattern: /^扇形统计图片段显示，喜欢足球的有 (-?\d+(?:\.\d+)?) 人，占调查总人数的 (-?\d+(?:\.\d+)?)%，调查总人数是多少人？$/,
+    unit: "人",
+    calculate: ([a, p]) => Number(a) * 100 / Number(p),
+  },
+  {
+    pattern: /^全年级 (-?\d+(?:\.\d+)?) 人中，喜欢篮球的占 (-?\d+(?:\.\d+)?)%，喜欢羽毛球的占 (-?\d+(?:\.\d+)?)%，两类人数相差多少人？$/,
+    unit: "人",
+    calculate: ([n, p1, p2]) => Number(n) * Math.abs(Number(p1) - Number(p2)) / 100,
+  },
+  {
+    pattern: /^家庭月支出为 (-?\d+(?:\.\d+)?) 元，扇形图中餐饮支出占 (-?\d+(?:\.\d+)?)%，餐饮支出是多少元？$/,
+    unit: "元",
+    calculate: ([n, p]) => Number(n) * Number(p) / 100,
+  },
 ];
 
 function numberProof(stem: string): NumberProof | null {
@@ -718,6 +743,12 @@ function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOptio
 
   match = question.match(/^公园在学校的北偏西 (\d+)° 方向，书店在学校的南偏东 (\d+)° 方向。公园和书店分别在学校的哪一侧？$/);
   if (match) return optionsEqualTo(options, "西北侧和东南侧");
+
+  match = question.match(/^下面哪一类数据最适合用扇形统计图表示？$/);
+  if (match) return optionsEqualTo(options, "各类支出占家庭总支出的百分比");
+
+  match = question.match(/^扇形统计图显示：阅读占 40%、运动占 35%、艺术占 25%。下面哪个说法正确？$/);
+  if (match) return optionsEqualTo(options, "喜欢阅读的人数占比最大");
 
   return null;
 }
