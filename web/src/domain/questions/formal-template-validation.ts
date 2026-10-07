@@ -714,6 +714,38 @@ const numericRules: NumericRule[] = [
       Number(goSpeed) * Number(goHours) / Number(backSpeed)
     ),
   },
+  // P2-10c angle：直角被分成两角，90 - 已知角。捕获为正度数且唯一参与计算。
+  {
+    pattern: /^一个直角被分成两个角，其中一个角是 (\d+(?:\.\d+)?) 度，另一个是多少度？$/,
+    unit: "度",
+    calculate: ([known]) => 90 - Number(known),
+  },
+  // P2-10c angle：两个三角尺角顶点重合拼一起，拼成角 = 两角之和。捕获显式钉死
+  // 为三角尺角度集合 30/45/60/90，同句式的非三角尺角度不予锚定。
+  {
+    pattern: /^把三角尺上 (30|45|60|90) 度的角和 (30|45|60|90) 度的角顶点重合拼在一起，拼成的角是多少度？$/,
+    unit: "度",
+    calculate: ([first, second]) => Number(first) + Number(second),
+  },
+  // P2-10c angle：整时钟面两针较小夹角。捕获钉死为 1-11 的整时数，取与 12 的
+  // 较小间隔大格数 × 30。
+  {
+    pattern: /^钟面上时针指向 (1[01]|[1-9])、分针指向 12，这时两针之间较小的夹角是多少度？$/,
+    unit: "度",
+    calculate: ([hourText]) => {
+      const hour = Number(hourText);
+      return Math.min(hour, 12 - hour) * 30;
+    },
+  },
+  // P2-10c spatial：分层数小正方体，底层每排个数×排数+上层个数。三个正整数
+  // 捕获全部参与计算。
+  {
+    pattern: /^用相同小正方体摆成两层：底层每排 (\d+) 个、摆 (\d+) 排，上层摆 (\d+) 个。一共用了多少个小正方体？$/,
+    unit: "个",
+    calculate: ([length, width, upper]) => (
+      Number(length) * Number(width) + Number(upper)
+    ),
+  },
 ];
 
 function numberProof(stem: string): NumberProof | null {
@@ -1211,6 +1243,45 @@ function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOptio
       const optionMatch = text.match(/^(\d+) 件$/);
       return optionMatch !== null && Number(optionMatch[1]) === paid;
     });
+  }
+
+  // P2-10c spatial：俯视图。由题干堆叠参数（depth 排、每排 width 个、前后对齐）
+  // 重算俯视图应为「depth 行，每行 width 个正方形」，与正确选项做语义对应而非
+  // 字面钉死；排数或每排个数不是正整数时安全落空。
+  match = question.match(/^把相同小正方体摆成 (\d+) 排，每排 (\d+) 个，前后对齐。从上面看，看到的图形是：$/);
+  if (match) {
+    const depth = Number(match[1]);
+    const width = Number(match[2]);
+    if (!Number.isInteger(depth) || depth <= 0 || !Number.isInteger(width) || width <= 0) return [];
+    return optionsEqualTo(options, `${depth}行，每行${width}个正方形`);
+  }
+
+  // P2-10c spatial：添 1 个且正面形状不变。任何一列正上方都会增加该列高度、
+  // 旁边空地会出现新列，只有「某列正后方地上」会被原列挡住。先核对原几何体
+  // 列数与叠高列合法，再在选项中找列号在 1..count 内的正后方地上选项，唯一
+  // 时命中，不唯一安全落空。
+  match = question.match(/^用 (\d+) 个小正方体排成一行，并在左数第 (\d+) 个上方再叠 1 个。再添 1 个小正方体，要使从正面看到的形状不变，应该添在哪里？$/);
+  if (match) {
+    const count = Number(match[1]);
+    const tall = Number(match[2]);
+    if (!Number.isInteger(count) || count <= 0
+        || !Number.isInteger(tall) || tall < 1 || tall > count) return [];
+    const valid = options.filter(({ text }) => {
+      const behind = text.match(/^左数第(\d+)个的正后方地上$/);
+      if (!behind) return false;
+      const position = Number(behind[1]);
+      return Number.isInteger(position) && position >= 1 && position <= count;
+    });
+    return valid.length === 1 ? valid : [];
+  }
+
+  // P2-10c spatial：1-4-1 正方体展开图对面。中间一行「前、右、后、左」成环，
+  // 对面关系前↔后、右↔左；上下两底互为对面。由展开图布局重算所问面的对面。
+  match = question.match(/^一个正方体展开图：中间一行从左到右依次写着“前、右、后、左”4个面；“上”在“右”的正上方，“下”在“右”的正下方。“(前|后|左|右|上|下)”面的对面是哪个面？$/);
+  if (match) {
+    const opposite = { 前: "后", 后: "前", 左: "右", 右: "左", 上: "下", 下: "上" } as const;
+    const asked = match[1] as keyof typeof opposite;
+    return optionsEqualTo(options, opposite[asked]);
   }
 
   return null;

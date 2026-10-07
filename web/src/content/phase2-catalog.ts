@@ -1947,6 +1947,86 @@ const catalogInputs: TemplateInput[] = [
       oneWay: [180, 280, 270], answer: [4, 5, 3],
     },
   },
+
+  // P2-10c angle：直角被分成两角，90 - 已知角。
+  {
+    id: "geo-angle-04", skillCode: "angle", domain: "geometry_space",
+    difficulty: 1, structureTag: "right-angle-split", answerMode: "written",
+    stemPattern: "{{lead}}一个直角被分成两个角，其中一个角是 {{known}} 度，另一个角是多少度？",
+    answerSpecPattern: numberAnswer("度"),
+    explanationPattern: "直角是 90 度，用 90 - {{known}}，得到 {{answer}} 度。",
+    variables: {
+      lead: ["想一想：", "看一看：", "做一做："],
+      known: [35, 58, 46], answer: [55, 32, 44],
+    },
+  },
+  // P2-10c angle：两副三角尺的角顶点重合拼角，拼成角 = 两角之和。
+  {
+    id: "geo-angle-05", skillCode: "angle", domain: "geometry_space",
+    difficulty: 2, structureTag: "triangle-ruler-compose", answerMode: "written",
+    stemPattern: "把三角尺上 {{first}} 度的角和 {{second}} 度的角顶点重合拼在一起，拼成的角是多少度？",
+    answerSpecPattern: numberAnswer("度"),
+    explanationPattern: "两个角顶点重合、一边对齐拼在一起，拼成的角是两个角度的和，{{first}} + {{second}} = {{answer}} 度。",
+    variables: { first: [45, 90, 45], second: [30, 60, 60], answer: [75, 150, 105] },
+  },
+  // P2-10c angle：整时钟面两针的较小夹角，每大格 30 度。
+  {
+    id: "geo-angle-06", skillCode: "angle", domain: "geometry_space",
+    difficulty: 3, structureTag: "clock-face-angle", answerMode: "written",
+    stemPattern: "{{lead}}钟面上时针指向 {{hour}}、分针指向 12，这时两针之间较小的夹角是多少度？",
+    answerSpecPattern: numberAnswer("度"),
+    explanationPattern: "钟面一圈 360 度，平均分成 12 个大格，每大格 30 度；两针间隔 {{gap}} 个大格，30 × {{gap}} = {{answer}} 度。",
+    variables: {
+      lead: ["想一想：", "看一看：", "做一做："],
+      hour: [2, 5, 8], gap: [2, 5, 4], answer: [60, 150, 120],
+    },
+  },
+  // P2-10c spatial：分层数小正方体，底层每排个数×排数+上层个数。
+  {
+    id: "geo-spatial-03", skillCode: "spatial", domain: "geometry_space",
+    difficulty: 1, structureTag: "count-layered-cubes", answerMode: "written",
+    stemPattern: "用相同小正方体摆成两层：底层每排 {{length}} 个、摆 {{width}} 排，上层摆 {{upper}} 个。一共用了多少个小正方体？",
+    answerSpecPattern: numberAnswer("个"),
+    explanationPattern: "底层有 {{length}} × {{width}} = {{bottom}} 个，加上上层 {{upper}} 个，一共 {{answer}} 个。",
+    variables: {
+      length: [3, 4, 5], width: [2, 3, 2], upper: [2, 4, 3],
+      bottom: [6, 12, 10], answer: [8, 16, 13],
+    },
+  },
+  // P2-10c spatial：由堆叠方式选俯视图，排数→行数、每排个数→每行个数。
+  {
+    id: "geo-spatial-04", skillCode: "spatial", domain: "geometry_space",
+    difficulty: 2, structureTag: "top-view-shape", answerMode: "choice", readingCard: true,
+    stemPattern: "把相同小正方体摆成 {{depth}} 排，每排 {{width}} 个，前后对齐。从上面看，看到的图形是：A. 一行{{width}}个正方形  B. {{depth}}行，每行{{width}}个正方形  C. {{width}}行，每行{{depth}}个正方形  D. 一行{{total}}个正方形",
+    answerSpecPattern: choiceAnswer("B"),
+    explanationPattern: "从上面看，{{depth}} 排就是 {{depth}} 行，每行仍是 {{width}} 个正方形，所以对应 B。",
+    variables: { depth: [2, 3, 2], width: [3, 4, 5], total: [6, 12, 10] },
+  },
+  // P2-10c spatial：添 1 个且正面形状不变，只能添在某列正后方的地上。
+  {
+    id: "geo-spatial-05", skillCode: "spatial", domain: "geometry_space",
+    difficulty: 3, structureTag: "add-one-front-unchanged", answerMode: "choice", readingCard: true,
+    stemPattern: "用 {{count}} 个小正方体排成一行，并在左数第 {{tall}} 个上方再叠 1 个。再添 1 个小正方体，要使从正面看到的形状不变，应该添在哪里？A. 左数第{{aPos}}个的正上方  B. 左数第{{bPos}}个的正上方  C. 左数第{{cPos}}个的正后方地上  D. 几何体{{side}}的空地上",
+    answerSpecPattern: choiceAnswer("C"),
+    explanationPattern: "添在任何一列的正上方都会让这列高度增加，正面形状改变；添在旁边空地会出现新的一列；只有添在某列正后方的地上，会被原来那一列挡住，正面形状不变，对应 C。",
+    variables: {
+      count: [3, 4, 5], tall: [1, 2, 1],
+      aPos: [1, 3, 4], bPos: [2, 4, 2], cPos: [3, 1, 5],
+      side: ["左", "右", "左"],
+    },
+  },
+  // P2-10c spatial：1-4-1 正方体展开图，由布局重算所问面的对面。
+  {
+    id: "geo-spatial-06", skillCode: "spatial", domain: "geometry_space",
+    difficulty: 2, structureTag: "net-opposite-face", answerMode: "choice", readingCard: true,
+    stemPattern: "一个正方体展开图：中间一行从左到右依次写着“前、右、后、左”4个面；“上”在“右”的正上方，“下”在“右”的正下方。“{{asked}}”面的对面是哪个面？A. {{a}}  B. {{b}}  C. {{c}}  D. {{d}}",
+    answerSpecPattern: choiceAnswer("C"),
+    explanationPattern: "这个 1-4-1 展开图折成正方体后，中间一行第 1 个与第 3 个相对、第 2 个与第 4 个相对，上下两面相对；所以“{{asked}}”面的对面是“{{c}}”面，对应 C。",
+    variables: {
+      asked: ["前", "右", "上"],
+      a: ["前", "前", "前"], b: ["右", "后", "右"], c: ["后", "左", "下"], d: ["左", "上", "后"],
+    },
+  },
 ];
 
 export const phase2Catalog: ReviewedTemplate[] = catalogInputs.map(reviewed);

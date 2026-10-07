@@ -274,3 +274,129 @@ describe("price-model / distance-model 新增锚定规则（P2-10b）", () => {
     expect(validateWritten(stem, answer + 1, "小时")).toEqual(["incorrect_number_answer"]);
   });
 });
+
+describe("angle 补齐新增锚定规则（P2-10c）", () => {
+  // 规则 angle-right-split：直角被分成两角，90 - 已知角。三个变体的引导语
+  // （想一想/看一看/做一做）由 surfaceVariants 归一为空。
+  test.each([
+    ["想一想：一个直角被分成两个角，其中一个角是 35 度，另一个角是多少度？", 55],
+    ["看一看：一个直角被分成两个角，其中一个角是 58 度，另一个角是多少度？", 32],
+    ["做一做：一个直角被分成两个角，其中一个角是 46 度，另一个角是多少度？", 44],
+  ])("geo-angle-04 变体（%s 度）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "度")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "度")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 规则 angle-triangle-ruler-compose：两个三角尺角顶点重合拼一起，角度相加；
+  // 捕获显式钉死为三角尺角度集合 30/45/60/90。
+  test.each([
+    ["把三角尺上 45 度的角和 30 度的角顶点重合拼在一起，拼成的角是多少度？", 75],
+    ["把三角尺上 90 度的角和 60 度的角顶点重合拼在一起，拼成的角是多少度？", 150],
+    ["把三角尺上 45 度的角和 60 度的角顶点重合拼在一起，拼成的角是多少度？", 105],
+  ])("geo-angle-05 变体（拼成 %s 度）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "度")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "度")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 非三角尺角度（50/20）即使句式相同也不得被本规则锚定。
+  test("geo-angle-05 非三角尺角度不被锚定", () => {
+    const stem = "把三角尺上 50 度的角和 20 度的角顶点重合拼在一起，拼成的角是多少度？";
+    expect(validateWritten(stem, 70, "度")).toEqual(["unsupported_number_pattern"]);
+  });
+
+  // 规则 angle-clock-face：整时两针较小夹角 = 最小间隔大格数 × 30。
+  test.each([
+    ["想一想：钟面上时针指向 2、分针指向 12，这时两针之间较小的夹角是多少度？", 60],
+    ["看一看：钟面上时针指向 5、分针指向 12，这时两针之间较小的夹角是多少度？", 150],
+    ["做一做：钟面上时针指向 8、分针指向 12，这时两针之间较小的夹角是多少度？", 120],
+  ])("geo-angle-06 变体（夹角 %s 度）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "度")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "度")).toEqual(["incorrect_number_answer"]);
+  });
+});
+
+describe("spatial 补齐新增锚定规则（P2-10c）", () => {
+  // 规则 spatial-count-layered：分层数小正方体，底层每排个数×排数+上层个数。
+  test.each([
+    ["用相同小正方体摆成两层：底层每排 3 个、摆 2 排，上层摆 2 个。一共用了多少个小正方体？", 8],
+    ["用相同小正方体摆成两层：底层每排 4 个、摆 3 排，上层摆 4 个。一共用了多少个小正方体？", 16],
+    ["用相同小正方体摆成两层：底层每排 5 个、摆 2 排，上层摆 3 个。一共用了多少个小正方体？", 13],
+  ])("geo-spatial-03 变体（共 %s 个）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "个")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "个")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 选择题分支 spatial-top-view-shape：由排数×每排个数重算俯视图，正确项为
+  // 「depth 行，每行 width 个正方形」，而非字面钉死。
+  test.each([
+    [
+      "把相同小正方体摆成 2 排，每排 3 个，前后对齐。从上面看，看到的图形是："
+        + "A. 一行3个正方形  B. 2行，每行3个正方形  C. 3行，每行2个正方形  D. 一行6个正方形",
+    ],
+    [
+      "把相同小正方体摆成 3 排，每排 4 个，前后对齐。从上面看，看到的图形是："
+        + "A. 一行4个正方形  B. 3行，每行4个正方形  C. 4行，每行3个正方形  D. 一行12个正方形",
+    ],
+    [
+      "把相同小正方体摆成 2 排，每排 5 个，前后对齐。从上面看，看到的图形是："
+        + "A. 一行5个正方形  B. 2行，每行5个正方形  C. 5行，每行2个正方形  D. 一行10个正方形",
+    ],
+  ])("geo-spatial-04 变体 B 命中，错误选项报 incorrect_choice_answer", (stem) => {
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("B") }))
+      .toEqual([]);
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("C") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 选择题分支 spatial-add-one-front-unchanged：从正面看不变，唯一可添处是某列
+  // 正后方地上（被原列挡住）；正上方与旁边空地均改变正面形状。
+  test.each([
+    [
+      "用 3 个小正方体排成一行，并在左数第 1 个上方再叠 1 个。再添 1 个小正方体，要使从正面看到的形状不变，应该添在哪里？"
+        + "A. 左数第1个的正上方  B. 左数第2个的正上方  C. 左数第3个的正后方地上  D. 几何体左的空地上",
+    ],
+    [
+      "用 4 个小正方体排成一行，并在左数第 2 个上方再叠 1 个。再添 1 个小正方体，要使从正面看到的形状不变，应该添在哪里？"
+        + "A. 左数第3个的正上方  B. 左数第4个的正上方  C. 左数第1个的正后方地上  D. 几何体右的空地上",
+    ],
+    [
+      "用 5 个小正方体排成一行，并在左数第 1 个上方再叠 1 个。再添 1 个小正方体，要使从正面看到的形状不变，应该添在哪里？"
+        + "A. 左数第4个的正上方  B. 左数第2个的正上方  C. 左数第5个的正后方地上  D. 几何体左的空地上",
+    ],
+  ])("geo-spatial-05 变体 C 命中，错误选项报 incorrect_choice_answer", (stem) => {
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("C") }))
+      .toEqual([]);
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("A") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // C 选项的「正后方」列号超出列数时，几何体不存在该位置，分支安全落空。
+  test("geo-spatial-05 后方列号超出范围时安全落空", () => {
+    const stem = "用 3 个小正方体排成一行，并在左数第 1 个上方再叠 1 个。再添 1 个小正方体，要使从正面看到的形状不变，应该添在哪里？"
+      + "A. 左数第1个的正上方  B. 左数第2个的正上方  C. 左数第4个的正后方地上  D. 几何体左的空地上";
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("C") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 选择题分支 spatial-net-opposite-face：1-4-1 展开图，对面关系为
+  // 前↔后、右↔左、上↔下，由展开图布局重算。
+  test.each([
+    [
+      "一个正方体展开图：中间一行从左到右依次写着“前、右、后、左”4个面；“上”在“右”的正上方，“下”在“右”的正下方。“前”面的对面是哪个面？"
+        + "A. 前  B. 右  C. 后  D. 左",
+    ],
+    [
+      "一个正方体展开图：中间一行从左到右依次写着“前、右、后、左”4个面；“上”在“右”的正上方，“下”在“右”的正下方。“右”面的对面是哪个面？"
+        + "A. 前  B. 后  C. 左  D. 上",
+    ],
+    [
+      "一个正方体展开图：中间一行从左到右依次写着“前、右、后、左”4个面；“上”在“右”的正上方，“下”在“右”的正下方。“上”面的对面是哪个面？"
+        + "A. 前  B. 右  C. 下  D. 后",
+    ],
+  ])("geo-spatial-06 变体 C 命中，错误选项报 incorrect_choice_answer", (stem) => {
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("C") }))
+      .toEqual([]);
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("A") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+});
