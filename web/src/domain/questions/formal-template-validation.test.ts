@@ -198,3 +198,79 @@ describe("operation-law 新增锚定规则（P2-10a）", () => {
       .toEqual(["incorrect_choice_answer"]);
   });
 });
+
+describe("price-model / distance-model 新增锚定规则（P2-10b）", () => {
+  // 规则 price-box-unit-price：整盒总价 ÷ 本数求每本单价。三个变体的物品名
+  // 由 surfaceVariants 归一到 canonical「笔记本」，故归一缺失时会红。
+  test.each([
+    ["笔记本一盒有 4 本，整盒售价 36 元。每本多少元？", 9],
+    ["图画本一盒有 6 本，整盒售价 48 元。每本多少元？", 8],
+    ["练习本一盒有 5 本，整盒售价 65 元。每本多少元？", 13],
+  ])("app-price-04 变体（单价 %s 元）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "元")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "元")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 规则 price-two-kinds-total：两种文具分别算总价再相加，四个捕获全部参与计算。
+  test.each([
+    ["圆珠笔每支 3 元，买 4 支；笔记本每本 5 元，买 2 本。一共要付多少元？", 22],
+    ["钢笔每支 8 元，买 3 支；草稿本每本 4 元，买 5 本。一共要付多少元？", 44],
+    ["铅笔每支 2 元，买 6 支；图画本每本 7 元，买 4 本。一共要付多少元？", 40],
+  ])("app-price-05 变体（总价 %s 元）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "元")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "元")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 选择题分支 price-buy-three-get-one：每 4 件付 3 件的钱，3 × 件数 ÷ 4。
+  test.each([
+    ["文具店促销：铅笔买 3 件送 1 件。要买够 8 件，实际只需付多少件的钱？"
+      + "A. 7 件  B. 6 件  C. 8 件  D. 5 件", 6],
+    ["文具店促销：橡皮买 3 件送 1 件。要买够 12 件，实际只需付多少件的钱？"
+      + "A. 11 件  B. 9 件  C. 12 件  D. 8 件", 9],
+    ["文具店促销：尺子买 3 件送 1 件。要买够 16 件，实际只需付多少件的钱？"
+      + "A. 15 件  B. 12 件  C. 16 件  D. 10 件", 12],
+  ])("app-price-06 变体（付 %s 件）B 命中，错误选项报 incorrect_choice_answer", (stem) => {
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("B") }))
+      .toEqual([]);
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("A") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 件数不是 4 的倍数时本形态不成立（当前规则只锚定整组形态），分支安全落空。
+  test("app-price-06 买够件数不是 4 的倍数时分支安全落空", () => {
+    const stem = "文具店促销：铅笔买 3 件送 1 件。要买够 9 件，实际只需付多少件的钱？"
+      + "A. 7 件  B. 6 件  C. 8 件  D. 5 件";
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("B") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 规则 distance-find-time：路程 ÷ 速度求时间。
+  test.each([
+    ["客车行驶 240 千米，每小时行 60 千米，需要多少小时？", 4],
+    ["货车行驶 350 千米，每小时行 70 千米，需要多少小时？", 5],
+    ["小轿车行驶 480 千米，每小时行 60 千米，需要多少小时？", 8],
+  ])("app-distance-04 变体（时间 %s 小时）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "小时")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "小时")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 规则 distance-find-speed：路程 ÷ 时间求速度（捕获顺序为时间、路程）。
+  test.each([
+    ["大巴 3 小时行驶 180 千米，每小时行多少千米？", 60],
+    ["中巴 4 小时行驶 260 千米，每小时行多少千米？", 65],
+    ["客车 5 小时行驶 400 千米，每小时行多少千米？", 80],
+  ])("app-distance-05 变体（速度 %s 千米/时）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "千米")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "千米")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 规则 distance-round-trip-return-time：去程速度×时间得路程，路程 ÷ 返回速度。
+  test.each([
+    ["小车从甲地到乙地，去时每小时行 60 千米，行了 3 小时；原路返回时每小时行 45 千米，返回需要多少小时？", 4],
+    ["客车从甲地到乙地，去时每小时行 70 千米，行了 4 小时；原路返回时每小时行 56 千米，返回需要多少小时？", 5],
+    ["货车从甲地到乙地，去时每小时行 54 千米，行了 5 小时；原路返回时每小时行 90 千米，返回需要多少小时？", 3],
+  ])("app-distance-06 变体（返回 %s 小时）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "小时")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "小时")).toEqual(["incorrect_number_answer"]);
+  });
+});

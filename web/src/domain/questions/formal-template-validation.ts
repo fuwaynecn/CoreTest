@@ -679,6 +679,41 @@ const numericRules: NumericRule[] = [
     unit: "元",
     calculate: ([count, price, paid]) => Number(paid) - Number(count) * Number(price),
   },
+  // P2-10b price-model：求单价，整盒总价 ÷ 本数。物品名经 surfaceVariants 归一，
+  // 两个数字捕获均为正整数且全部参与计算。
+  {
+    pattern: /^笔记本一盒有 (\d+) 本，整盒售价 (\d+) 元。每本多少元？$/,
+    unit: "元",
+    calculate: ([count, total]) => Number(total) / Number(count),
+  },
+  // P2-10b price-model：两种文具各买若干，四个捕获（单价、数量各两组）全部参与求和。
+  {
+    pattern: /^圆珠笔每支 (\d+) 元，买 (\d+) 支；笔记本每本 (\d+) 元，买 (\d+) 本。一共要付多少元？$/,
+    unit: "元",
+    calculate: ([penPrice, penCount, bookPrice, bookCount]) => (
+      Number(penPrice) * Number(penCount) + Number(bookPrice) * Number(bookCount)
+    ),
+  },
+  // P2-10b distance-model：求时间，路程 ÷ 速度。
+  {
+    pattern: /^客车行驶 (\d+) 千米，每小时行 (\d+) 千米，需要多少小时？$/,
+    unit: "小时",
+    calculate: ([distance, speed]) => Number(distance) / Number(speed),
+  },
+  // P2-10b distance-model：求速度，路程 ÷ 时间（捕获顺序为时间、路程）。
+  {
+    pattern: /^大巴 (\d+) 小时行驶 (\d+) 千米，每小时行多少千米？$/,
+    unit: "千米",
+    calculate: ([hours, distance]) => Number(distance) / Number(hours),
+  },
+  // P2-10b distance-model：往返问题，去程速度×时间求路程，再 ÷ 返回速度求返回时间。
+  {
+    pattern: /^小车从甲地到乙地，去时每小时行 (\d+) 千米，行了 (\d+) 小时；原路返回时每小时行 (\d+) 千米，返回需要多少小时？$/,
+    unit: "小时",
+    calculate: ([goSpeed, goHours, backSpeed]) => (
+      Number(goSpeed) * Number(goHours) / Number(backSpeed)
+    ),
+  },
 ];
 
 function numberProof(stem: string): NumberProof | null {
@@ -1164,6 +1199,20 @@ function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOptio
     return law ? optionsEqualTo(options, law) : [];
   }
 
+  // P2-10b price-model：买 3 件送 1 件，每 4 件为一组只付 3 件的钱。物品名经
+  // surfaceVariants 归一为「铅笔」；件数必须是正整数且为 4 的整倍数，应付件数
+  // = 3 × 件数 ÷ 4，选项形态钉死为「数字 件」，不满足时安全落空。
+  match = question.match(/^文具店促销：铅笔买 3 件送 1 件。要买够 (\d+) 件，实际只需付多少件的钱？$/);
+  if (match) {
+    const need = Number(match[1]);
+    if (!Number.isInteger(need) || need <= 0 || need % 4 !== 0) return [];
+    const paid = 3 * need / 4;
+    return options.filter(({ text }) => {
+      const optionMatch = text.match(/^(\d+) 件$/);
+      return optionMatch !== null && Number(optionMatch[1]) === paid;
+    });
+  }
+
   return null;
 }
 
@@ -1260,6 +1309,15 @@ const surfaceVariants: readonly (readonly [RegExp, string])[] = [
   [/求另一个角的度数/, "另一个是多少度"],
   [/另一个角是多少度/, "另一个是多少度"],
   [/^把一个 (-?\d+(?:\.\d+)?) 度的角与另一个角拼在一起正好是一个平角/, "一个平角被分成两个角，其中一个是 $1 度"],
+  // P2-10b price-model：新物品/促销名归一到 canonical 用词。
+  [/^(?:笔记本|图画本|练习本)(?=一盒有)/, "笔记本"],
+  [/^(?:圆珠笔|钢笔|铅笔)(?=每支 \d+ 元，买 \d+ 支；)/, "圆珠笔"],
+  [/(?<=；)(?:笔记本|草稿本|图画本)(?=每本 \d+ 元，买 \d+ 本。一共要付)/, "笔记本"],
+  [/(?<=：)(?:铅笔|橡皮|尺子)(?=买 3 件送 1 件。要买够)/, "铅笔"],
+  // P2-10b distance-model：车辆名归一到 canonical 用词，三种句式互不可替代。
+  [/^(?:客车|货车|小轿车)(?=行驶 \d+ 千米，每小时行 \d+ 千米，需要)/, "客车"],
+  [/^(?:大巴|中巴|客车)(?= \d+ 小时行驶 \d+ 千米，每小时行多少千米)/, "大巴"],
+  [/^(?:小车|客车|货车)(?=从甲地到乙地，去时每小时行)/, "小车"],
 ];
 
 function canonicalStem(stem: string): string {

@@ -1872,6 +1872,81 @@ const catalogInputs: TemplateInput[] = [
       value: [1700, 3564, 317],
     },
   },
+
+  // P2-10b price-model +3。
+  {
+    id: "app-price-04", skillCode: "price-model", domain: "application_modeling",
+    difficulty: 1, structureTag: "unit-price-reverse", answerMode: "written",
+    stemPattern: "{{item}}一盒有 {{count}} 本，整盒售价 {{total}} 元。每本多少元？",
+    answerSpecPattern: numberAnswer("元"),
+    explanationPattern: "单价等于总价除以数量，{{total}} ÷ {{count}} = {{answer}} 元。",
+    variables: {
+      item: ["笔记本", "图画本", "练习本"],
+      count: [4, 6, 5], total: [36, 48, 65], answer: [9, 8, 13],
+    },
+  },
+  {
+    id: "app-price-05", skillCode: "price-model", domain: "application_modeling",
+    difficulty: 2, structureTag: "two-kinds-total", answerMode: "written",
+    stemPattern: "{{pen}}每支 {{penPrice}} 元，买 {{penCount}} 支；{{book}}每本 {{bookPrice}} 元，买 {{bookCount}} 本。一共要付多少元？",
+    answerSpecPattern: numberAnswer("元"),
+    explanationPattern: "分别算两种文具的总价再相加，{{penPrice}} × {{penCount}} + {{bookPrice}} × {{bookCount}} = {{answer}} 元。",
+    variables: {
+      pen: ["圆珠笔", "钢笔", "铅笔"], book: ["笔记本", "草稿本", "图画本"],
+      penPrice: [3, 8, 2], penCount: [4, 3, 6],
+      bookPrice: [5, 4, 7], bookCount: [2, 5, 4],
+      answer: [22, 44, 40],
+    },
+  },
+  {
+    id: "app-price-06", skillCode: "price-model", domain: "application_modeling",
+    difficulty: 3, structureTag: "buy-three-get-one", answerMode: "choice",
+    stemPattern: "文具店促销：{{item}}买 3 件送 1 件。要买够 {{need}} 件，实际只需付多少件的钱？A. {{a}}  B. {{b}}  C. {{c}}  D. {{d}}",
+    answerSpecPattern: choiceAnswer("B"),
+    explanationPattern: "买 3 件送 1 件，每 4 件里只付 3 件的钱；{{need}} 件有 {{need}} ÷ 4 组，实际付 3 × {{need}} ÷ 4 = {{answer}} 件的钱。",
+    variables: {
+      item: ["铅笔", "橡皮", "尺子"], need: [8, 12, 16],
+      a: ["7 件", "11 件", "15 件"], b: ["6 件", "9 件", "12 件"],
+      c: ["8 件", "12 件", "16 件"], d: ["5 件", "8 件", "10 件"],
+      answer: [6, 9, 12],
+    },
+  },
+
+  // P2-10b distance-model +3。
+  {
+    id: "app-distance-04", skillCode: "distance-model", domain: "application_modeling",
+    difficulty: 1, structureTag: "distance-find-time", answerMode: "written",
+    stemPattern: "{{vehicle}}行驶 {{distance}} 千米，每小时行 {{speed}} 千米，需要多少小时？",
+    answerSpecPattern: numberAnswer("小时"),
+    explanationPattern: "时间等于路程除以速度，{{distance}} ÷ {{speed}} = {{answer}} 小时。",
+    variables: {
+      vehicle: ["客车", "货车", "小轿车"],
+      distance: [240, 350, 480], speed: [60, 70, 60], answer: [4, 5, 8],
+    },
+  },
+  {
+    id: "app-distance-05", skillCode: "distance-model", domain: "application_modeling",
+    difficulty: 2, structureTag: "distance-find-speed", answerMode: "written",
+    stemPattern: "{{vehicle}} {{hours}} 小时行驶 {{distance}} 千米，每小时行多少千米？",
+    answerSpecPattern: numberAnswer("千米"),
+    explanationPattern: "速度等于路程除以时间，{{distance}} ÷ {{hours}} = {{answer}} 千米。",
+    variables: {
+      vehicle: ["大巴", "中巴", "客车"],
+      hours: [3, 4, 5], distance: [180, 260, 400], answer: [60, 65, 80],
+    },
+  },
+  {
+    id: "app-distance-06", skillCode: "distance-model", domain: "application_modeling",
+    difficulty: 3, structureTag: "round-trip-return-time", answerMode: "written",
+    stemPattern: "{{vehicle}}从甲地到乙地，去时每小时行 {{goSpeed}} 千米，行了 {{goHours}} 小时；原路返回时每小时行 {{backSpeed}} 千米，返回需要多少小时？",
+    answerSpecPattern: numberAnswer("小时"),
+    explanationPattern: "去时路程 {{goSpeed}} × {{goHours}} = {{oneWay}} 千米；原路返回，{{oneWay}} ÷ {{backSpeed}} = {{answer}} 小时。",
+    variables: {
+      vehicle: ["小车", "客车", "货车"],
+      goSpeed: [60, 70, 54], goHours: [3, 4, 5], backSpeed: [45, 56, 90],
+      oneWay: [180, 280, 270], answer: [4, 5, 3],
+    },
+  },
 ];
 
 export const phase2Catalog: ReviewedTemplate[] = catalogInputs.map(reviewed);
