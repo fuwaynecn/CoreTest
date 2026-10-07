@@ -15,12 +15,16 @@ const BADGE_ICONS: Record<string, string> = {
 
 function topicBadgeIcon(code: string) {
   if (code.startsWith("topic-equation")) return "⚖️";
-  if (["angle", "perimeter", "area", "volume", "composite-geometry", "spatial", "length-conversion"]
+  if (["angle", "perimeter", "area", "volume", "composite-geometry", "spatial", "length-conversion",
+    "position-direction", "circle", "cylinder-cone"]
     .some((part) => code.startsWith(`topic-${part}`))) return "📐";
-  if (["data-table", "data-bar", "data-line", "data-average", "data-compare", "possibility"]
+  if (["data-table", "data-bar", "data-line", "data-average", "data-compare", "possibility", "pie-chart"]
     .some((part) => code.startsWith(`topic-${part}`))) return "📊";
-  if (["price-model", "distance-model", "work-model", "ratio-model", "percent-model", "multi-step-model", "extra-information"]
+  if (["price-model", "distance-model", "work-model", "ratio-model", "percent-model", "multi-step-model",
+    "extra-information", "fraction-ops", "percent-apply", "proportion-scale"]
     .some((part) => code.startsWith(`topic-${part}`))) return "🧮";
+  if (code.startsWith("topic-negative-numbers")) return "🌡️";
+  if (["number-shape", "pigeonhole"].some((part) => code.startsWith(`topic-${part}`))) return "🧩";
   if (["read-question", "find-condition", "unit-awareness", "estimate-check", "check-strategy"]
     .some((part) => code.startsWith(`topic-${part}`))) return "🧭";
   return "🔢";

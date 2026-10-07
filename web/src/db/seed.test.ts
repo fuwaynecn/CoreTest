@@ -44,7 +44,7 @@ test.each([
 
 // This is the only test that spawns subprocesses (two `node --import tsx src/db/seed.ts` runs), so the
 // default 5s budget has no headroom when the whole suite runs with one worker per core.
-test("seeds 120 reviewed templates plus the stable three-question Phase 1 daily pool idempotently", { timeout: 20_000 }, () => {
+test("seeds 202 reviewed templates plus the stable three-question Phase 1 daily pool idempotently", { timeout: 20_000 }, () => {
   const directory = mkdtempSync(join(tmpdir(), "math-trainer-valid-seed-"));
   const filename = join(directory, "seed.sqlite");
   const env = {
@@ -72,9 +72,9 @@ test("seeds 120 reviewed templates plus the stable three-question Phase 1 daily 
     const sqlite = new DatabaseSync(filename);
     try {
       expect(sqlite.prepare("SELECT COUNT(*) AS count FROM question_templates").get())
-        .toEqual({ count: 123 });
+        .toEqual({ count: 205 });
       expect(sqlite.prepare("SELECT COUNT(*) AS count FROM skills").get())
-        .toEqual({ count: 40 });
+        .toEqual({ count: 50 });
       expect(sqlite.prepare("SELECT name, domain FROM skills WHERE id = 'skill-decimal'").get())
         .toEqual({ name: "小数计算", domain: "数与运算" });
       expect(sqlite.prepare(`

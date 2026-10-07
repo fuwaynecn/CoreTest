@@ -152,35 +152,76 @@ describe("diagnosis selection", () => {
   });
 
   it("reports target difficulty separately when all-wrong answers exhaust exact low-level templates", () => {
+    // Purpose-built pool: 3 exact d1 items, then 10 d2 fallbacks and one d3, so rule behavior
+    // stays independent of the growing production catalog.
+    const exhaustedCatalog: DiagnosticTemplateSummary[] = Array.from({ length: 15 }, (_, index) => ({
+      templateId: `exhaust-${String(index).padStart(2, "0")}`,
+      skillId: "skill-exhaust",
+      domain: "number_operations",
+      difficulty: [2, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3][index] as Difficulty,
+    }));
+    const fixtureAnswer = (
+      selection: NonNullable<ReturnType<typeof selectNextDiagnosticQuestion>>,
+      correct: boolean,
+    ): DiagnosticAnswer => {
+      const template = exhaustedCatalog.find(
+        (item) => item.templateId === selection.templateId,
+      )!;
+      return {
+        templateId: template.templateId, skillId: template.skillId, domain: template.domain,
+        difficulty: selection.difficulty, correct, independent: correct,
+      };
+    };
+
     const answers: DiagnosticAnswer[] = [];
     const selections: NonNullable<ReturnType<typeof selectNextDiagnosticQuestion>>[] = [];
 
     for (let slot = 0; slot < 15; slot += 1) {
       const selection = selectNextDiagnosticQuestion({
-        catalog, answers, runSeed: "all-wrong", partNumber: 1, completedInPart: slot,
+        catalog: exhaustedCatalog, answers, runSeed: "all-wrong", partNumber: 1, completedInPart: slot,
       })!;
       selections.push(selection);
-      answers.push(answerFor(selection, false));
+      answers.push(fixtureAnswer(selection, false));
     }
     expect(selections[0]).toMatchObject({ targetDifficulty: 2, difficulty: 2, reason: "part_anchor" });
     expect(selections.map((selection) => selection.targetDifficulty))
       .toEqual([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
     expect(selections.map((selection) => selection.difficulty))
-      .toEqual([2, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3]);
+      .toEqual([2, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3]);
     expect(selections.slice(1).every((selection) => selection.reason === "lower_after_error"))
       .toBe(true);
   });
 
   it("caps an all-correct target at 4 while transparently falling back to the nearest catalog level", () => {
+    // Small pool with only one d4 template; after it is used, d3 then d2 are the nearest levels.
+    const cappedCatalog: DiagnosticTemplateSummary[] = Array.from({ length: 15 }, (_, index) => ({
+      templateId: `cap-${String(index).padStart(2, "0")}`,
+      skillId: "skill-cap",
+      domain: "number_operations",
+      difficulty: [2, 2, 3, 4, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2][index] as Difficulty,
+    }));
+    const fixtureAnswer = (
+      selection: NonNullable<ReturnType<typeof selectNextDiagnosticQuestion>>,
+      correct: boolean,
+    ): DiagnosticAnswer => {
+      const template = cappedCatalog.find(
+        (item) => item.templateId === selection.templateId,
+      )!;
+      return {
+        templateId: template.templateId, skillId: template.skillId, domain: template.domain,
+        difficulty: selection.difficulty, correct, independent: correct,
+      };
+    };
+
     const answers: DiagnosticAnswer[] = [];
     const selections: NonNullable<ReturnType<typeof selectNextDiagnosticQuestion>>[] = [];
 
     for (let slot = 0; slot < 15; slot += 1) {
       const selection = selectNextDiagnosticQuestion({
-        catalog, answers, runSeed: "all-correct", partNumber: 1, completedInPart: slot,
+        catalog: cappedCatalog, answers, runSeed: "all-correct", partNumber: 1, completedInPart: slot,
       })!;
       selections.push(selection);
-      answers.push(answerFor(selection, true));
+      answers.push(fixtureAnswer(selection, true));
     }
     expect(selections.map((selection) => selection.targetDifficulty))
       .toEqual([2, 2, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3]);

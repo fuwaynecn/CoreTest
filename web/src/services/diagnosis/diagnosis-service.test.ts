@@ -327,7 +327,12 @@ describe("diagnosis service", () => {
   });
 
   it("records one snapshot-based system cause for a wrong diagnostic first attempt and not for replay or success", () => {
-    const catalog = phase2Catalog.filter(({ domain }) => domain === "number_operations");
+    // Restrict to unitless number templates: this test exercises a numeric mismatch
+    // (calculation); a unit-bearing pick would surface missing_unit first.
+    const catalog = phase2Catalog.filter(({ domain, answerSpecPattern }) => (
+      domain === "number_operations"
+      && (answerSpecPattern as { unit?: string | null }).unit === null
+    ));
     const db = seedDiagnosisDatabase();
     const diagnosis = getOrCreateDiagnosis(db, "child-1", 1, { catalog });
     const snapshot = db.select({

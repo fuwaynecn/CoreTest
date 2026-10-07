@@ -626,6 +626,25 @@ const numericRules: NumericRule[] = [
       Number(known) * (Number(p1) + Number(p2) + Number(p3)) / Number(p2)
     ),
   },
+  {
+    pattern: /^把带分数 ((?:-?\d+)又(?:\d+)\/(?:\d+)) 化成小数。$/,
+    unit: null,
+    calculate: ([mixed]) => {
+      const match = mixed.match(/^(-?\d+)又(\d+)\/(\d+)$/);
+      if (!match) throw new Error("Invalid mixed number");
+      return Number(match[1]) + Number(match[2]) / Number(match[3]);
+    },
+  },
+  {
+    pattern: /^把 (-?\d+(?:\.\d+)?)\/(-?\d+(?:\.\d+)?) 化成最简分数后，分子是多少？$/,
+    unit: null,
+    calculate: ([numerator, denominator]) => {
+      let a = Math.abs(Number(numerator));
+      let b = Math.abs(Number(denominator));
+      while (b !== 0) [a, b] = [b, a % b];
+      return Number(numerator) / a;
+    },
+  },
 ];
 
 function numberProof(stem: string): NumberProof | null {

@@ -1111,7 +1111,7 @@ const catalogInputs: TemplateInput[] = [
     id: "geo-circle-concept-choice", skillCode: "circle", domain: "geometry_space",
     difficulty: 2, structureTag: "circle-concept-choice",
     answerMode: "choice",
-    stemPattern: "关于圆，下面哪一个说法是正确的？ A. 同一个圆的直径长度是半径的 2 倍 B. 圆周率 π 随圆的大小变化 C. 圆的周长等于半径乘 3.14 D. 大圆的圆周率比小圆大",
+    stemPattern: "关于圆，下面哪一个说法是正确的？ A. 同一个圆的直径长度是半径的 2 倍  B. 圆周率 π 随圆的大小变化  C. 圆的周长等于半径乘 3.14  D. 大圆的圆周率比小圆大",
     answerSpecPattern: choiceAnswer("A"),
     explanationPattern: "圆周率 π 是固定常数，与圆的大小无关；同一个圆内直径始终是半径的 2 倍。",
     variables: {},
@@ -1119,7 +1119,7 @@ const catalogInputs: TemplateInput[] = [
   {
     id: "geo-pd-relative-1", skillCode: "position-direction", domain: "geometry_space",
     difficulty: 1, structureTag: "relative-direction", answerMode: "choice",
-    stemPattern: "学校在小明家北偏东 {{deg}}° 方向上，那么小明家在学校的什么方向？ A. 南偏西 {{deg}}° B. 北偏东 {{deg}}° C. 南偏东 {{deg}}° D. 北偏西 {{deg}}°",
+    stemPattern: "学校在小明家北偏东 {{deg}}° 方向上，那么小明家在学校的什么方向？ A. 南偏西 {{deg}}°  B. 北偏东 {{deg}}°  C. 南偏东 {{deg}}°  D. 北偏西 {{deg}}°",
     answerSpecPattern: choiceAnswer("A"),
     explanationPattern: "观测点互换后方向完全相反，北对南、东对西，角度不变。",
     variables: { deg: [30, 40, 60] },
@@ -1127,7 +1127,7 @@ const catalogInputs: TemplateInput[] = [
   {
     id: "geo-pd-relative-2", skillCode: "position-direction", domain: "geometry_space",
     difficulty: 1, structureTag: "relative-direction", answerMode: "choice",
-    stemPattern: "学校在小明家东偏南 {{deg}}° 方向上，那么小明家在学校的什么方向？ A. 西偏北 {{deg}}° B. 东偏南 {{deg}}° C. 西偏南 {{deg}}° D. 东偏北 {{deg}}°",
+    stemPattern: "学校在小明家东偏南 {{deg}}° 方向上，那么小明家在学校的什么方向？ A. 西偏北 {{deg}}°  B. 东偏南 {{deg}}°  C. 西偏南 {{deg}}°  D. 东偏北 {{deg}}°",
     answerSpecPattern: choiceAnswer("A"),
     explanationPattern: "方向相反、角度不变，东偏南的反方向是西偏北。",
     variables: { deg: [30, 45] },
@@ -1135,7 +1135,7 @@ const catalogInputs: TemplateInput[] = [
   {
     id: "geo-pd-sides", skillCode: "position-direction", domain: "geometry_space",
     difficulty: 2, structureTag: "two-place-sides", answerMode: "choice",
-    stemPattern: "公园在学校的北偏西 {{deg}}° 方向，书店在学校的南偏东 {{deg}}° 方向。公园和书店分别在学校的哪一侧？ A. 西北侧和东南侧 B. 东北侧和西南侧 C. 东南侧和西北侧 D. 西南侧和东北侧",
+    stemPattern: "公园在学校的北偏西 {{deg}}° 方向，书店在学校的南偏东 {{deg}}° 方向。公园和书店分别在学校的哪一侧？ A. 西北侧和东南侧  B. 东北侧和西南侧  C. 东南侧和西北侧  D. 西南侧和东北侧",
     answerSpecPattern: choiceAnswer("A"),
     explanationPattern: "北偏西落在西北侧，南偏东落在东南侧。",
     variables: { deg: [30, 45] },
@@ -1143,7 +1143,7 @@ const catalogInputs: TemplateInput[] = [
   {
     id: "geo-pd-route", skillCode: "position-direction", domain: "geometry_space",
     difficulty: 2, structureTag: "route-direction", answerMode: "choice",
-    stemPattern: "小丽从家出发，先向正东走 {{a}} 米，再向正北走 {{b}} 米到达学校。学校在小丽家的什么方向？ A. 东北方向 B. 西北方向 C. 东南方向 D. 西南方向",
+    stemPattern: "小丽从家出发，先向正东走 {{a}} 米，再向正北走 {{b}} 米到达学校。学校在小丽家的什么方向？ A. 东北方向  B. 西北方向  C. 东南方向  D. 西南方向",
     answerSpecPattern: choiceAnswer("A"),
     explanationPattern: "向东又向北，合成方向是东北方向。",
     variables: { a: [200, 300], b: [100, 150] },
@@ -1151,7 +1151,7 @@ const catalogInputs: TemplateInput[] = [
   {
     id: "geo-pd-return", skillCode: "position-direction", domain: "geometry_space",
     difficulty: 2, structureTag: "route-return-direction", answerMode: "choice",
-    stemPattern: "小丽从家出发，先向正东走 {{a}} 米，再向正北走 {{b}} 米到达学校。她从学校原路返回家时，先走的方向是？ A. 正南 B. 正北 C. 正东 D. 正西",
+    stemPattern: "小丽从家出发，先向正东走 {{a}} 米，再向正北走 {{b}} 米到达学校。她从学校原路返回家时，先走的方向是？ A. 正南  B. 正北  C. 正东  D. 正西",
     answerSpecPattern: choiceAnswer("A"),
     explanationPattern: "原路返回要按相反顺序，最后走的向北路段最先返回，方向为正南。",
     variables: { a: [200, 300], b: [100, 150] },
@@ -1215,7 +1215,7 @@ const catalogInputs: TemplateInput[] = [
   {
     id: "data-pie-choose", skillCode: "pie-chart", domain: "data_statistics",
     difficulty: 1, structureTag: "pie-choose", answerMode: "choice",
-    stemPattern: "下面哪一类数据最适合用扇形统计图表示？ A. 各类支出占家庭总支出的百分比 B. 一周内每天的气温变化 C. 四名同学的身高比较 D. 每月图书借阅的数量增减",
+    stemPattern: "下面哪一类数据最适合用扇形统计图表示？ A. 各类支出占家庭总支出的百分比  B. 一周内每天的气温变化  C. 四名同学的身高比较  D. 每月图书借阅的数量增减",
     answerSpecPattern: choiceAnswer("A"),
     explanationPattern: "扇形统计图表示各部分与总数之间的百分比关系。",
     variables: {},
@@ -1223,7 +1223,7 @@ const catalogInputs: TemplateInput[] = [
   {
     id: "data-pie-judge", skillCode: "pie-chart", domain: "data_statistics",
     difficulty: 2, structureTag: "pie-judge", answerMode: "choice",
-    stemPattern: "扇形统计图显示：阅读占 40%、运动占 35%、艺术占 25%。下面哪个说法正确？ A. 喜欢阅读的人数占比最大 B. 喜欢艺术的人数占比最大 C. 三类占比一样大 D. 运动占比小于艺术",
+    stemPattern: "扇形统计图显示：阅读占 40%、运动占 35%、艺术占 25%。下面哪个说法正确？ A. 喜欢阅读的人数占比最大  B. 喜欢艺术的人数占比最大  C. 三类占比一样大  D. 运动占比小于艺术",
     answerSpecPattern: choiceAnswer("A"),
     explanationPattern: "比较三个百分数，40% 最大，对应阅读。",
     variables: {},
@@ -1271,7 +1271,7 @@ const catalogInputs: TemplateInput[] = [
   {
     id: "think-ns-dot-explain", skillCode: "number-shape", domain: "thinking_habits",
     difficulty: 2, structureTag: "ns-dot-explain", answerMode: "choice",
-    stemPattern: "用点阵图解释“1+3+5=9”，下面哪个图形正确？ A. 每边 3 个点的正方形点阵 B. 每边 2 个点的正方形点阵 C. 底边 3 个点的三角形点阵 D. 3 个一排的长条形点阵",
+    stemPattern: "用点阵图解释“1+3+5=9”，下面哪个图形正确？ A. 每边 3 个点的正方形点阵  B. 每边 2 个点的正方形点阵  C. 底边 3 个点的三角形点阵  D. 3 个一排的长条形点阵",
     answerSpecPattern: choiceAnswer("A"),
     explanationPattern: "1+3+5 是 3 个连续奇数之和，对应每边 3 点的正方形点阵。",
     variables: {},
@@ -1279,7 +1279,7 @@ const catalogInputs: TemplateInput[] = [
   {
     id: "think-ns-next-figure", skillCode: "number-shape", domain: "thinking_habits",
     difficulty: 2, structureTag: "ns-next-figure", answerMode: "choice",
-    stemPattern: "按规律，第 4 个图形中一共有多少个小正方形？ A. 16 个（每边 4 个的正方形） B. 9 个（每边 3 个的正方形） C. 10 个（底边 4 个的三角形） D. 12 个（长条形排列）",
+    stemPattern: "按规律，第 4 个图形中一共有多少个小正方形？ A. 16 个（每边 4 个的正方形）  B. 9 个（每边 3 个的正方形）  C. 10 个（底边 4 个的三角形）  D. 12 个（长条形排列）",
     answerSpecPattern: choiceAnswer("A"),
     explanationPattern: "图形序列为每边 1、2、3、4 个的正方形，第 4 个有 4²=16 个。",
     variables: {},
@@ -1368,7 +1368,7 @@ const catalogInputs: TemplateInput[] = [
   {
     id: "app-pctm-choice", skillCode: "percent-model", domain: "application_modeling",
     difficulty: 2, structureTag: "percent-inequality-choice", answerMode: "choice",
-    stemPattern: "下面哪一个数与 25% 不相等？ A. 2.5 B. 1/4 C. 0.25 D. 25/100",
+    stemPattern: "下面哪一个数与 25% 不相等？ A. 2.5  B. 1/4  C. 0.25  D. 25/100",
     answerSpecPattern: choiceAnswer("A"),
     explanationPattern: "25% = 0.25 = 1/4 = 25/100；2.5 = 250%。",
     variables: {},
@@ -1459,7 +1459,7 @@ const catalogInputs: TemplateInput[] = [
   {
     id: "app-neg-06", skillCode: "negative-numbers", domain: "number_operations",
     difficulty: 1, structureTag: "zero-concept-choice", answerMode: "choice",
-    stemPattern: "关于数 0，下面哪一个说法是正确的？ A. 0 既不是正数，也不是负数 B. 0 是正数 C. 0 是负数 D. 0 比所有负数都小",
+    stemPattern: "关于数 0，下面哪一个说法是正确的？ A. 0 既不是正数，也不是负数  B. 0 是正数  C. 0 是负数  D. 0 比所有负数都小",
     answerSpecPattern: choiceAnswer("A"),
     explanationPattern: "0 是正负数的分界，它本身既不是正数也不是负数。",
     variables: {},
@@ -1571,7 +1571,7 @@ const catalogInputs: TemplateInput[] = [
   {
     id: "app-prop-direct", skillCode: "proportion-scale", domain: "number_operations",
     difficulty: 2, structureTag: "proportion-direct-choice", answerMode: "choice",
-    stemPattern: "单价一定时，总价与数量成什么比例？ A. 正比例 B. 反比例 C. 不成比例 D. 无法确定",
+    stemPattern: "单价一定时，总价与数量成什么比例？ A. 正比例  B. 反比例  C. 不成比例  D. 无法确定",
     answerSpecPattern: choiceAnswer("A"),
     explanationPattern: "单价一定，总价随数量扩大而同倍扩大，比值一定，成正比例。",
     variables: {},
@@ -1579,7 +1579,7 @@ const catalogInputs: TemplateInput[] = [
   {
     id: "app-prop-compose", skillCode: "proportion-scale", domain: "number_operations",
     difficulty: 3, structureTag: "proportion-compose-choice", answerMode: "choice",
-    stemPattern: "下面哪一组中的两个比可以组成比例？ A. 3：5 和 6：10 B. 2：3 和 5：6 C. 4：7 和 8：13 D. 1：2 和 3：5",
+    stemPattern: "下面哪一组中的两个比可以组成比例？ A. 3：5 和 6：10  B. 2：3 和 5：6  C. 4：7 和 8：13  D. 1：2 和 3：5",
     answerSpecPattern: choiceAnswer("A"),
     explanationPattern: "3：5 = 6：10，两外项积 3×10 = 两内项积 5×6 = 30，可以组成比例。",
     variables: {},
@@ -1635,7 +1635,7 @@ const catalogInputs: TemplateInput[] = [
   {
     id: "app-pigeon-choice", skillCode: "pigeonhole", domain: "thinking_habits",
     difficulty: 2, structureTag: "pigeonhole-pencil-holders", answerMode: "choice",
-    stemPattern: "把 5 支铅笔放进 4 个笔筒，下面哪个说法一定正确？ A. 总有一个笔筒里至少有 2 支铅笔 B. 每个笔筒里都有 2 支铅笔 C. 一定有一个笔筒是空的 D. 铅笔最多的笔筒里有 5 支",
+    stemPattern: "把 5 支铅笔放进 4 个笔筒，下面哪个说法一定正确？ A. 总有一个笔筒里至少有 2 支铅笔  B. 每个笔筒里都有 2 支铅笔  C. 一定有一个笔筒是空的  D. 铅笔最多的笔筒里有 5 支",
     answerSpecPattern: choiceAnswer("A"),
     explanationPattern: "5 支铅笔平均分进 4 个笔筒还余 1 支，所以总有一个笔筒至少有 2 支。",
     variables: {},
@@ -1667,7 +1667,7 @@ const catalogInputs: TemplateInput[] = [
   {
     id: "app-work-07", skillCode: "work-model", domain: "application_modeling",
     difficulty: 2, structureTag: "engineering-unit-one", answerMode: "choice",
-    stemPattern: "解决工程问题时，通常把这项工程的工作总量看作什么？ A. 单位 1 B. 1 天的工作量 C. 必须知道的具体总量 D. 两队速度之和",
+    stemPattern: "解决工程问题时，通常把这项工程的工作总量看作什么？ A. 单位 1  B. 1 天的工作量  C. 必须知道的具体总量  D. 两队速度之和",
     answerSpecPattern: choiceAnswer("A"),
     explanationPattern: "把工作总量看作单位 1，各队效率用单位时间完成总量的几分之一表示。",
     variables: {},
@@ -1699,10 +1699,26 @@ const catalogInputs: TemplateInput[] = [
   {
     id: "app-ratio-07", skillCode: "ratio-model", domain: "application_modeling",
     difficulty: 2, structureTag: "ratio-basic-property", answerMode: "choice",
-    stemPattern: "比的前项和后项同时乘同一个不为 0 的数，比值会怎样？ A. 不变 B. 变大 C. 变小 D. 无法确定",
+    stemPattern: "比的前项和后项同时乘同一个不为 0 的数，比值会怎样？ A. 不变  B. 变大  C. 变小  D. 无法确定",
     answerSpecPattern: choiceAnswer("A"),
     explanationPattern: "这是比的基本性质，前后项同乘同除相同非零数，比值不变。",
     variables: {},
+  },
+  {
+    id: "num-fraction-05", skillCode: "fraction", domain: "number_operations",
+    difficulty: 2, structureTag: "mixed-number-to-decimal", answerMode: "written",
+    stemPattern: "把带分数 {{mixed}} 化成小数。",
+    answerSpecPattern: numberAnswer(),
+    explanationPattern: "带分数由整数和真分数合成，化成小数是 {{answer}}。",
+    variables: { mixed: ["1又1/2", "2又3/4", "3又1/5"], answer: [1.5, 2.75, 3.2] },
+  },
+  {
+    id: "num-fraction-06", skillCode: "fraction", domain: "number_operations",
+    difficulty: 2, structureTag: "fraction-reduce-numerator", answerMode: "written",
+    stemPattern: "把 {{a}}/{{b}} 化成最简分数后，分子是多少？",
+    answerSpecPattern: numberAnswer(),
+    explanationPattern: "先求分子分母的最大公因数，再用分子除以它，得到 {{answer}}。",
+    variables: { a: [4, 8, 12], b: [6, 10, 18], answer: [2, 4, 2] },
   },
 ];
 
