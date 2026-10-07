@@ -1790,6 +1790,88 @@ const catalogInputs: TemplateInput[] = [
     explanationPattern: "先求分子分母的最大公因数，再用分子除以它，得到 {{answer}}。",
     variables: { a: [4, 8, 12], b: [6, 10, 18], answer: [2, 4, 2] },
   },
+
+  // P2-10a mixed-operations +3。
+  {
+    id: "num-mixed-04", skillCode: "mixed-operations", domain: "number_operations",
+    difficulty: 1, structureTag: "merge-step-formulas", answerMode: "choice",
+    stemPattern: "把两个分步算式 {{step1}}、{{step2}} 合并成综合算式，得数不变，哪一个正确？A. {{a}}  B. {{b}}  C. {{c}}  D. {{d}}",
+    answerSpecPattern: choiceAnswer("B"),
+    explanationPattern: "第一步 {{step1}}，第二步 {{step2}}；把第一步的得数替换成第一步算式，综合算式是 {{b}}，得数 {{answer}}。",
+    variables: {
+      step1: ["3 × 4 = 12", "30 ÷ 6 = 5", "15 + 9 = 24"],
+      step2: ["12 + 8 = 20", "5 × 9 = 45", "24 ÷ 4 = 6"],
+      a: ["3 × 4 - 8", "30 × 6 ÷ 9", "15 + 9 ÷ 4"],
+      b: ["3 × 4 + 8", "30 ÷ 6 × 9", "(15 + 9) ÷ 4"],
+      c: ["3 × (4 + 8)", "30 ÷ 6 + 9", "15 - 9 ÷ 4"],
+      d: ["3 + 4 × 8", "(30 - 6) × 9", "(15 - 9) ÷ 4"],
+      answer: [20, 45, 6],
+    },
+  },
+  {
+    id: "num-mixed-05", skillCode: "mixed-operations", domain: "number_operations",
+    difficulty: 2, structureTag: "shopping-change-context", answerMode: "written",
+    stemPattern: "妈妈买 {{n}} 千克苹果，每千克 {{price}} 元，付出 {{paid}} 元，应找回多少元？",
+    answerSpecPattern: numberAnswer("元"),
+    explanationPattern: "苹果总价 {{n}} × {{price}} = {{total}} 元，应找回 {{paid}} - {{total}} = {{answer}} 元。",
+    variables: {
+      n: [3, 4, 2], price: [8, 12, 15], paid: [50, 100, 50],
+      total: [24, 48, 30], answer: [26, 52, 20],
+    },
+  },
+  {
+    id: "num-mixed-06", skillCode: "mixed-operations", domain: "number_operations",
+    difficulty: 3, structureTag: "mixed-compare-size", answerMode: "choice",
+    stemPattern: "比较 {{left}} 和 {{right}} 的得数，○ 里应填什么？A. >  B. <  C. =  D. 无法确定",
+    answerSpecPattern: choiceAnswer("B"),
+    explanationPattern: "左边 {{left}} = {{lv}}，右边 {{right}} = {{rv}}，{{lv}} < {{rv}}，所以选 B。",
+    variables: {
+      left: ["6 × 7 - 15", "5 × 4 + 6", "(20 - 8) ÷ 4"],
+      right: ["6 × (7 - 2)", "5 × (4 + 6)", "20 - 8 ÷ 4"],
+      lv: [27, 26, 3], rv: [30, 50, 18],
+    },
+  },
+
+  // P2-10a operation-law +3。
+  {
+    id: "num-law-04", skillCode: "operation-law", domain: "number_operations",
+    difficulty: 1, structureTag: "subtraction-property", answerMode: "mental",
+    stemPattern: "用减法的性质简算：{{expression}}。",
+    answerSpecPattern: numberAnswer(),
+    explanationPattern: "一个数连续减去两个数，等于减去这两个数的和：{{a}} - {{b}} - {{c}} = {{a}} - ({{b}} + {{c}}) = {{answer}}。",
+    variables: {
+      expression: ["235 - 68 - 32", "417 - 53 - 47", "528 - 128 - 72"],
+      a: [235, 417, 528], b: [68, 53, 128], c: [32, 47, 72], answer: [135, 317, 328],
+    },
+  },
+  {
+    id: "num-law-05", skillCode: "operation-law", domain: "number_operations",
+    difficulty: 2, structureTag: "distributive-near-hundred", answerMode: "mental",
+    stemPattern: "用乘法分配律简算 {{expression}}。",
+    answerSpecPattern: numberAnswer(),
+    explanationPattern: "把接近整百的数拆成整百数加（减）一个数，再用乘法分配律：{{expression}} = {{answer}}。",
+    variables: {
+      expression: ["99 × 36", "102 × 25", "45 × 98"],
+      answer: [3564, 2550, 4410],
+    },
+  },
+  {
+    id: "num-law-06", skillCode: "operation-law", domain: "number_operations",
+    difficulty: 3, structureTag: "name-the-law", answerMode: "choice",
+    stemPattern: "{{first}} = {{second}} = {{third}} 运用了哪一种运算律或性质？A. {{a}}  B. {{b}}  C. {{c}}  D. {{d}}",
+    answerSpecPattern: choiceAnswer("B"),
+    explanationPattern: "三步得数相同，都是 {{value}}；这一变形对应{{b}}，所以选 B。",
+    variables: {
+      first: ["25 × 17 × 4", "36 × 99", "417 - 53 - 47"],
+      second: ["25 × 4 × 17", "36 × (100 - 1)", "417 - (53 + 47)"],
+      third: ["100 × 17", "3600 - 36", "417 - 100"],
+      a: ["加法交换律", "乘法交换律", "乘法分配律"],
+      b: ["乘法交换律", "乘法分配律", "减法的性质"],
+      c: ["乘法结合律", "乘法结合律", "加法交换律"],
+      d: ["乘法分配律", "加法结合律", "乘法结合律"],
+      value: [1700, 3564, 317],
+    },
+  },
 ];
 
 export const phase2Catalog: ReviewedTemplate[] = catalogInputs.map(reviewed);

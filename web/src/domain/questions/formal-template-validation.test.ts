@@ -88,3 +88,104 @@ describe("decimal 拆分复用既有锚定（P2-9）", () => {
     expect(validateWritten("计算 12.6 ÷ 3 + 2.4。", 6.6)).toEqual([]);
   });
 });
+
+describe("mixed-operations 新增锚定规则（P2-10a）", () => {
+  // 选择题分支 merge-step-formulas：从两个分步算式推导唯一综合算式选项。
+  test.each([
+    [
+      "把两个分步算式 3 × 4 = 12、12 + 8 = 20 合并成综合算式，得数不变，哪一个正确？"
+        + "A. 3 × 4 - 8  B. 3 × 4 + 8  C. 3 × (4 + 8)  D. 3 + 4 × 8",
+      20,
+    ],
+    [
+      "把两个分步算式 30 ÷ 6 = 5、5 × 9 = 45 合并成综合算式，得数不变，哪一个正确？"
+        + "A. 30 × 6 ÷ 9  B. 30 ÷ 6 × 9  C. 30 ÷ 6 + 9  D. (30 - 6) × 9",
+      45,
+    ],
+    [
+      "把两个分步算式 15 + 9 = 24、24 ÷ 4 = 6 合并成综合算式，得数不变，哪一个正确？"
+        + "A. 15 + 9 ÷ 4  B. (15 + 9) ÷ 4  C. 15 - 9 ÷ 4  D. (15 - 9) ÷ 4",
+      6,
+    ],
+  ])("num-mixed-04 变体（得数 %s）B 命中，错误选项报 incorrect_choice_answer", (stem) => {
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("B") }))
+      .toEqual([]);
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("A") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 规则 shopping-change-context：付出的钱减总价求找零。
+  test.each([
+    ["妈妈买 3 千克苹果，每千克 8 元，付出 50 元，应找回多少元？", 26],
+    ["妈妈买 4 千克苹果，每千克 12 元，付出 100 元，应找回多少元？", 52],
+    ["妈妈买 2 千克苹果，每千克 15 元，付出 50 元，应找回多少元？", 20],
+  ])("num-mixed-05 变体（找零 %s 元）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "元")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "元")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 选择题分支 mixed-compare-size：两个混合算式得数比大小。
+  test.each([
+    ["比较 6 × 7 - 15 和 6 × (7 - 2) 的得数，○ 里应填什么？", 27, 30],
+    ["比较 5 × 4 + 6 和 5 × (4 + 6) 的得数，○ 里应填什么？", 26, 50],
+    ["比较 (20 - 8) ÷ 4 和 20 - 8 ÷ 4 的得数，○ 里应填什么？", 3, 18],
+  ])("num-mixed-06 变体（%s < %s）B 命中，错误选项报 incorrect_choice_answer", (stem, left, right) => {
+    const full = `${stem}A. >  B. <  C. =  D. 无法确定`;
+    expect(left).toBeLessThan(right);
+    expect(renderedQuestionErrors({ answerMode: "choice", stem: full, answerSpec: choiceSpec("B") }))
+      .toEqual([]);
+    expect(renderedQuestionErrors({ answerMode: "choice", stem: full, answerSpec: choiceSpec("C") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+});
+
+describe("operation-law 新增锚定规则（P2-10a）", () => {
+  // 规则 subtraction-property：a - b - c 直接经算术求值证明。
+  test.each([
+    ["用减法的性质简算：235 - 68 - 32。", 135],
+    ["用减法的性质简算：417 - 53 - 47。", 317],
+    ["用减法的性质简算：528 - 128 - 72。", 328],
+  ])("num-law-04 变体（%s）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer)).toEqual([]);
+    expect(validateWritten(stem, answer + 1)).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 规则 distributive-near-hundred：接近整百乘法直接经算术求值证明。
+  test.each([
+    ["用乘法分配律简算 99 × 36。", 3564],
+    ["用乘法分配律简算 102 × 25。", 2550],
+    ["用乘法分配律简算 45 × 98。", 4410],
+  ])("num-law-05 变体（%s）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer)).toEqual([]);
+    expect(validateWritten(stem, answer + 1)).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 选择题分支 name-the-law：按三步简算过程的结构变换判定运算律/性质。
+  test.each([
+    [
+      "25 × 17 × 4 = 25 × 4 × 17 = 100 × 17 运用了哪一种运算律或性质？"
+        + "A. 加法交换律  B. 乘法交换律  C. 乘法结合律  D. 乘法分配律",
+    ],
+    [
+      "36 × 99 = 36 × (100 - 1) = 3600 - 36 运用了哪一种运算律或性质？"
+        + "A. 乘法交换律  B. 乘法分配律  C. 乘法结合律  D. 加法结合律",
+    ],
+    [
+      "417 - 53 - 47 = 417 - (53 + 47) = 417 - 100 运用了哪一种运算律或性质？"
+        + "A. 乘法分配律  B. 减法的性质  C. 加法交换律  D. 乘法结合律",
+    ],
+  ])("num-law-06 变体 B 命中，错误选项报 incorrect_choice_answer", (stem) => {
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("B") }))
+      .toEqual([]);
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("D") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 三步得数不一致时不得被 name-the-law 分支锚定（防止过程造假被放过后误判）。
+  test("num-law-06 三步得数不一致时分支安全落空", () => {
+    const stem = "25 × 17 × 4 = 25 × 4 × 17 = 100 + 17 运用了哪一种运算律或性质？"
+      + "A. 加法交换律  B. 乘法交换律  C. 乘法结合律  D. 乘法分配律";
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("B") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+});

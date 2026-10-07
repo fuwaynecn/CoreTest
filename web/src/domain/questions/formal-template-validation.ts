@@ -672,6 +672,13 @@ const numericRules: NumericRule[] = [
     unit: "升",
     calculate: ([juice, children]) => Number(juice) / Number(children),
   },
+  // P2-10a mixed-operations：购物找零情境，三个捕获都是直接参与计算的数
+  // （数量、单价、付款），故显式钉死数字形态，不使用 (.+?)。
+  {
+    pattern: /^妈妈买 (\d+(?:\.\d+)?) 千克苹果，每千克 (\d+(?:\.\d+)?) 元，付出 (\d+(?:\.\d+)?) 元，应找回多少元？$/,
+    unit: "元",
+    calculate: ([count, price, paid]) => Number(paid) - Number(count) * Number(price),
+  },
 ];
 
 function numberProof(stem: string): NumberProof | null {
@@ -685,6 +692,14 @@ function numberProof(stem: string): NumberProof | null {
   if (match) return { value: arithmeticValue(match[1]), unit: null };
 
   match = stem.match(/^选择合适的运算律计算\s+(.+?)[。.]$/);
+  if (match) return { value: arithmeticValue(match[1]), unit: null };
+
+  // P2-10a operation-law：两条简算引导语形态固定，括号内表达式经 arithmeticValue
+  // 严格求值（含括号与四则），故捕获 (.+?) 不会放过非法算式。
+  match = stem.match(/^用减法的性质简算[：:]\s*(.+?)[。.]$/);
+  if (match) return { value: arithmeticValue(match[1]), unit: null };
+
+  match = stem.match(/^用乘法分配律简算\s+(.+?)[。.]$/);
   if (match) return { value: arithmeticValue(match[1]), unit: null };
 
   match = stem.match(/^求\s+(-?\d+(?:\.\d+)?)\s+的\s+(.+?)\s+是多少[。.]$/);
@@ -1052,6 +1067,100 @@ function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOptio
   // 钉死为「数字 + 数字」的小数/整数加法，避免误锚定同句式的其它竖式题。
   match = question.match(/^用竖式计算 (\d+(?:\.\d+)?) \+ (\d+(?:\.\d+)?) 时，下面哪种做法正确？$/);
   if (match) return optionsEqualTo(options, "小数点对齐");
+
+  // P2-10a：合并分步算式。两个 (.+?) 捕获两个分步算式：每个算式先 split("=")，
+  // 再用 arithmeticValue 严格核对等号两边相等；并要求第二步引用第一步得数，
+  // 唯一选项须同时满足「得数 = 第二步结果」与「含第一步全部操作数」。候选算式
+  // 内容不影响锚定安全性（全部被求值），故不把捕获收窄为数字；不唯一时安全落空。
+  match = question.match(/^把两个分步算式 (.+?)、(.+?) 合并成综合算式，得数不变，哪一个正确？$/);
+  if (match) {
+    const parseStep = (step: string) => {
+      const sides = step.split("=");
+      if (sides.length !== 2) throw new Error("Invalid step");
+      const result = Number(sides[1].trim());
+      if (!Number.isFinite(result)) throw new Error("Invalid step result");
+      return { expression: sides[0].trim(), result };
+    };
+    const first = parseStep(match[1]);
+    const second = parseStep(match[2]);
+    if (Math.abs(arithmeticValue(first.expression) - first.result) > 1e-8
+        || Math.abs(arithmeticValue(second.expression) - second.result) > 1e-8) return [];
+    const firstTokens: string[] = first.expression.match(/\d+(?:\.\d+)?/g) ?? [];
+    const secondTokens: string[] = second.expression.match(/\d+(?:\.\d+)?/g) ?? [];
+    if (!secondTokens.includes(String(first.result))) return [];
+    const matching = options.filter(({ text }) => {
+      try {
+        if (Math.abs(arithmeticValue(text) - second.result) > 1e-8) return false;
+      } catch {
+        return false;
+      }
+      const optionTokens: string[] = text.match(/\d+(?:\.\d+)?/g) ?? [];
+      return firstTokens.every((token) => optionTokens.includes(token));
+    });
+    return matching.length === 1 ? matching : [];
+  }
+
+  // P2-10a：两个混合算式比大小。两个 (.+?) 捕获算式，答案符号完全由两边
+  // arithmeticValue 的比较决定，非法算式直接抛错；操作数形态不产生歧义。
+  match = question.match(/^比较 (.+) 和 (.+) 的得数，○ 里应填什么？$/);
+  if (match) {
+    const leftValue = arithmeticValue(match[1]);
+    const rightValue = arithmeticValue(match[2]);
+    const symbol = leftValue > rightValue ? ">" : leftValue < rightValue ? "<" : "=";
+    return optionsEqualTo(options, symbol);
+  }
+
+  // P2-10a：按三步简算过程判定所用运算律/性质。三个 (.+?) 为三步算式，全部经
+  // arithmeticValue 求值并核对三步得数相等，再按结构变换分类（减法性质/交换律/
+  // 分配律）；过程造假或分类失败时安全落空。操作数的具体数字形态不参与分类，故不收窄。
+  match = question.match(/^(.+?) = (.+?) = (.+?) 运用了哪一种运算律或性质？$/);
+  if (match) {
+    const [step1, step2, step3] = match.slice(1);
+    const values = [step1, step2, step3].map(arithmeticValue);
+    if (values.some((value) => Math.abs(value - values[0]) > 1e-8)) return [];
+    const numberTokens = (text: string) => text.match(/\d+(?:\.\d+)?/g) ?? [];
+    const operators = (text: string) => normalizeMath(text).match(/[+*/-]/g) ?? [];
+    let law: string | null = null;
+
+    // a - b - c = a - (b + c)
+    const subtraction = compactMath(step1).match(
+      /^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$/,
+    );
+    if (subtraction
+        && compactMath(step2) === `${subtraction[1]}-(${subtraction[2]}+${subtraction[3]})`) {
+      law = "减法的性质";
+    }
+
+    // 交换律：操作数与运算符多重集相同，仅次序改变
+    if (!law) {
+      const sameNumbers = numberTokens(step1).slice().sort().join("|")
+        === numberTokens(step2).slice().sort().join("|");
+      const firstOperators = operators(step1);
+      const secondOperators = operators(step2);
+      const sameOperators = firstOperators.slice().sort().join() === secondOperators.slice().sort().join();
+      if (sameNumbers && sameOperators && compactMath(step1) !== compactMath(step2)
+          && (firstOperators.every((op) => op === "*")
+              || firstOperators.every((op) => op === "+"))) {
+        law = firstOperators[0] === "*" ? "乘法交换律" : "加法交换律";
+      }
+    }
+
+    // 分配律：a × (b ± c) 在第三步展开为 a×b ± a×c
+    if (!law) {
+      const grouped = compactMath(step2).match(
+        /^(\d+(?:\.\d+)?)\*\((\d+(?:\.\d+)?)([+\-])(\d+(?:\.\d+)?)\)$/,
+      );
+      if (grouped) {
+        const factor = Number(grouped[1]);
+        const expanded = grouped[3] === "+"
+          ? factor * Number(grouped[2]) + factor * Number(grouped[4])
+          : factor * Number(grouped[2]) - factor * Number(grouped[4]);
+        if (Math.abs(arithmeticValue(step3) - expanded) <= 1e-8) law = "乘法分配律";
+      }
+    }
+
+    return law ? optionsEqualTo(options, law) : [];
+  }
 
   return null;
 }
