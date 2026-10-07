@@ -51,13 +51,27 @@ describe("decimal 拆分新增锚定规则（P2-9）", () => {
   });
 
   // 选择题分支：用竖式计算位数不同的小数加法时怎样做。
-  test("num-decimal-05 竖式做法：A 命中，其他选项报 incorrect_choice_answer", () => {
-    const stem = "用竖式计算 3.58 + 2.6 时，下面哪种做法正确？"
+  test.each([
+    ["3.58 + 2.6"], ["12.7 + 5.84"], ["0.96 + 4.3"],
+  ])("num-decimal-05 三个变体（%s）均 A 命中，错误选项报 incorrect_choice_answer", (expression) => {
+    const stem = `用竖式计算 ${expression} 时，下面哪种做法正确？`
       + "A. 小数点对齐  B. 末位对齐  C. 左边对齐  D. 随意对齐";
     expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("A") }))
       .toEqual([]);
     expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("B") }))
       .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 收紧后，同句式但非「数字 + 数字」加法的题干不再被该分支锚定。
+  test("同句式乘法竖式与无操作数题干不被该分支匹配", () => {
+    const multiplication = "用竖式计算 36 × 28 时，下面哪种做法正确？"
+      + "A. 末位对齐  B. 小数点对齐  C. 左边对齐  D. 随意对齐";
+    const noOperands = "用竖式计算下面各题时，下面哪种做法正确？"
+      + "A. 小数点对齐  B. 末位对齐  C. 左边对齐  D. 随意对齐";
+    expect(renderedQuestionErrors({ answerMode: "choice", stem: multiplication, answerSpec: choiceSpec("A") }))
+      .toEqual(["unsupported_choice_pattern"]);
+    expect(renderedQuestionErrors({ answerMode: "choice", stem: noOperands, answerSpec: choiceSpec("A") }))
+      .toEqual(["unsupported_choice_pattern"]);
   });
 });
 

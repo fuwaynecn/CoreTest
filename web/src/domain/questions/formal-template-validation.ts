@@ -1048,8 +1048,9 @@ function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOptio
   match = question.match(/^比的前项和后项同时乘同一个不为 0 的数，比值会怎样？$/);
   if (match) return optionsEqualTo(options, "不变");
 
-  // P2-9：位数不同的小数竖式加法，先把小数点对齐。
-  match = question.match(/^用竖式计算 (.+) 时，下面哪种做法正确？$/);
+  // P2-9：位数不同的小数竖式加法，先把小数点对齐。两个捕获组仅用于把形态
+  // 钉死为「数字 + 数字」的小数/整数加法，避免误锚定同句式的其它竖式题。
+  match = question.match(/^用竖式计算 (\d+(?:\.\d+)?) \+ (\d+(?:\.\d+)?) 时，下面哪种做法正确？$/);
   if (match) return optionsEqualTo(options, "小数点对齐");
 
   return null;
