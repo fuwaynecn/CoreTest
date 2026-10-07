@@ -6,10 +6,13 @@ export type PepSkillScheduleEntry = {
 };
 
 // 依据人教版编排；expectedWeek 为"约第几周学完"。
-// decimal/fraction/percent 跨学期，本数据为临时值，Plan 2 拆分时定稿。
+// fraction/percent 跨学期，本数据为临时值，Plan 2 拆分时定稿；decimal 已拆为
+// decimal（四下小数加减）与 decimal-ops（五上小数乘除）。
 export const pepSkillSchedule: Record<string, PepSkillScheduleEntry> = {
   "integer-mental": { grade: 3, semester: 1, expectedWeek: 3 },
-  decimal: { grade: 4, semester: 2, expectedWeek: 14, note: "临时值：含五上小数乘除，Plan 2 拆分" },
+  decimal: { grade: 4, semester: 2, expectedWeek: 14 },
+  // 五上：小数乘除。
+  "decimal-ops": { grade: 5, semester: 1, expectedWeek: 7 },
   fraction: { grade: 5, semester: 2, expectedWeek: 15, note: "临时值：含六上乘除，Plan 2 拆分" },
   // 六上：分数乘除与分数应用题。
   "fraction-ops": { grade: 6, semester: 1, expectedWeek: 7 },

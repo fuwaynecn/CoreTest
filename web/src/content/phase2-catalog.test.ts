@@ -12,7 +12,10 @@ const expectedIds = [
   "num-law-01", "num-law-02",
   "num-estimate-01", "num-estimate-02",
   "num-reverse-check-01", "num-reverse-check-02",
-  "num-int-mental-03", "num-decimal-04", "num-fraction-04", "num-mixed-03",
+  "num-int-mental-03", "num-decimal-04",
+  "num-decimal-05", "num-decimal-06", "num-decimal-07", "num-decimal-08",
+  "num-decops-01", "num-decops-02", "num-decops-03", "num-decops-04",
+  "num-fraction-04", "num-mixed-03",
   "num-law-03", "num-estimate-03", "num-reverse-check-03",
   "eq-l1-balance-01", "eq-l1-balance-02", "eq-l1-balance-03",
   "eq-l2-add-sub-01", "eq-l2-add-sub-02", "eq-l2-add-sub-03",
@@ -97,19 +100,19 @@ function countBy<K extends "contentTier" | "domain" | "difficulty">(key: K) {
   }, {});
 }
 
-test("contains the approved exact 202-template blueprint", () => {
+test("contains the approved exact 210-template blueprint", () => {
   expect(phase2Catalog.map((template) => template.id)).toEqual(expectedIds);
-  expect(countBy("contentTier")).toEqual({ core: 177, regional: 18, transition: 7 });
-  expect(phase2Skills).toHaveLength(48);
+  expect(countBy("contentTier")).toEqual({ core: 185, regional: 18, transition: 7 });
+  expect(phase2Skills).toHaveLength(49);
   expect(countBy("domain")).toEqual({
-    number_operations: 45,
+    number_operations: 53,
     equation_algebra: 25,
     geometry_space: 39,
     data_statistics: 22,
     application_modeling: 41,
     thinking_habits: 30,
   });
-  expect(countBy("difficulty")).toEqual({ 1: 31, 2: 87, 3: 63, 4: 21 });
+  expect(countBy("difficulty")).toEqual({ 1: 32, 2: 92, 3: 65, 4: 21 });
   expect(phase2Catalog.filter(({ contentTier }) => contentTier === "regional")
     .map(({ id }) => id)).toEqual(regionalIds);
   expect(phase2Catalog.filter(({ contentTier }) => contentTier === "transition")
@@ -227,7 +230,7 @@ test("rejects a wrong answer label for every canonical choice template", () => {
   const nextLabel = { A: "B", B: "C", C: "D", D: "A" } as const;
   const choiceTemplates = phase2Catalog.filter(({ answerMode }) => answerMode === "choice");
 
-  expect(choiceTemplates).toHaveLength(53);
+  expect(choiceTemplates).toHaveLength(54);
   for (const template of choiceTemplates) {
     const answer = template.answerSpecPattern as { kind: "choice"; value: keyof typeof nextLabel };
     const mutated = {
@@ -249,7 +252,7 @@ test("rejects a wrong generated answer for every supported numeric template", ()
     && (template.answerSpecPattern as { kind?: string }).kind === "number"
   ));
 
-  expect(numberTemplates).toHaveLength(134);
+  expect(numberTemplates).toHaveLength(141);
   for (const template of numberTemplates) {
     const answers = template.variantSpec.variables.answer;
     const mutated = {
@@ -302,7 +305,7 @@ test("rejects a wrong unit for every canonical numeric target without metadata d
     (template.answerSpecPattern as { kind?: string }).kind === "number"
   ));
 
-  expect(numericTemplates).toHaveLength(149);
+  expect(numericTemplates).toHaveLength(156);
   for (const template of numericTemplates) {
     const answer = template.answerSpecPattern as {
       kind: "number"; value: unknown; tolerance: number; unit: string | null;
@@ -633,6 +636,44 @@ test("fraction 拆分映射与 schedule 对齐", () => {
   expect(skillOf("num-fraction-04")).toBe("fraction-ops");
   expect(pepSkillSchedule.fraction).toMatchObject({ grade: 5, semester: 2, expectedWeek: 15 });
   expect(pepSkillSchedule["fraction-ops"]).toMatchObject({ grade: 6, semester: 1, expectedWeek: 7 });
+});
+
+test("decimal 拆分映射与 schedule 对齐", () => {
+  const skillOf = (id: string) => phase2Catalog.find((template) => template.id === id)?.skillCode;
+  expect(skillOf("num-decimal-01")).toBe("decimal");
+  expect(skillOf("num-decimal-02")).toBe("decimal");
+  expect(skillOf("num-decimal-03")).toBe("decimal-ops");
+  expect(skillOf("num-decimal-04")).toBe("decimal-ops");
+  expect(pepSkillSchedule.decimal).toMatchObject({ grade: 4, semester: 2, expectedWeek: 14 });
+  expect(pepSkillSchedule["decimal-ops"]).toMatchObject({ grade: 5, semester: 1, expectedWeek: 7 });
+  expect(pepSkillSchedule.decimal.note).toBeUndefined();
+});
+
+test("decimal 拆分新模板锚定：错误数字答案与错误选项均被拒绝", () => {
+  for (const id of ["num-decimal-07", "num-decops-02"]) {
+    const template = phase2Catalog.find((item) => item.id === id)!;
+    const wrongAnswer = {
+      ...template,
+      variantSpec: {
+        variables: {
+          ...template.variantSpec.variables,
+          answer: template.variantSpec.variables.answer.map((value) => Number(value) + 999),
+        },
+      },
+    };
+
+    expect(validateCatalog([wrongAnswer]), id).toEqual(expect.arrayContaining([
+      expect.stringContaining("incorrect_number_answer"),
+    ]));
+  }
+
+  const choiceTemplate = phase2Catalog.find(({ id }) => id === "num-decimal-05")!;
+  expect(validateCatalog([{
+    ...choiceTemplate,
+    answerSpecPattern: { kind: "choice", value: "B" },
+  }])).toEqual(expect.arrayContaining([
+    expect.stringContaining("incorrect_choice_answer"),
+  ]));
 });
 
 test("flags wrong numeric answers on the fraction-ops application and calculation templates", () => {

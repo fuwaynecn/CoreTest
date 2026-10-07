@@ -131,7 +131,7 @@ test("summarizes lifetime points and earned badges", () => {
     totalPoints: 5,
     badges: [{ code: "reading-detective", label: "审题侦探" }],
     topicBadges: [],
-    topicBadgeTotal: 48,
+    topicBadgeTotal: 49,
   });
 });
 
@@ -145,7 +145,7 @@ test("summarizes stable topic mastery as a topic badge", () => {
 
   expect(getChildRewards(db, "child")).toMatchObject({
     topicBadges: [{ code: "topic-decimal", label: "小数运算" }],
-    topicBadgeTotal: 48,
+    topicBadgeTotal: 49,
   });
 });
 

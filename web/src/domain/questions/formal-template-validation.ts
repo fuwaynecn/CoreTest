@@ -645,6 +645,33 @@ const numericRules: NumericRule[] = [
       return Number(numerator) / a;
     },
   },
+  // P2-9 decimal 拆分：四下小数加减情境。
+  {
+    pattern: /^一条彩带长 (-?\d+(?:\.\d+)?) 米，用去 (-?\d+(?:\.\d+)?) 米，还剩多少米？$/,
+    unit: "米",
+    calculate: ([total, used]) => Number(total) - Number(used),
+  },
+  {
+    pattern: /^一支钢笔 (-?\d+(?:\.\d+)?) 元，一块橡皮 (-?\d+(?:\.\d+)?) 元，各买一件一共要付多少元？$/,
+    unit: "元",
+    calculate: ([pen, eraser]) => Number(pen) + Number(eraser),
+  },
+  // P2-9 decimal-ops：五上小数乘除。
+  {
+    pattern: /^一块长方形玻璃长 (-?\d+(?:\.\d+)?) 米，宽 (-?\d+(?:\.\d+)?) 米，它的面积是多少平方米？$/,
+    unit: "平方米",
+    calculate: ([length, width]) => Number(length) * Number(width),
+  },
+  {
+    pattern: /^(-?\d+(?:\.\d+)?) × (-?\d+(?:\.\d+)?) 的积保留一位小数，约是多少？$/,
+    unit: null,
+    calculate: ([left, right]) => Math.round(Number(left) * Number(right) * 10) / 10,
+  },
+  {
+    pattern: /^把 (-?\d+(?:\.\d+)?) 升果汁平均分给 (-?\d+(?:\.\d+)?) 个小朋友，每人分得多少升？$/,
+    unit: "升",
+    calculate: ([juice, children]) => Number(juice) / Number(children),
+  },
 ];
 
 function numberProof(stem: string): NumberProof | null {
@@ -1020,6 +1047,10 @@ function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOptio
 
   match = question.match(/^比的前项和后项同时乘同一个不为 0 的数，比值会怎样？$/);
   if (match) return optionsEqualTo(options, "不变");
+
+  // P2-9：位数不同的小数竖式加法，先把小数点对齐。
+  match = question.match(/^用竖式计算 (.+) 时，下面哪种做法正确？$/);
+  if (match) return optionsEqualTo(options, "小数点对齐");
 
   return null;
 }
