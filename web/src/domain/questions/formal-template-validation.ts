@@ -746,6 +746,64 @@ const numericRules: NumericRule[] = [
       Number(length) * Number(width) + Number(upper)
     ),
   },
+  // P2-10d data-bar：三个班数量相加求总数。物品名经 surfaceVariants 归一为
+  // 「条形图文字」，三个正整数捕获全部参与求和。
+  {
+    pattern: /^条形图文字记录显示：一班回收 (\d+) 千克，二班回收 (\d+) 千克，三班回收 (\d+) 千克。三个班一共回收多少千克？$/,
+    unit: "千克",
+    calculate: ([first, second, third]) => Number(first) + Number(second) + Number(third),
+  },
+  // P2-10d data-bar：指定两班（一班、二班）相差多少，三班为多余条件。两个参与
+  // 计算的捕获与多余捕获均为正整数；不同班级组合不被本规则锚定。
+  {
+    pattern: /^条形图文字记录显示：一班回收 (\d+) 千克，二班回收 (\d+) 千克，三班回收 (\d+) 千克。一班和二班相差多少千克？$/,
+    unit: "千克",
+    calculate: ([first, second]) => Math.abs(Number(first) - Number(second)),
+  },
+  // P2-10d data-bar：刻度读数。每格人数 × 格数读出两项人数再求差；三个正整数
+  // 捕获（每格单位、两格数）全部参与计算，项目名经 surfaceVariants 归一。
+  {
+    pattern: /^同学运动爱好记录的条形图中，纵轴每格表示 (\d+) 人：喜欢足球的条形高 (\d+) 格，喜欢跳绳的条形高 (\d+) 格。喜欢足球的比喜欢跳绳的多多少人？$/,
+    unit: "人",
+    calculate: ([scale, firstCells, secondCells]) => (
+      Number(scale) * (Number(firstCells) - Number(secondCells))
+    ),
+  },
+  // P2-10d data-average：已知前 3 次成绩与 4 次平均分求第 4 次，
+  // 4 × 平均分 − 前 3 次总分。四个正整数捕获全部参与计算。
+  {
+    pattern: /^小丽前 3 次数学成绩为 (\d+)、(\d+)、(\d+) 分，4 次的平均分是 (\d+) 分。第 4 次成绩是多少分？$/,
+    unit: "分",
+    calculate: ([first, second, third, average]) => (
+      4 * Number(average) - (Number(first) + Number(second) + Number(third))
+    ),
+  },
+  // P2-10d data-average：由平均数与人数求总数，平均数 × 人数。两个正整数捕获
+  // 全部参与计算。
+  {
+    pattern: /^同学们折千纸鹤，平均每人折 (\d+) 个，一共有 (\d+) 人。他们一共折了多少个？$/,
+    unit: "个",
+    calculate: ([average, people]) => Number(average) * Number(people),
+  },
+  // P2-10d data-average：5 次成绩求平均（不同份数），从列表重算，非钉字面答案。
+  {
+    pattern: /^五次练习得分依次为 ([\d.]+(?:、[\d.]+){4}) 分，平均分是多少分？$/,
+    unit: "分",
+    calculate: ([scores]) => {
+      const values = numericList(scores);
+      return values.reduce((total, score) => total + score, 0) / values.length;
+    },
+  },
+  // P2-10d data-compare：比较总数。两组数据分别求和后求差，两个列表均从内容
+  // 重算，非钉字面答案。
+  {
+    pattern: /^甲组一周做好事件数为 ([\d.]+(?:、[\d.]+){2})，乙组一周做好事件数为 ([\d.]+(?:、[\d.]+){2})。两组总数相差多少件？$/,
+    unit: "件",
+    calculate: ([firstSet, secondSet]) => {
+      const sum = (list: string) => numericList(list).reduce((total, value) => total + value, 0);
+      return Math.abs(sum(firstSet) - sum(secondSet));
+    },
+  },
 ];
 
 function numberProof(stem: string): NumberProof | null {
@@ -1284,6 +1342,52 @@ function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOptio
     return optionsEqualTo(options, opposite[asked]);
   }
 
+  // P2-10d data-compare：比较极差。分别从两组列表重算极差，极差更小的一组更
+  // 稳定；相等时对应「两组一样稳定」。两个捕获均为数字列表。
+  match = question.match(/^甲组跳绳个数为 ([\d.]+(?:、[\d.]+){2,})，乙组跳绳个数为 ([\d.]+(?:、[\d.]+){2,})。哪组数据更稳定（最大值与最小值的差更小）？$/);
+  if (match) {
+    const rangeOf = (list: string) => {
+      const values = numericList(list);
+      return Math.max(...values) - Math.min(...values);
+    };
+    const firstRange = rangeOf(match[1]);
+    const secondRange = rangeOf(match[2]);
+    const expected = firstRange < secondRange
+      ? "甲组"
+      : secondRange < firstRange ? "乙组" : "两组一样稳定";
+    return optionsEqualTo(options, expected);
+  }
+
+  // P2-10d data-compare：总体水平判断。不考虑波动，只由两组列表重算平均数比较，
+  // 对应「甲组平均更高/乙组平均更高/两组一样高」。
+  match = question.match(/^甲组数学成绩为 ([\d.]+(?:、[\d.]+){2,})，乙组数学成绩为 ([\d.]+(?:、[\d.]+){2,})。不考虑波动，哪组的总体水平更高？$/);
+  if (match) {
+    const meanOf = (list: string) => {
+      const values = numericList(list);
+      return values.reduce((sum, value) => sum + value, 0) / values.length;
+    };
+    const firstMean = meanOf(match[1]);
+    const secondMean = meanOf(match[2]);
+    const expected = firstMean > secondMean
+      ? "甲组平均更高"
+      : secondMean > firstMean ? "乙组平均更高" : "两组一样高";
+    return optionsEqualTo(options, expected);
+  }
+
+  // P2-10d data-compare：变化后比较。先从 4 个数据的列表核对被改原数确实在
+  // 列表中（陈述造假则安全落空），再比较新旧两数判断平均升高/降低/不变。
+  match = question.match(/^甲组 4 个数据为 ([\d.]+(?:、[\d.]+){3})，把其中的 (\d+) 改成 (\d+)（\d+ 在原数据中）。改变后甲组的平均数会怎样？$/);
+  if (match) {
+    const values = numericList(match[1]);
+    const oldValue = Number(match[2]);
+    const newValue = Number(match[3]);
+    if (!values.includes(oldValue)) return [];
+    const expected = newValue > oldValue
+      ? "平均数升高"
+      : newValue < oldValue ? "平均数降低" : "平均数不变";
+    return optionsEqualTo(options, expected);
+  }
+
   return null;
 }
 
@@ -1389,6 +1493,26 @@ const surfaceVariants: readonly (readonly [RegExp, string])[] = [
   [/^(?:客车|货车|小轿车)(?=行驶 \d+ 千米，每小时行 \d+ 千米，需要)/, "客车"],
   [/^(?:大巴|中巴|客车)(?= \d+ 小时行驶 \d+ 千米，每小时行多少千米)/, "大巴"],
   [/^(?:小车|客车|货车)(?=从甲地到乙地，去时每小时行)/, "小车"],
+  // P2-10d data-bar：刻度读数形态，调查名与项目名归一到 canonical 用词。
+  [/^(?:同学运动爱好|同学课外活动|同学周末活动)(?=记录的条形图中，)/, "同学运动爱好"],
+  // 喜欢X 的归一必须限定在条形图刻度读数形态内：只匹配「条形高」与问句
+  // 「的比喜欢…多多少人」两处，避免改写 data-pie-diff 等含「喜欢篮球」的旧形态。
+  [/喜欢(?:足球|篮球|羽毛球)(?=的条形高)/g, "喜欢足球"],
+  [/喜欢(?:足球|篮球|羽毛球)(?=的比喜欢)/, "喜欢足球"],
+  [/喜欢(?:跳绳|跑步|踢毽)(?=的条形高)/g, "喜欢跳绳"],
+  [/(?<=的比)喜欢(?:跳绳|跑步|踢毽)(?=的多多少人)/, "喜欢跳绳"],
+  // P2-10d data-average：求第 4 次成绩形态的科目归一。
+  [/前 3 次(?:数学|语文|英语)(?=成绩为)/, "前 3 次数学"],
+  // P2-10d data-average：由平均求总数形态的手工名归一。
+  [/折(?:千纸鹤|纸船|幸运星)(?=，平均每人折)/, "折千纸鹤"],
+  // P2-10d data-average：五次成绩形态的科目归一。
+  [/^五次(?:数学|语文|英语|科学|体育)(?=练习得分依次为)/, "五次"],
+  // P2-10d data-compare：比较总数形态的事件名归一（甲乙组各一处，故 /g）。
+  [/(?<=组一周)(?:做好事件数|收集废电池数|捡拾垃圾袋数)(?=为 )/g, "做好事件数"],
+  // P2-10d data-compare：比较极差形态的指标名归一。
+  [/(?<=组)(?:跳绳个数|口算题数|拍球个数)(?=为 )/g, "跳绳个数"],
+  // P2-10d data-compare：总体水平形态的科目名归一。
+  [/(?<=组)(?:数学成绩|科学成绩|语文成绩)(?=为 )/g, "数学成绩"],
 ];
 
 function canonicalStem(stem: string): string {

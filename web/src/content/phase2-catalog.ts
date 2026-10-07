@@ -2027,6 +2027,142 @@ const catalogInputs: TemplateInput[] = [
       a: ["前", "前", "前"], b: ["右", "后", "右"], c: ["后", "左", "下"], d: ["左", "上", "后"],
     },
   },
+
+  // P2-10d data-bar：三个班数量相加求总数。
+  {
+    id: "data-bar-04", skillCode: "data-bar", domain: "data_statistics",
+    difficulty: 1, structureTag: "bar-total", answerMode: "written", readingCard: true,
+    stemPattern: "{{item}}记录显示：一班回收 {{first}} 千克，二班回收 {{second}} 千克，三班回收 {{third}} 千克。三个班一共回收多少千克？",
+    answerSpecPattern: numberAnswer("千克"),
+    explanationPattern: "把三个班的数量合起来：{{first}} + {{second}} + {{third}} = {{answer}} 千克。",
+    variables: {
+      item: ["废纸回收", "废电池回收", "易拉罐回收"],
+      first: [20, 42, 55], second: [35, 18, 27], third: [28, 36, 49],
+      answer: [83, 96, 131],
+    },
+  },
+  // P2-10d data-bar：指定两班（一班、二班）相差多少，三班为多余条件。
+  {
+    id: "data-bar-05", skillCode: "data-bar", domain: "data_statistics",
+    difficulty: 2, structureTag: "bar-pair-difference", answerMode: "written", readingCard: true,
+    stemPattern: "{{item}}记录显示：一班回收 {{first}} 千克，二班回收 {{second}} 千克，三班回收 {{third}} 千克。一班和二班相差多少千克？",
+    answerSpecPattern: numberAnswer("千克"),
+    explanationPattern: "只比较一班和二班两条信息，三班是多余条件；{{first}} 与 {{second}} 相差 {{answer}} 千克。",
+    variables: {
+      item: ["塑料瓶回收", "旧衣物回收", "旧报纸回收"],
+      first: [38, 19, 56], second: [25, 44, 72], third: [30, 37, 60],
+      answer: [13, 25, 16],
+    },
+  },
+  // P2-10d data-bar：刻度读数，每格人数×格数读出两项再求差。
+  {
+    id: "data-bar-06", skillCode: "data-bar", domain: "data_statistics",
+    difficulty: 3, structureTag: "bar-scale-read", answerMode: "written", readingCard: true,
+    stemPattern: "{{survey}}记录的条形图中，纵轴每格表示 {{scale}} 人：喜欢{{ball}}的条形高 {{firstCells}} 格，喜欢{{rope}}的条形高 {{secondCells}} 格。喜欢{{ball}}的比喜欢{{rope}}的多多少人？",
+    answerSpecPattern: numberAnswer("人"),
+    explanationPattern: "先按格数读出人数：喜欢{{ball}}的有 {{scale}} × {{firstCells}} = {{firstRead}} 人，喜欢{{rope}}的有 {{scale}} × {{secondCells}} = {{secondRead}} 人；相差 {{answer}} 人。",
+    variables: {
+      survey: ["同学运动爱好", "同学课外活动", "同学周末活动"],
+      ball: ["足球", "篮球", "羽毛球"], rope: ["跳绳", "跑步", "踢毽"],
+      scale: [2, 5, 4], firstCells: [8, 6, 9], secondCells: [5, 3, 2],
+      firstRead: [16, 30, 36], secondRead: [10, 15, 8], answer: [6, 15, 28],
+    },
+  },
+
+  // P2-10d data-average：已知前 3 次成绩与 4 次平均分，求第 4 次成绩。
+  {
+    id: "data-average-04", skillCode: "data-average", domain: "data_statistics",
+    difficulty: 3, structureTag: "average-find-missing", answerMode: "written",
+    stemPattern: "小丽前 3 次{{subject}}成绩为 {{first}}、{{second}}、{{third}} 分，4 次的平均分是 {{average}} 分。第 4 次成绩是多少分？",
+    answerSpecPattern: numberAnswer("分"),
+    explanationPattern: "4 次总分是 4 × {{average}} = {{total}} 分，前 3 次共 {{first}} + {{second}} + {{third}} = {{sumFirst}} 分，第 4 次是 {{answer}} 分。",
+    variables: {
+      subject: ["数学", "语文", "英语"],
+      first: [88, 75, 92], second: [92, 80, 88], third: [90, 85, 95],
+      average: [90, 82, 91], total: [360, 328, 364], sumFirst: [270, 240, 275],
+      answer: [90, 88, 89],
+    },
+  },
+  // P2-10d data-average：由平均数与人数求总数。
+  {
+    id: "data-average-05", skillCode: "data-average", domain: "data_statistics",
+    difficulty: 1, structureTag: "average-to-total", answerMode: "written",
+    stemPattern: "同学们折{{craft}}，平均每人折 {{average}} 个，一共有 {{people}} 人。他们一共折了多少个？",
+    answerSpecPattern: numberAnswer("个"),
+    explanationPattern: "总数等于平均数乘人数：{{average}} × {{people}} = {{answer}} 个。",
+    variables: {
+      craft: ["千纸鹤", "纸船", "幸运星"],
+      average: [6, 9, 12], people: [8, 7, 9], answer: [48, 63, 108],
+    },
+  },
+  // P2-10d data-average：5 次成绩求平均（不同份数）。
+  {
+    id: "data-average-06", skillCode: "data-average", domain: "data_statistics",
+    difficulty: 2, structureTag: "average-five-scores", answerMode: "written",
+    stemPattern: "五次{{subject}}练习得分依次为 {{scores}} 分，平均分是多少分？",
+    answerSpecPattern: numberAnswer("分"),
+    explanationPattern: "五次总分 {{sum}} 分，除以 5，平均分是 {{answer}} 分。",
+    variables: {
+      subject: ["数学", "科学", "体育"],
+      scores: ["80、85、90、95、100", "72、78、84、90、96", "95、91、87、83、79"],
+      sum: [450, 420, 435], answer: [90, 84, 87],
+    },
+  },
+
+  // P2-10d data-compare：两组分别求和，总数相差多少。
+  {
+    id: "data-compare-03", skillCode: "data-compare", domain: "data_statistics",
+    difficulty: 2, structureTag: "compare-totals", answerMode: "written", readingCard: true,
+    stemPattern: "甲组一周{{label}}为 {{firstSet}}，乙组一周{{label}}为 {{secondSet}}。两组总数相差多少件？",
+    answerSpecPattern: numberAnswer("件"),
+    explanationPattern: "甲组总数 {{firstSum}} 件，乙组总数 {{secondSum}} 件，两组总数相差 {{answer}} 件。",
+    variables: {
+      label: ["做好事件数", "收集废电池数", "捡拾垃圾袋数"],
+      firstSet: ["8、12、10", "15、9、14", "20、18、24"],
+      secondSet: ["6、9、7", "11、16、8", "17、22、19"],
+      firstSum: [30, 38, 62], secondSum: [22, 35, 58], answer: [8, 3, 4],
+    },
+  },
+  // P2-10d data-compare：比较极差，极差更小的一组更稳定。
+  {
+    id: "data-compare-04", skillCode: "data-compare", domain: "data_statistics",
+    difficulty: 2, structureTag: "compare-range-choice", answerMode: "choice", readingCard: true,
+    stemPattern: "甲组{{metric}}为 {{firstSet}}，乙组{{metric}}为 {{secondSet}}。哪组数据更稳定（最大值与最小值的差更小）？A. 甲组  B. 乙组  C. 两组一样稳定  D. 无法判断",
+    answerSpecPattern: choiceAnswer("B"),
+    explanationPattern: "稳定性看极差：甲组极差 {{firstRange}}，乙组极差 {{secondRange}}，乙组极差更小，所以选 B。",
+    variables: {
+      metric: ["跳绳个数", "口算题数", "拍球个数"],
+      firstSet: ["10、20、30", "5、15、25、35", "60、80、100"],
+      secondSet: ["18、20、22", "40、42、44、46", "75、78、81"],
+      firstRange: [20, 30, 40], secondRange: [4, 6, 6],
+    },
+  },
+  // P2-10d data-compare：总体水平判断，只比较平均数。
+  {
+    id: "data-compare-05", skillCode: "data-compare", domain: "data_statistics",
+    difficulty: 3, structureTag: "compare-mean-level-choice", answerMode: "choice", readingCard: true,
+    stemPattern: "甲组{{subject}}为 {{firstSet}}，乙组{{subject}}为 {{secondSet}}。不考虑波动，哪组的总体水平更高？A. 甲组平均更高  B. 乙组平均更高  C. 两组一样高  D. 无法判断",
+    answerSpecPattern: choiceAnswer("B"),
+    explanationPattern: "总体水平看平均数：甲组平均 {{firstMean}} 分，乙组平均 {{secondMean}} 分，乙组平均更高，选 B。",
+    variables: {
+      subject: ["数学成绩", "科学成绩", "语文成绩"],
+      firstSet: ["70、80、90", "60、70、80、90", "85、88、91"],
+      secondSet: ["75、85、95", "72、78、84、90", "90、92、94"],
+      firstMean: [80, 75, 88], secondMean: [85, 81, 92],
+    },
+  },
+  // P2-10d data-compare：一个数据增大后，平均数升高。
+  {
+    id: "data-compare-06", skillCode: "data-compare", domain: "data_statistics",
+    difficulty: 1, structureTag: "compare-after-change-choice", answerMode: "choice", readingCard: true,
+    stemPattern: "甲组 4 个数据为 {{scores}}，把其中的 {{old}} 改成 {{newValue}}（{{old}} 在原数据中）。改变后甲组的平均数会怎样？A. 平均数升高  B. 平均数降低  C. 平均数不变  D. 无法判断",
+    answerSpecPattern: choiceAnswer("A"),
+    explanationPattern: "总数的变化就是新旧两数的差：{{newValue}} - {{old}} = {{delta}} > 0，总数增加而份数仍是 4，所以平均数升高，选 A。",
+    variables: {
+      scores: ["10、20、30、40", "8、12、16、20", "25、30、35、40"],
+      old: [20, 12, 40], newValue: [24, 18, 48], delta: [4, 6, 8],
+    },
+  },
 ];
 
 export const phase2Catalog: ReviewedTemplate[] = catalogInputs.map(reviewed);

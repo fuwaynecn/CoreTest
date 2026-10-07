@@ -400,3 +400,144 @@ describe("spatial 补齐新增锚定规则（P2-10c）", () => {
       .toEqual(["incorrect_choice_answer"]);
   });
 });
+
+describe("data-bar 补齐新增锚定规则（P2-10d）", () => {
+  // 规则 bar-three-total：三个班数量相加求总数。
+  test.each([
+    ["废纸回收记录显示：一班回收 20 千克，二班回收 35 千克，三班回收 28 千克。三个班一共回收多少千克？", 83],
+    ["废电池回收记录显示：一班回收 42 千克，二班回收 18 千克，三班回收 36 千克。三个班一共回收多少千克？", 96],
+    ["易拉罐回收记录显示：一班回收 55 千克，二班回收 27 千克，三班回收 49 千克。三个班一共回收多少千克？", 131],
+  ])("data-bar-04 变体（总数 %s 千克）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "千克")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "千克")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 规则 bar-pair-difference：只比较指定的一班与二班，三班为多余条件。
+  test.each([
+    ["塑料瓶回收记录显示：一班回收 38 千克，二班回收 25 千克，三班回收 30 千克。一班和二班相差多少千克？", 13],
+    ["旧衣物回收记录显示：一班回收 19 千克，二班回收 44 千克，三班回收 37 千克。一班和二班相差多少千克？", 25],
+    ["旧报纸回收记录显示：一班回收 56 千克，二班回收 72 千克，三班回收 60 千克。一班和二班相差多少千克？", 16],
+  ])("data-bar-05 变体（相差 %s 千克）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "千克")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "千克")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 同句式但指定的班级组合不同（二班和三班），不得被 bar-pair-difference 锚定。
+  test("data-bar-05 不同班级组合不被锚定", () => {
+    const stem = "塑料瓶回收记录显示：一班回收 38 千克，二班回收 25 千克，三班回收 30 千克。二班和三班相差多少千克？";
+    expect(validateWritten(stem, 5, "千克")).toEqual(["unsupported_number_pattern"]);
+  });
+
+  // 规则 bar-scale-read：纵轴每格 × 格数读出人数再求差。
+  test.each([
+    ["同学运动爱好记录的条形图中，纵轴每格表示 2 人：喜欢足球的条形高 8 格，喜欢跳绳的条形高 5 格。喜欢足球的比喜欢跳绳的多多少人？", 6],
+    ["同学课外活动记录的条形图中，纵轴每格表示 5 人：喜欢篮球的条形高 6 格，喜欢跑步的条形高 3 格。喜欢篮球的比喜欢跑步的多多少人？", 15],
+    ["同学周末活动记录的条形图中，纵轴每格表示 4 人：喜欢羽毛球的条形高 9 格，喜欢踢毽的条形高 2 格。喜欢羽毛球的比喜欢踢毽的多多少人？", 28],
+  ])("data-bar-06 变体（多 %s 人）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "人")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "人")).toEqual(["incorrect_number_answer"]);
+  });
+});
+
+describe("data-average 补齐新增锚定规则（P2-10d）", () => {
+  // 规则 average-find-missing：4 次平均×4 减前 3 次总分求第 4 次。
+  test.each([
+    ["小丽前 3 次数学成绩为 88、92、90 分，4 次的平均分是 90 分。第 4 次成绩是多少分？", 90],
+    ["小丽前 3 次语文成绩为 75、80、85 分，4 次的平均分是 82 分。第 4 次成绩是多少分？", 88],
+    ["小丽前 3 次英语成绩为 92、88、95 分，4 次的平均分是 91 分。第 4 次成绩是多少分？", 89],
+  ])("data-average-04 变体（第4次 %s 分）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "分")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "分")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 未登记科目（美术）不被 average-find-missing 锚定。
+  test("data-average-04 未登记科目不被锚定", () => {
+    const stem = "小丽前 3 次美术成绩为 88、92、90 分，4 次的平均分是 90 分。第 4 次成绩是多少分？";
+    expect(validateWritten(stem, 90, "分")).toEqual(["unsupported_number_pattern"]);
+  });
+
+  // 规则 average-to-total：平均数 × 人数求总数。
+  test.each([
+    ["同学们折千纸鹤，平均每人折 6 个，一共有 8 人。他们一共折了多少个？", 48],
+    ["同学们折纸船，平均每人折 9 个，一共有 7 人。他们一共折了多少个？", 63],
+    ["同学们折幸运星，平均每人折 12 个，一共有 9 人。他们一共折了多少个？", 108],
+  ])("data-average-05 变体（总数 %s 个）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "个")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "个")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 规则 average-five-scores：5 次成绩总分 ÷ 5。
+  test.each([
+    ["五次数学练习得分依次为 80、85、90、95、100 分，平均分是多少分？", 90],
+    ["五次科学练习得分依次为 72、78、84、90、96 分，平均分是多少分？", 84],
+    ["五次体育练习得分依次为 95、91、87、83、79 分，平均分是多少分？", 87],
+  ])("data-average-06 变体（平均 %s 分）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "分")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "分")).toEqual(["incorrect_number_answer"]);
+  });
+});
+
+describe("data-compare 补齐新增锚定规则（P2-10d）", () => {
+  // 规则 compare-totals：两组分别求和，总数相差多少。
+  test.each([
+    ["甲组一周做好事件数为 8、12、10，乙组一周做好事件数为 6、9、7。两组总数相差多少件？", 8],
+    ["甲组一周收集废电池数为 15、9、14，乙组一周收集废电池数为 11、16、8。两组总数相差多少件？", 3],
+    ["甲组一周捡拾垃圾袋数为 20、18、24，乙组一周捡拾垃圾袋数为 17、22、19。两组总数相差多少件？", 4],
+  ])("data-compare-03 变体（相差 %s 件）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "件")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "件")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 选择题分支 compare-range-stability：极差更小的一组更稳定，B 命中。
+  test.each([
+    ["甲组跳绳个数为 10、20、30，乙组跳绳个数为 18、20、22。哪组数据更稳定（最大值与最小值的差更小）？"
+      + "A. 甲组  B. 乙组  C. 两组一样稳定  D. 无法判断"],
+    ["甲组口算题数为 5、15、25、35，乙组口算题数为 40、42、44、46。哪组数据更稳定（最大值与最小值的差更小）？"
+      + "A. 甲组  B. 乙组  C. 两组一样稳定  D. 无法判断"],
+    ["甲组拍球个数为 60、80、100，乙组拍球个数为 75、78、81。哪组数据更稳定（最大值与最小值的差更小）？"
+      + "A. 甲组  B. 乙组  C. 两组一样稳定  D. 无法判断"],
+  ])("data-compare-04 变体 B 命中，错误选项报 incorrect_choice_answer", (stem) => {
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("B") }))
+      .toEqual([]);
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("A") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 选择题分支 compare-mean-level：总体水平看平均数，乙组平均更高，B 命中。
+  test.each([
+    ["甲组数学成绩为 70、80、90，乙组数学成绩为 75、85、95。不考虑波动，哪组的总体水平更高？"
+      + "A. 甲组平均更高  B. 乙组平均更高  C. 两组一样高  D. 无法判断"],
+    ["甲组科学成绩为 60、70、80、90，乙组科学成绩为 72、78、84、90。不考虑波动，哪组的总体水平更高？"
+      + "A. 甲组平均更高  B. 乙组平均更高  C. 两组一样高  D. 无法判断"],
+    ["甲组语文成绩为 85、88、91，乙组语文成绩为 90、92、94。不考虑波动，哪组的总体水平更高？"
+      + "A. 甲组平均更高  B. 乙组平均更高  C. 两组一样高  D. 无法判断"],
+  ])("data-compare-05 变体 B 命中，错误选项报 incorrect_choice_answer", (stem) => {
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("B") }))
+      .toEqual([]);
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("C") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 选择题分支 compare-after-change：被改数增大则平均数升高，A 命中。
+  test.each([
+    ["甲组 4 个数据为 10、20、30、40，把其中的 20 改成 24（20 在原数据中）。改变后甲组的平均数会怎样？"
+      + "A. 平均数升高  B. 平均数降低  C. 平均数不变  D. 无法判断"],
+    ["甲组 4 个数据为 8、12、16、20，把其中的 12 改成 18（12 在原数据中）。改变后甲组的平均数会怎样？"
+      + "A. 平均数升高  B. 平均数降低  C. 平均数不变  D. 无法判断"],
+    ["甲组 4 个数据为 25、30、35、40，把其中的 40 改成 48（40 在原数据中）。改变后甲组的平均数会怎样？"
+      + "A. 平均数升高  B. 平均数降低  C. 平均数不变  D. 无法判断"],
+  ])("data-compare-06 变体 A 命中，错误选项报 incorrect_choice_answer", (stem) => {
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("A") }))
+      .toEqual([]);
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("B") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 被改的原数不在数据列表中（陈述造假）时分支安全落空。
+  test("data-compare-06 原数不在列表中时安全落空", () => {
+    const stem = "甲组 4 个数据为 10、20、30、40，把其中的 25 改成 24（25 在原数据中）。改变后甲组的平均数会怎样？"
+      + "A. 平均数升高  B. 平均数降低  C. 平均数不变  D. 无法判断";
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("A") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+});

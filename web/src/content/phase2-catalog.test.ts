@@ -83,6 +83,9 @@ const expectedIds = [
   "app-distance-04", "app-distance-05", "app-distance-06",
   "geo-angle-04", "geo-angle-05", "geo-angle-06",
   "geo-spatial-03", "geo-spatial-04", "geo-spatial-05", "geo-spatial-06",
+  "data-bar-04", "data-bar-05", "data-bar-06",
+  "data-average-04", "data-average-05", "data-average-06",
+  "data-compare-03", "data-compare-04", "data-compare-05", "data-compare-06",
 ];
 
 const regionalIds = [
@@ -106,19 +109,19 @@ function countBy<K extends "contentTier" | "domain" | "difficulty">(key: K) {
   }, {});
 }
 
-test("contains the approved exact 229-template blueprint", () => {
+test("contains the approved exact 239-template blueprint", () => {
   expect(phase2Catalog.map((template) => template.id)).toEqual(expectedIds);
-  expect(countBy("contentTier")).toEqual({ core: 204, regional: 18, transition: 7 });
+  expect(countBy("contentTier")).toEqual({ core: 214, regional: 18, transition: 7 });
   expect(phase2Skills).toHaveLength(49);
   expect(countBy("domain")).toEqual({
     number_operations: 59,
     equation_algebra: 25,
     geometry_space: 46,
-    data_statistics: 22,
+    data_statistics: 32,
     application_modeling: 47,
     thinking_habits: 30,
   });
-  expect(countBy("difficulty")).toEqual({ 1: 38, 2: 99, 3: 71, 4: 21 });
+  expect(countBy("difficulty")).toEqual({ 1: 41, 2: 103, 3: 74, 4: 21 });
   expect(phase2Catalog.filter(({ contentTier }) => contentTier === "regional")
     .map(({ id }) => id)).toEqual(regionalIds);
   expect(phase2Catalog.filter(({ contentTier }) => contentTier === "transition")
@@ -236,7 +239,7 @@ test("rejects a wrong answer label for every canonical choice template", () => {
   const nextLabel = { A: "B", B: "C", C: "D", D: "A" } as const;
   const choiceTemplates = phase2Catalog.filter(({ answerMode }) => answerMode === "choice");
 
-  expect(choiceTemplates).toHaveLength(61);
+  expect(choiceTemplates).toHaveLength(64);
   for (const template of choiceTemplates) {
     const answer = template.answerSpecPattern as { kind: "choice"; value: keyof typeof nextLabel };
     const mutated = {
@@ -258,7 +261,7 @@ test("rejects a wrong generated answer for every supported numeric template", ()
     && (template.answerSpecPattern as { kind?: string }).kind === "number"
   ));
 
-  expect(numberTemplates).toHaveLength(153);
+  expect(numberTemplates).toHaveLength(160);
   for (const template of numberTemplates) {
     const answers = template.variantSpec.variables.answer;
     const mutated = {
@@ -311,7 +314,7 @@ test("rejects a wrong unit for every canonical numeric target without metadata d
     (template.answerSpecPattern as { kind?: string }).kind === "number"
   ));
 
-  expect(numericTemplates).toHaveLength(168);
+  expect(numericTemplates).toHaveLength(175);
   for (const template of numericTemplates) {
     const answer = template.answerSpecPattern as {
       kind: "number"; value: unknown; tolerance: number; unit: string | null;

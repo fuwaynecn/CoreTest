@@ -191,9 +191,12 @@ test("stops at the unique reviewed supply when it is below twelve", () => {
   const rows = db.select().from(questionInstances).where(and(
     eq(questionInstances.skillId, skillId), eq(questionInstances.difficulty, 2),
   )).all();
-  expect(result).toEqual({ skipped: false, generated: 8, errors: [] });
-  expect(rows).toHaveLength(8);
-  expect(new Set(rows.map((row) => row.fingerprint)).size).toBe(8);
+  // scoped refresh 会同时补齐该 skill 全部缺库存的难度格：d2 唯一供给 11（旧
+  // 8 + data-bar-05 的 3），另有 d1×3（data-bar-04）、d3×3（data-bar-06），
+  // 合计 generated 17；本断言只核对 d2 格的 11 条。
+  expect(result).toEqual({ skipped: false, generated: 17, errors: [] });
+  expect(rows).toHaveLength(11);
+  expect(new Set(rows.map((row) => row.fingerprint)).size).toBe(11);
 });
 
 test("does not bypass the weekly ledger for a full force refresh", () => {
