@@ -1131,14 +1131,16 @@ function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOptio
       law = "减法的性质";
     }
 
-    // 交换律：操作数与运算符多重集相同，仅次序改变
+    // 交换律：操作数与运算符多重集相同，且操作数次序确实改变（fix round 1：
+    // 仅加括号导致的 compact 串不同是结合律形态，不得判交换律）。
     if (!law) {
       const sameNumbers = numberTokens(step1).slice().sort().join("|")
         === numberTokens(step2).slice().sort().join("|");
+      const orderChanged = numberTokens(step1).join("|") !== numberTokens(step2).join("|");
       const firstOperators = operators(step1);
       const secondOperators = operators(step2);
       const sameOperators = firstOperators.slice().sort().join() === secondOperators.slice().sort().join();
-      if (sameNumbers && sameOperators && compactMath(step1) !== compactMath(step2)
+      if (sameNumbers && sameOperators && orderChanged
           && (firstOperators.every((op) => op === "*")
               || firstOperators.every((op) => op === "+"))) {
         law = firstOperators[0] === "*" ? "乘法交换律" : "加法交换律";

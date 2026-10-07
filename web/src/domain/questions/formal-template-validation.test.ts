@@ -188,4 +188,13 @@ describe("operation-law 新增锚定规则（P2-10a）", () => {
     expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("B") }))
       .toEqual(["incorrect_choice_answer"]);
   });
+
+  // fix round 1：纯加括号、操作数次序未变（结合律形态）不得锚定乘法交换律。
+  // 25×17×4 = 25×(17×4) = 425×4，三步均 1700；当前分支若误判交换律则 A 被放过。
+  test("num-law-06 纯加括号同序（结合律形态）不锚定乘法交换律，A 报 incorrect_choice_answer", () => {
+    const stem = "25 × 17 × 4 = 25 × (17 × 4) = 425 × 4 运用了哪一种运算律或性质？"
+      + "A. 乘法交换律  B. 乘法结合律  C. 加法交换律  D. 乘法分配律";
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("A") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
 });
