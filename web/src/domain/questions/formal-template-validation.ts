@@ -499,7 +499,7 @@ const numericRules: NumericRule[] = [
   {
     pattern: /^小明的微信钱包原有 (-?\d+(?:\.\d+)?) 元，收到红包 (-?\d+(?:\.\d+)?) 元后又购物支出 (-?\d+(?:\.\d+)?) 元，余额变化记作多少元？$/,
     unit: "元",
-    calculate: ([a, b, c]) => Number(a) + Number(b) - Number(c),
+    calculate: ([a, b, c]) => Number(b) - Number(c),
   },
   {
     pattern: /^圆柱底面周长是 (-?\d+(?:\.\d+)?) 厘米，高是 (-?\d+(?:\.\d+)?) 厘米，它的侧面积是多少平方厘米？$/,
@@ -627,10 +627,10 @@ const numericRules: NumericRule[] = [
     ),
   },
   {
-    pattern: /^把带分数 ((?:-?\d+)又(?:\d+)\/(?:\d+)) 化成小数。$/,
+    pattern: /^把带分数 ((?:\d+)又(?:\d+)\/(?:\d+)) 化成小数。$/,
     unit: null,
     calculate: ([mixed]) => {
-      const match = mixed.match(/^(-?\d+)又(\d+)\/(\d+)$/);
+      const match = mixed.match(/^(\d+)又(\d+)\/(\d+)$/);
       if (!match) throw new Error("Invalid mixed number");
       return Number(match[1]) + Number(match[2]) / Number(match[3]);
     },

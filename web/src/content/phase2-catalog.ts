@@ -1453,8 +1453,8 @@ const catalogInputs: TemplateInput[] = [
     difficulty: 2, structureTag: "signed-balance",
     stemPattern: "小明的微信钱包原有 {{a}} 元，收到红包 {{b}} 元后又购物支出 {{c}} 元，余额变化记作多少元？",
     answerSpecPattern: numberAnswer("元"),
-    explanationPattern: "余额 = 原有 + 收入 − 支出：{{a}} + {{b}} − {{c}} = {{answer}} 元。",
-    variables: { a: [100, 50], b: [20, 30], c: [45, 80], answer: [75, 0] },
+    explanationPattern: "余额变化只看收入与支出的差额：{{b}} − {{c}} = {{answer}} 元；负数表示净支出。",
+    variables: { a: [100, 50], b: [20, 30], c: [45, 80], answer: [-25, -50] },
   },
   {
     id: "app-neg-06", skillCode: "negative-numbers", domain: "number_operations",
