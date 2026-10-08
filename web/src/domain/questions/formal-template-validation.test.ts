@@ -1,6 +1,8 @@
 import { describe, expect, test } from "vitest";
 import type { AnswerSpec } from "./answer-spec";
 import { renderedQuestionErrors } from "./formal-template-validation";
+import { phase2Catalog } from "@/content/phase2-catalog";
+import { instantiateTemplateAtIndex } from "./instantiate-template";
 
 function numberSpec(value: number, unit: string | null = null): AnswerSpec {
   return { kind: "number", value, tolerance: 0, unit };
@@ -537,6 +539,79 @@ describe("data-compare 补齐新增锚定规则（P2-10d）", () => {
   test("data-compare-06 原数不在列表中时安全落空", () => {
     const stem = "甲组 4 个数据为 10、20、30、40，把其中的 25 改成 24（25 在原数据中）。改变后甲组的平均数会怎样？"
       + "A. 平均数升高  B. 平均数降低  C. 平均数不变  D. 无法判断";
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("A") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+});
+
+describe("「喜欢X」归一化边界回归（P2-10d fix round 1）", () => {
+  const pieDiff = phase2Catalog.find((template) => template.id === "data-pie-diff")!;
+  const barScale = phase2Catalog.find((template) => template.id === "data-bar-06")!;
+
+  // 负向回归：pie-chart 旧形态含「喜欢篮球/羽毛球」但上下文是「的占」，归一化
+  // 不得改写它。逐字钉死两个渲染变体，并要求仍命中 pie-percent-diff 规则；
+  // 一旦后人放宽归一，下列 correct-answer [] 断言会变成 unsupported_number_pattern。
+  test.each([
+    [0, "全年级 400 人中，喜欢篮球的占 35%，喜欢羽毛球的占 20%，两类人数相差多少人？", 60],
+    [1, "全年级 500 人中，喜欢篮球的占 30%，喜欢羽毛球的占 12%，两类人数相差多少人？", 90],
+  ])("data-pie-diff 变体 %# 题干逐字不变且规则命中，错误答案被拒", (index, expectedStem, answer) => {
+    const instance = instantiateTemplateAtIndex(pieDiff, index, `fix:pie-diff:${index}`);
+    expect(instance.stem).toBe(expectedStem);
+    expect(instance.stem).toContain("喜欢篮球的占");
+    expect(instance.stem).toContain("喜欢羽毛球的占");
+    expect(renderedQuestionErrors({
+      answerMode: "written", stem: instance.stem, answerSpec: numberSpec(answer, "人"),
+    })).toEqual([]);
+    expect(renderedQuestionErrors({
+      answerMode: "written", stem: instance.stem, answerSpec: numberSpec(answer + 1, "人"),
+    })).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 正向回归：bar-06 的非 canonical 项目措辞（篮球/跑步）必须确实被归一到
+  // canonical（足球/跳绳）；连同 v0 canonical 原文一起钉死双向行为。
+  test("data-bar-06 变体表面措辞确实被归一接受", () => {
+    const v0 = instantiateTemplateAtIndex(barScale, 0, "fix:bar06:0");
+    const v1 = instantiateTemplateAtIndex(barScale, 1, "fix:bar06:1");
+    expect(v0.stem).toContain("喜欢足球的条形高");
+    expect(v0.stem).toContain("喜欢跳绳的条形高");
+    expect(v1.stem).toContain("喜欢篮球的条形高");
+    expect(v1.stem).toContain("喜欢跑步的条形高");
+    expect(renderedQuestionErrors({
+      answerMode: "written", stem: v0.stem, answerSpec: numberSpec(6, "人"),
+    })).toEqual([]);
+    expect(renderedQuestionErrors({
+      answerMode: "written", stem: v1.stem, answerSpec: numberSpec(15, "人"),
+    })).toEqual([]);
+  });
+});
+
+describe("data-compare choice proof 未覆盖子分支补测（P2-10d fix round 1）", () => {
+  // 比较极差 tie 子分支：两组极差相等时对应「两组一样稳定」(C)。
+  test("compare-range-stability 极差相等 → C 两组一样稳定", () => {
+    const stem = "甲组跳绳个数为 10、20、30，乙组跳绳个数为 5、15、25。哪组数据更稳定（最大值与最小值的差更小）？"
+      + "A. 甲组  B. 乙组  C. 两组一样稳定  D. 无法判断";
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("C") }))
+      .toEqual([]);
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("A") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 变化后比较「降低」子分支：被改数减小 → B 平均数降低。
+  test("compare-after-change 数值减小 → B 平均数降低", () => {
+    const stem = "甲组 4 个数据为 10、20、30、40，把其中的 40 改成 36（40 在原数据中）。改变后甲组的平均数会怎样？"
+      + "A. 平均数升高  B. 平均数降低  C. 平均数不变  D. 无法判断";
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("B") }))
+      .toEqual([]);
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("A") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 变化后比较「不变」子分支：新旧两数相等 → C 平均数不变。
+  test("compare-after-change 数值相等 → C 平均数不变", () => {
+    const stem = "甲组 4 个数据为 10、20、30、40，把其中的 20 改成 20（20 在原数据中）。改变后甲组的平均数会怎样？"
+      + "A. 平均数升高  B. 平均数降低  C. 平均数不变  D. 无法判断";
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("C") }))
+      .toEqual([]);
     expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("A") }))
       .toEqual(["incorrect_choice_answer"]);
   });
