@@ -166,6 +166,10 @@ type NumericRule = {
   pattern: RegExp;
   unit: string | null;
   calculate: (captures: string[]) => number;
+  // 可选的捕获域守卫：正则形态命中但数值越界（几何/物理上不成立）时返回 false，
+  // 本规则视为不匹配并继续尝试后续规则——即「安全落空」，最终落到 unsupported_
+  // number_pattern，而不是锚定后产出错误答案。
+  accept?: (captures: string[]) => boolean;
 };
 
 function numericList(value: string): number[] {
@@ -647,28 +651,28 @@ const numericRules: NumericRule[] = [
   },
   // P2-9 decimal 拆分：四下小数加减情境。
   {
-    pattern: /^一条彩带长 (-?\d+(?:\.\d+)?) 米，用去 (-?\d+(?:\.\d+)?) 米，还剩多少米？$/,
+    pattern: /^一条彩带长 (\d+(?:\.\d+)?) 米，用去 (\d+(?:\.\d+)?) 米，还剩多少米？$/,
     unit: "米",
     calculate: ([total, used]) => Number(total) - Number(used),
   },
   {
-    pattern: /^一支钢笔 (-?\d+(?:\.\d+)?) 元，一块橡皮 (-?\d+(?:\.\d+)?) 元，各买一件一共要付多少元？$/,
+    pattern: /^一支钢笔 (\d+(?:\.\d+)?) 元，一块橡皮 (\d+(?:\.\d+)?) 元，各买一件一共要付多少元？$/,
     unit: "元",
     calculate: ([pen, eraser]) => Number(pen) + Number(eraser),
   },
   // P2-9 decimal-ops：五上小数乘除。
   {
-    pattern: /^一块长方形玻璃长 (-?\d+(?:\.\d+)?) 米，宽 (-?\d+(?:\.\d+)?) 米，它的面积是多少平方米？$/,
+    pattern: /^一块长方形玻璃长 (\d+(?:\.\d+)?) 米，宽 (\d+(?:\.\d+)?) 米，它的面积是多少平方米？$/,
     unit: "平方米",
     calculate: ([length, width]) => Number(length) * Number(width),
   },
   {
-    pattern: /^(-?\d+(?:\.\d+)?) × (-?\d+(?:\.\d+)?) 的积保留一位小数，约是多少？$/,
+    pattern: /^(\d+(?:\.\d+)?) × (\d+(?:\.\d+)?) 的积保留一位小数，约是多少？$/,
     unit: null,
     calculate: ([left, right]) => Math.round(Number(left) * Number(right) * 10) / 10,
   },
   {
-    pattern: /^把 (-?\d+(?:\.\d+)?) 升果汁平均分给 (-?\d+(?:\.\d+)?) 个小朋友，每人分得多少升？$/,
+    pattern: /^把 (\d+(?:\.\d+)?) 升果汁平均分给 (\d+(?:\.\d+)?) 个小朋友，每人分得多少升？$/,
     unit: "升",
     calculate: ([juice, children]) => Number(juice) / Number(children),
   },
@@ -714,10 +718,15 @@ const numericRules: NumericRule[] = [
       Number(goSpeed) * Number(goHours) / Number(backSpeed)
     ),
   },
-  // P2-10c angle：直角被分成两角，90 - 已知角。捕获为正度数且唯一参与计算。
+  // P2-10c angle：直角被分成两角，90 - 已知角。捕获为正度数且唯一参与计算；
+  // 守卫要求 0 < known < 90，越界（直角分割不成立）时不锚定。
   {
     pattern: /^一个直角被分成两个角，其中一个角是 (\d+(?:\.\d+)?) 度，另一个是多少度？$/,
     unit: "度",
+    accept: ([known]) => {
+      const value = Number(known);
+      return value > 0 && value < 90;
+    },
     calculate: ([known]) => 90 - Number(known),
   },
   // P2-10c angle：两个三角尺角顶点重合拼一起，拼成角 = 两角之和。捕获显式钉死
@@ -738,10 +747,14 @@ const numericRules: NumericRule[] = [
     },
   },
   // P2-10c spatial：分层数小正方体，底层每排个数×排数+上层个数。三个正整数
-  // 捕获全部参与计算。
+  // 捕获全部参与计算；守卫要求 upper ≤ length × width（上层不得超出底层 footprint），
+  // 越界（几何体不成立）时不锚定。
   {
     pattern: /^用相同小正方体摆成两层：底层每排 (\d+) 个、摆 (\d+) 排，上层摆 (\d+) 个。一共用了多少个小正方体？$/,
     unit: "个",
+    accept: ([length, width, upper]) => (
+      Number(upper) <= Number(length) * Number(width)
+    ),
     calculate: ([length, width, upper]) => (
       Number(length) * Number(width) + Number(upper)
     ),
@@ -907,7 +920,9 @@ function numberProof(stem: string): NumberProof | null {
   for (const rule of numericRules) {
     match = stem.match(rule.pattern);
     if (!match) continue;
-    const value = rule.calculate(match.slice(1));
+    const captures = match.slice(1);
+    if (rule.accept && !rule.accept(captures)) continue;
+    const value = rule.calculate(captures);
     if (!Number.isFinite(value)) throw new Error("Non-finite numeric proof");
     return { value, unit: rule.unit };
   }

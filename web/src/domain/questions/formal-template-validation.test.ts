@@ -289,6 +289,13 @@ describe("angle 补齐新增锚定规则（P2-10c）", () => {
     expect(validateWritten(stem, answer + 1, "度")).toEqual(["incorrect_number_answer"]);
   });
 
+  // 守卫：已知角必须 0 < known < 90；越界（如 95 度）时直角分割在几何上不成立，
+  // 规则不锚定（安全落空），即使按 90 - 95 = -5 作答也不得通过。
+  test("geo-angle-04 已知角越界（95 度）不被锚定", () => {
+    const stem = "一个直角被分成两个角，其中一个角是 95 度，另一个角是多少度？";
+    expect(validateWritten(stem, -5, "度")).toEqual(["unsupported_number_pattern"]);
+  });
+
   // 规则 angle-triangle-ruler-compose：两个三角尺角顶点重合拼一起，角度相加；
   // 捕获显式钉死为三角尺角度集合 30/45/60/90。
   test.each([
@@ -326,6 +333,13 @@ describe("spatial 补齐新增锚定规则（P2-10c）", () => {
   ])("geo-spatial-03 变体（共 %s 个）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
     expect(validateWritten(stem, answer, "个")).toEqual([]);
     expect(validateWritten(stem, answer + 1, "个")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 守卫：上层个数不得超过底层 footprint（每排个数 × 排数）；超出（如 3×2 底层、
+  // 上层 8 个）时几何体不成立，规则不锚定（安全落空），即使按 6 + 8 = 14 作答也不得通过。
+  test("geo-spatial-03 上层超出底层 footprint（3×2、upper=8）不被锚定", () => {
+    const stem = "用相同小正方体摆成两层：底层每排 3 个、摆 2 排，上层摆 8 个。一共用了多少个小正方体？";
+    expect(validateWritten(stem, 14, "个")).toEqual(["unsupported_number_pattern"]);
   });
 
   // 选择题分支 spatial-top-view-shape：由排数×每排个数重算俯视图，正确项为
@@ -517,6 +531,17 @@ describe("data-compare 补齐新增锚定规则（P2-10d）", () => {
     expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("B") }))
       .toEqual([]);
     expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("C") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // compare-mean-level 相等子分支：两组平均数相等（甲 70、80、90 均 80；
+  // 乙 75、80、85 均 80）时对应 C「两组一样高」，错误项被拒。
+  test("data-compare-05 两组平均数相等 → C 两组一样高", () => {
+    const stem = "甲组数学成绩为 70、80、90，乙组数学成绩为 75、80、85。不考虑波动，哪组的总体水平更高？"
+      + "A. 甲组平均更高  B. 乙组平均更高  C. 两组一样高  D. 无法判断";
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("C") }))
+      .toEqual([]);
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("B") }))
       .toEqual(["incorrect_choice_answer"]);
   });
 

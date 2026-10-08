@@ -21,7 +21,7 @@ function topicBadgeIcon(code: string) {
   if (["data-table", "data-bar", "data-line", "data-average", "data-compare", "possibility", "pie-chart"]
     .some((part) => code.startsWith(`topic-${part}`))) return "📊";
   if (["price-model", "distance-model", "work-model", "ratio-model", "percent-model", "multi-step-model",
-    "extra-information", "fraction-ops", "percent-apply", "proportion-scale"]
+    "extra-information", "fraction-ops", "decimal-ops", "percent-apply", "proportion-scale"]
     .some((part) => code.startsWith(`topic-${part}`))) return "🧮";
   if (code.startsWith("topic-negative-numbers")) return "🌡️";
   if (["number-shape", "pigeonhole"].some((part) => code.startsWith(`topic-${part}`))) return "🧩";
