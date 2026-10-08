@@ -2163,6 +2163,69 @@ const catalogInputs: TemplateInput[] = [
       old: [20, 12, 40], newValue: [24, 18, 48], delta: [4, 6, 8],
     },
   },
+  // P2-10e multi-step-model：连乘，每箱盒数 × 每盒支数 × 箱数。
+  {
+    id: "app-multi-step-05", skillCode: "multi-step-model", domain: "application_modeling",
+    difficulty: 2, structureTag: "chain-multiplication",
+    stemPattern: "每箱有 {{perBox}} 盒，每盒有 {{perPack}} 支笔，一共 {{cases}} 箱。一共有多少支笔？",
+    answerSpecPattern: numberAnswer("支"),
+    explanationPattern: "先求每箱 {{perBox}} × {{perPack}} 支，再乘箱数：{{perBox}} × {{perPack}} × {{cases}} = {{answer}} 支。",
+    variables: {
+      perBox: [6, 8, 9], perPack: [12, 15, 20], cases: [4, 5, 6],
+      answer: [288, 600, 1080],
+    },
+  },
+  // P2-10e multi-step-model：计划与实际，总量不变求实际天数。
+  {
+    id: "app-multi-step-06", skillCode: "multi-step-model", domain: "application_modeling",
+    difficulty: 3, structureTag: "plan-actual-days",
+    stemPattern: "工厂计划每天做 {{planned}} 个零件，{{days}} 天完成。实际每天多做 {{extra}} 个，实际多少天完成？",
+    answerSpecPattern: numberAnswer("天"),
+    explanationPattern: "零件总数不变：{{planned}} × {{days}} = {{total}} 个；实际每天做 {{actual}} 个，{{total}} ÷ {{actual}} = {{answer}} 天。",
+    variables: {
+      planned: [40, 45, 60], days: [9, 8, 7], extra: [5, 15, 24],
+      total: [360, 360, 420], actual: [45, 60, 84], answer: [8, 6, 5],
+    },
+  },
+  // P2-10e reverse-check：计算并验算填空，验算式必须是真正逆运算。
+  {
+    id: "num-reverse-check-04", skillCode: "reverse-check", domain: "number_operations",
+    difficulty: 2, structureTag: "compute-verify-fill",
+    stemPattern: "计算 {{expression}} = {{claim}}，再用{{inverseName}}验算：{{check}} = （ ）。括号里应填多少？",
+    answerSpecPattern: numberAnswer(),
+    explanationPattern: "验算要用逆运算：{{check}} 应得 {{answer}}，与原式中的数一致，说明原计算正确。",
+    variables: {
+      expression: ["356 + 278", "427 + 385", "703 - 256"],
+      claim: [634, 812, 447],
+      inverseName: ["减法", "减法", "加法"],
+      check: ["634 - 278", "812 - 385", "447 + 256"],
+      answer: [356, 427, 703],
+    },
+  },
+  // P2-10e reverse-check：减法验算方法选择，差＋减数=被减数。
+  {
+    id: "num-reverse-check-05", skillCode: "reverse-check", domain: "number_operations",
+    difficulty: 2, structureTag: "verify-method-choice", answerMode: "choice",
+    stemPattern: "计算 {{a}} - {{b}} 得到 {{claim}}。下面哪种验算方法最有说服力？A. 把原式交换顺序再算一遍  B. {{claim}} + {{b}} 是否等于 {{a}}  C. {{a}} + {{b}} 是否等于 {{claim}}  D. {{claim}} - {{b}} 是否等于 {{a}}",
+    answerSpecPattern: choiceAnswer("B"),
+    explanationPattern: "减法用加法验算：差 {{claim}} ＋减数 {{b}} 应等于被减数 {{a}}，选 B。",
+    variables: {
+      a: [500, 804, 620], b: [267, 358, 145], claim: [233, 446, 475],
+    },
+  },
+  // P2-10e reverse-check：乘除互逆，不计算直写除法的商。
+  {
+    id: "num-reverse-check-06", skillCode: "reverse-check", domain: "number_operations",
+    difficulty: 1, structureTag: "mul-div-inverse-fill",
+    stemPattern: "不计算，根据 {{mul}}，直接写出 {{div}} 的商。",
+    answerSpecPattern: numberAnswer(),
+    explanationPattern: "乘法与除法互为逆运算：积 {{product}} 除以因数 {{factor}}，得到另一个因数 {{answer}}。",
+    variables: {
+      mul: ["36 × 14 = 504", "25 × 18 = 450", "48 × 15 = 720"],
+      div: ["504 ÷ 14", "450 ÷ 18", "720 ÷ 15"],
+      product: [504, 450, 720], factor: [14, 18, 15], answer: [36, 25, 48],
+    },
+  },
 ];
 
 export const phase2Catalog: ReviewedTemplate[] = catalogInputs.map(reviewed);

@@ -804,6 +804,80 @@ const numericRules: NumericRule[] = [
       return Math.abs(sum(firstSet) - sum(secondSet));
     },
   },
+  // P2-10e multi-step-model：连乘。三个正整数捕获（每箱盒数、每盒支数、箱数）
+  // 全部参与连乘。
+  {
+    pattern: /^每箱有 (\d+) 盒，每盒有 (\d+) 支笔，一共 (\d+) 箱。一共有多少支笔？$/,
+    unit: "支",
+    calculate: ([perBox, perPack, cases]) => (
+      Number(perBox) * Number(perPack) * Number(cases)
+    ),
+  },
+  // P2-10e multi-step-model：计划与实际。计划总量不变，实际天数 = 计划日产量 ×
+  // 计划天数 ÷ 实际日产量。三个正整数捕获全部参与计算。
+  {
+    pattern: /^工厂计划每天做 (\d+) 个零件，(\d+) 天完成。实际每天多做 (\d+) 个，实际多少天完成？$/,
+    unit: "天",
+    calculate: ([planned, days, extra]) => (
+      Number(planned) * Number(days) / (Number(planned) + Number(extra))
+    ),
+  },
+  // P2-10e reverse-check：计算并验算填空。两个 (.+) 捕获原式与验算式，均经
+  // parseBinaryOperation 严格解析；要求原得数与原式相等、验算名称与原运算对应、
+  // 验算式确实是原式的逆运算，答案从验算式实算。任一不成立即抛错（invalid_
+  // number_pattern），非法内容无法蒙混。
+  {
+    pattern: /^计算 (.+) = (-?\d+(?:\.\d+)?)，再用(加法|减法)验算：(.+) = （ ）。括号里应填多少？$/,
+    unit: null,
+    calculate: ([expression, claimText, inverseName, check]) => {
+      const original = parseBinaryOperation(expression);
+      const checkOperation = parseBinaryOperation(check);
+      const claim = Number(claimText);
+      if (!original || !checkOperation
+        || !sameNumber(evaluateBinary(original), claim)) {
+        throw new Error("Invalid verification statement");
+      }
+      const expectsAddition = original.operator === "-";
+      if (expectsAddition !== (inverseName === "加法")) {
+        throw new Error("Inverse name mismatch");
+      }
+      const expected = inverseChecks(original, claim)
+        .find((item) => sameOperation(item.operation, checkOperation));
+      if (!expected) throw new Error("Check is not the inverse operation");
+      const answer = evaluateBinary(checkOperation);
+      if (!sameNumber(answer, expected.result)) throw new Error("Check result mismatch");
+      return answer;
+    },
+  },
+  // P2-10e reverse-check：乘除互逆直写商。两个 (.+) 捕获乘法等式与除法式：乘法
+  // 等式两边必须成立，除法式必须以积为被除数、以一个因数为除数，商从除法式
+  // 实算并要求等于另一个因数，否则抛错。
+  {
+    pattern: /^不计算，根据 (.+)，直接写出 (.+) 的商。$/,
+    unit: null,
+    calculate: ([mulStatement, divExpression]) => {
+      const sides = compactMath(mulStatement).split("=");
+      if (sides.length !== 2) throw new Error("Invalid multiplication statement");
+      const product = parseBinaryOperation(sides[0]);
+      const productValue = parseNumber(sides[1]);
+      if (!product || product.operator !== "*" || productValue === null
+        || !sameNumber(evaluateBinary(product), productValue)) {
+        throw new Error("Invalid multiplication statement");
+      }
+      const division = parseBinaryOperation(divExpression);
+      if (!division || division.operator !== "/"
+        || !sameNumber(division.left, productValue)) {
+        throw new Error("Division is not derived from multiplication");
+      }
+      let expectedQuotient: number;
+      if (sameNumber(division.right, product.right)) expectedQuotient = product.left;
+      else if (sameNumber(division.right, product.left)) expectedQuotient = product.right;
+      else throw new Error("Divisor is not a factor");
+      const answer = evaluateBinary(division);
+      if (!sameNumber(answer, expectedQuotient)) throw new Error("Quotient mismatch");
+      return answer;
+    },
+  },
 ];
 
 function numberProof(stem: string): NumberProof | null {
@@ -1386,6 +1460,14 @@ function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOptio
       ? "平均数升高"
       : newValue < oldValue ? "平均数降低" : "平均数不变";
     return optionsEqualTo(options, expected);
+  }
+
+  // P2-10e reverse-check：减法验算方法选择。选项是检查式陈述；凡结构上属于原式
+  // 真正逆运算检查的选项都命中（复用 relatedInverseCheck），正确项必须唯一——
+  // 若两个选项都是合法逆运算检查，则单一答案字母被拒。
+  match = question.match(/^计算 (.+) 得到 (-?\d+(?:\.\d+)?)。下面哪种验算方法最有说服力？$/);
+  if (match) {
+    return options.filter(({ text }) => relatedInverseCheck(match[1], Number(match[2]), text));
   }
 
   return null;

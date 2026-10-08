@@ -616,3 +616,96 @@ describe("data-compare choice proof 未覆盖子分支补测（P2-10d fix round 
       .toEqual(["incorrect_choice_answer"]);
   });
 });
+
+describe("multi-step-model / reverse-check 补齐新增锚定（P2-10e）", () => {
+  // 规则 chain-multiplication：每箱盒数 × 每盒支数 × 箱数。
+  test.each([
+    ["每箱有 6 盒，每盒有 12 支笔，一共 4 箱。一共有多少支笔？", 288],
+    ["每箱有 8 盒，每盒有 15 支笔，一共 5 箱。一共有多少支笔？", 600],
+    ["每箱有 9 盒，每盒有 20 支笔，一共 6 箱。一共有多少支笔？", 1080],
+  ])("app-multi-step-05 变体（共 %s 支）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "支")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "支")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 规则 plan-actual-days：计划总量 = 实际每天量 × 实际天数。
+  test.each([
+    ["工厂计划每天做 40 个零件，9 天完成。实际每天多做 5 个，实际多少天完成？", 8],
+    ["工厂计划每天做 45 个零件，8 天完成。实际每天多做 15 个，实际多少天完成？", 6],
+    ["工厂计划每天做 60 个零件，7 天完成。实际每天多做 24 个，实际多少天完成？", 5],
+  ])("app-multi-step-06 变体（实际 %s 天）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "天")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "天")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 规则 compute-and-verify：验算式必须是原式的真正逆运算，答案为验算得数。
+  test.each([
+    ["计算 356 + 278 = 634，再用减法验算：634 - 278 = （ ）。括号里应填多少？", 356],
+    ["计算 427 + 385 = 812，再用减法验算：812 - 385 = （ ）。括号里应填多少？", 427],
+    ["计算 703 - 256 = 447，再用加法验算：447 + 256 = （ ）。括号里应填多少？", 703],
+  ])("num-reverse-check-04 变体（验算得 %s）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer)).toEqual([]);
+    expect(validateWritten(stem, answer + 1)).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 验算式不是原式的逆运算（减数被偷换）时不被锚定。
+  test("num-reverse-check-04 验算式非逆运算时报 invalid_number_pattern", () => {
+    const stem = "计算 356 + 278 = 634，再用减法验算：634 - 200 = （ ）。括号里应填多少？";
+    expect(validateWritten(stem, 434)).toEqual(["invalid_number_pattern"]);
+  });
+
+  // 原得数本身错误时，整条陈述不成立，不被锚定。
+  test("num-reverse-check-04 原得数错误时报 invalid_number_pattern", () => {
+    const stem = "计算 356 + 278 = 635，再用减法验算：635 - 278 = （ ）。括号里应填多少？";
+    expect(validateWritten(stem, 357)).toEqual(["invalid_number_pattern"]);
+  });
+
+  // 选择题分支 verify-method-choice：选项为「检查式陈述」，真正逆运算检查唯一命中 B。
+  test.each([
+    [
+      "计算 500 - 267 得到 233。下面哪种验算方法最有说服力？"
+        + "A. 把原式交换顺序再算一遍  B. 233 + 267 是否等于 500  "
+        + "C. 500 + 267 是否等于 233  D. 233 - 267 是否等于 500",
+    ],
+    [
+      "计算 804 - 358 得到 446。下面哪种验算方法最有说服力？"
+        + "A. 把原式交换顺序再算一遍  B. 446 + 358 是否等于 804  "
+        + "C. 804 + 358 是否等于 446  D. 446 - 358 是否等于 804",
+    ],
+    [
+      "计算 620 - 145 得到 475。下面哪种验算方法最有说服力？"
+        + "A. 把原式交换顺序再算一遍  B. 475 + 145 是否等于 620  "
+        + "C. 620 + 145 是否等于 475  D. 475 - 145 是否等于 620",
+    ],
+  ])("num-reverse-check-05 变体 B 命中，错误选项报 incorrect_choice_answer", (stem) => {
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("B") }))
+      .toEqual([]);
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("A") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 同一题出现两个合法逆运算检查项时答案不唯一，任何单一字母都应被拒。
+  test("num-reverse-check-05 两个逆运算检查项并存时不唯一 → incorrect_choice_answer", () => {
+    const stem = "计算 500 - 267 得到 233。下面哪种验算方法最有说服力？"
+      + "A. 把原式交换顺序再算一遍  B. 233 + 267 是否等于 500  "
+      + "C. 500 - 233 是否等于 267  D. 233 - 267 是否等于 500";
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("B") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 规则 mul-div-inverse-fill：除法式必须由乘法式的积与因数构成，商为另一因数。
+  test.each([
+    ["不计算，根据 36 × 14 = 504，直接写出 504 ÷ 14 的商。", 36],
+    ["不计算，根据 25 × 18 = 450，直接写出 450 ÷ 18 的商。", 25],
+    ["不计算，根据 48 × 15 = 720，直接写出 720 ÷ 15 的商。", 48],
+  ])("num-reverse-check-06 变体（商 %s）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer)).toEqual([]);
+    expect(validateWritten(stem, answer + 1)).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 除数不是乘法式中的因数时，陈述不成立，不被锚定。
+  test("num-reverse-check-06 除数非原乘法因数时报 invalid_number_pattern", () => {
+    const stem = "不计算，根据 36 × 14 = 504，直接写出 504 ÷ 13 的商。";
+    expect(validateWritten(stem, 38)).toEqual(["invalid_number_pattern"]);
+  });
+});
