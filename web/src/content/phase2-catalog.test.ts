@@ -114,7 +114,7 @@ function countBy<K extends "contentTier" | "domain" | "difficulty">(key: K) {
 test("contains the approved exact 244-template blueprint", () => {
   expect(phase2Catalog.map((template) => template.id)).toEqual(expectedIds);
   expect(countBy("contentTier")).toEqual({ core: 219, regional: 18, transition: 7 });
-  expect(phase2Skills).toHaveLength(49);
+  expect(phase2Skills).toHaveLength(54);
   expect(countBy("domain")).toEqual({
     number_operations: 62,
     equation_algebra: 25,

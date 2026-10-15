@@ -74,7 +74,7 @@ test("seeds 244 reviewed templates plus the stable three-question Phase 1 daily 
       expect(sqlite.prepare("SELECT COUNT(*) AS count FROM question_templates").get())
         .toEqual({ count: 247 });
       expect(sqlite.prepare("SELECT COUNT(*) AS count FROM skills").get())
-        .toEqual({ count: 51 });
+        .toEqual({ count: 56 });
       expect(sqlite.prepare("SELECT name, domain FROM skills WHERE id = 'skill-decimal'").get())
         .toEqual({ name: "小数计算", domain: "数与运算" });
       expect(sqlite.prepare(`

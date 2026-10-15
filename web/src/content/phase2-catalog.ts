@@ -2240,6 +2240,8 @@ const skillDefinitions = {
   "operation-law": ["运算律", "number_operations"],
   estimate: ["估算", "number_operations"],
   "reverse-check": ["逆运算检查", "number_operations"],
+  // 五下：因数与倍数。
+  "factors-multiples": ["因数与倍数", "number_operations"],
   "equation-l1": ["一级方程：等式平衡", "equation_algebra"],
   "equation-l2": ["二级方程：加减", "equation_algebra"],
   "equation-l3": ["三级方程：乘除", "equation_algebra"],
@@ -2255,6 +2257,10 @@ const skillDefinitions = {
   "length-conversion": ["长度单位换算", "geometry_space"],
   "position-direction": ["位置与方向（二）", "geometry_space"],
   circle: ["圆", "geometry_space"],
+  // 五上：位置——数对。
+  "coordinate-pairs": ["位置（数对）", "geometry_space"],
+  // 五下：图形的运动——旋转。
+  rotation: ["图形的运动（旋转）", "geometry_space"],
   "data-table": ["表格阅读", "data_statistics"],
   "data-bar": ["条形图", "data_statistics"],
   "data-line": ["折线图", "data_statistics"],
@@ -2269,6 +2275,8 @@ const skillDefinitions = {
   "percent-model": ["百分数模型", "application_modeling"],
   "percent-apply": ["百分数应用", "application_modeling"],
   "multi-step-model": ["多步应用", "application_modeling"],
+  // 五上：数学广角——植树问题。
+  "tree-planting": ["植树问题", "application_modeling"],
   "extra-information": ["信息筛选", "application_modeling"],
   "read-question": ["辨认问题", "thinking_habits"],
   "find-condition": ["提取条件", "thinking_habits"],
@@ -2276,6 +2284,8 @@ const skillDefinitions = {
   "estimate-check": ["估算检查", "thinking_habits"],
   "check-strategy": ["检查策略", "thinking_habits"],
   "number-shape": ["数与形", "thinking_habits"],
+  // 五下：数学广角——找次品。
+  "defective-items": ["找次品", "thinking_habits"],
   "negative-numbers": ["负数", "number_operations"],
   "cylinder-cone": ["圆柱与圆锥", "geometry_space"],
   "proportion-scale": ["比例与比例尺", "number_operations"],

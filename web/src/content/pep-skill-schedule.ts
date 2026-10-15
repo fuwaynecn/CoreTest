@@ -13,7 +13,9 @@ export const pepSkillSchedule: Record<string, PepSkillScheduleEntry> = {
   decimal: { grade: 4, semester: 2, expectedWeek: 14 },
   // 五上：小数乘除。
   "decimal-ops": { grade: 5, semester: 1, expectedWeek: 7 },
-  fraction: { grade: 5, semester: 2, expectedWeek: 15, note: "临时值：含六上乘除，Plan 2 拆分" },
+  fraction: { grade: 5, semester: 2, expectedWeek: 15 },
+  // 五下：因数与倍数。
+  "factors-multiples": { grade: 5, semester: 2, expectedWeek: 3 },
   // 六上：分数乘除与分数应用题。
   "fraction-ops": { grade: 6, semester: 1, expectedWeek: 7 },
   "mixed-operations": { grade: 4, semester: 1, expectedWeek: 6 },
@@ -30,11 +32,15 @@ export const pepSkillSchedule: Record<string, PepSkillScheduleEntry> = {
   perimeter: { grade: 3, semester: 1, expectedWeek: 13 },
   area: { grade: 3, semester: 2, expectedWeek: 10 },
   volume: { grade: 5, semester: 2, expectedWeek: 8 },
+  // 五下：图形的运动——旋转。
+  rotation: { grade: 5, semester: 2, expectedWeek: 6 },
   "composite-geometry": { grade: 5, semester: 1, expectedWeek: 15 },
   spatial: { grade: 4, semester: 2, expectedWeek: 3 },
   "length-conversion": { grade: 3, semester: 1, expectedWeek: 5 },
   // 六上：位置与方向（二）。
   "position-direction": { grade: 6, semester: 1, expectedWeek: 4 },
+  // 五上：位置——数对。
+  "coordinate-pairs": { grade: 5, semester: 1, expectedWeek: 2 },
   // 六上：圆。
   circle: { grade: 6, semester: 1, expectedWeek: 9 },
   "data-table": { grade: 3, semester: 2, expectedWeek: 7 },
@@ -53,6 +59,8 @@ export const pepSkillSchedule: Record<string, PepSkillScheduleEntry> = {
   // 六下：百分数（二）——折扣、成数、税率、利率等应用。
   "percent-apply": { grade: 6, semester: 2, expectedWeek: 3 },
   "multi-step-model": { grade: 4, semester: 2, expectedWeek: 12 },
+  // 五上：数学广角——植树问题。
+  "tree-planting": { grade: 5, semester: 1, expectedWeek: 16 },
   "extra-information": { grade: 3, semester: 2, expectedWeek: 12 },
   "read-question": { grade: 2, semester: 1, expectedWeek: 8 },
   "find-condition": { grade: 2, semester: 2, expectedWeek: 8 },
@@ -61,6 +69,8 @@ export const pepSkillSchedule: Record<string, PepSkillScheduleEntry> = {
   "check-strategy": { grade: 3, semester: 2, expectedWeek: 8 },
   // 六上：数学广角——数与形。
   "number-shape": { grade: 6, semester: 1, expectedWeek: 17 },
+  // 五下：数学广角——找次品。
+  "defective-items": { grade: 5, semester: 2, expectedWeek: 17 },
   reading: { grade: 3, semester: 1, expectedWeek: 10 },
   equation: { grade: 5, semester: 1, expectedWeek: 12 },
   // 六下：负数。
