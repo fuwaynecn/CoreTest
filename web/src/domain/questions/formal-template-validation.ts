@@ -891,6 +891,55 @@ const numericRules: NumericRule[] = [
       return answer;
     },
   },
+  // P2-13b factors-multiples F1 factor-count：枚举 1..n 中能整除 n 的正因数并
+  // 计数。捕获 (\d+) 只接受正整数（因数计数不接受负数/小数）；守卫 n ≤ 100 且
+  // n ≥ 1，越界不锚定（落到后续规则 → unsupported_number_pattern），避免大枚举。
+  {
+    pattern: /^(\d+) 的因数个数是多少？$/,
+    unit: null,
+    accept: ([nText]) => {
+      const n = Number(nText);
+      return Number.isInteger(n) && n >= 1 && n <= 100;
+    },
+    calculate: ([nText]) => {
+      const n = Number(nText);
+      let count = 0;
+      for (let divisor = 1; divisor <= n; divisor += 1) {
+        if (n % divisor === 0) count += 1;
+      }
+      return count;
+    },
+  },
+  // P2-13b factors-multiples F2 multiples-count：m 以内 k 的倍数个数 = floor(m/k)。
+  // 「以内」含端点，m 本身是 k 的倍数时 floor 天然计入。两个捕获均为正整数；
+  // 守卫 m ≤ 100、k ≥ 1，越界不锚定。
+  {
+    pattern: /^(\d+) 以内 (\d+) 的倍数个数是多少？$/,
+    unit: null,
+    accept: ([mText, kText]) => {
+      const m = Number(mText);
+      const k = Number(kText);
+      return Number.isInteger(m) && m >= 1 && m <= 100
+        && Number.isInteger(k) && k >= 1;
+    },
+    calculate: ([mText, kText]) => Math.floor(Number(mText) / Number(kText)),
+  },
+  // P2-13b factors-multiples F4 lcm-lower-bound：同时是 a、b 的倍数的最小三位数
+  // = ceil(100 / lcm(a,b)) × lcm(a,b)。a、b 钉死为 {2,3,5} 集合中的两个数，
+  // 其它值不锚定。
+  {
+    pattern: /^同时是 (2|3|5)、(2|3|5) 的倍数的最小三位数是多少？$/,
+    unit: null,
+    calculate: ([aText, bText]) => {
+      const a = Number(aText);
+      const b = Number(bText);
+      const gcd = (left: number, right: number): number => (
+        right === 0 ? left : gcd(right, left % right)
+      );
+      const lcm = a * b / gcd(a, b);
+      return Math.ceil(100 / lcm) * lcm;
+    },
+  },
 ];
 
 function numberProof(stem: string): NumberProof | null {
@@ -1590,6 +1639,69 @@ function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOptio
     // 同一点（两数都相同）或两数都不同，都不属于「同一列/同一行」的单一结论。
     if (sameColumn === sameRow) return [];
     return optionsEqualTo(options, sameColumn ? "在同一列" : "在同一行");
+  }
+
+  // P2-13b factors-multiples num-fm-02：一个非零自然数最小的因数是 1（最大的
+  // 因数是它本身，本批模板只问最小一端）。具体 n 用 (\d+) 捕获但不参与结论，
+  // 仅把题干形态钉死，防止句式漂移；n=0 与「非零自然数」前提矛盾，安全落空。
+  const fmExtremesMatch = question.match(/^一个非零自然数 (\d+) 的最小因数是哪一个？$/);
+  if (fmExtremesMatch) {
+    const n = Number(fmExtremesMatch[1]);
+    if (!Number.isInteger(n) || n < 1) return [];
+    return optionsEqualTo(options, "1");
+  }
+
+  // P2-13b factors-multiples num-fm-04：同时是 2 和 5 的倍数的数，个位上是 0。
+  // 题干给出的公倍数 n 必须确实个位为 0（陈述造假则安全落空），正确特征为固定文本。
+  const fmDiv25Match = question.match(/^(\d+) 是 2 和 5 的公倍数。它符合下面哪一个特征？$/);
+  if (fmDiv25Match) {
+    const n = Number(fmDiv25Match[1]);
+    if (!Number.isInteger(n) || n < 1 || n % 10 !== 0) return [];
+    return optionsEqualTo(options, "个位上是0");
+  }
+
+  // P2-13b factors-multiples num-fm-05：从 4 个选项文本重算——解析为整数、各位
+  // 数字和能被 3 整除即 3 的倍数；恰好 1 个选项满足时唯一命中，0 个或 2+ 个
+  // 满足时安全落空（[]），不依赖题干给的任何数字。
+  const fmDiv3Match = question.match(/^下面各数中，是 3 的倍数的是哪一个？$/);
+  if (fmDiv3Match) {
+    const divisibleBy3 = options.filter(({ text }) => {
+      if (!/^\d+$/.test(text.trim())) return false;
+      const digitSum = [...text.trim()].reduce((sum, digit) => sum + Number(digit), 0);
+      return digitSum % 3 === 0;
+    });
+    if (divisibleBy3.length !== 1) return [];
+    return divisibleBy3;
+  }
+
+  // P2-13b factors-multiples num-fm-06：质数（只有 1 和本身两个因数）、合数
+  // （还有别的因数）、1 两者都不是。候选数从选项文本重算，钉死在 1..30（质数
+  // 表只取 ≤30），用 2..floor(sqrt(n)) 试除内联判定；三种问法各对应一个分支，
+  // 恰好 1 个选项满足时唯一命中，否则安全落空。
+  const isPrimeUpTo30 = (text: string): boolean | null => {
+    if (!/^(?:[12]?\d|30)$/.test(text.trim())) return null;
+    const n = Number(text.trim());
+    if (n < 2) return false;
+    for (let divisor = 2; divisor * divisor <= n; divisor += 1) {
+      if (n % divisor === 0) return false;
+    }
+    return true;
+  };
+  const fmPrimeQuestion = question.match(/^下面各数中，哪一个是质数？$/);
+  if (fmPrimeQuestion) {
+    const primes = options.filter(({ text }) => isPrimeUpTo30(text) === true);
+    if (primes.length !== 1) return [];
+    return primes;
+  }
+  const fmCompositeQuestion = question.match(/^下面各数中，哪一个是合数？$/);
+  if (fmCompositeQuestion) {
+    const composites = options.filter(({ text }) => isPrimeUpTo30(text) === false && Number(text.trim()) >= 2);
+    if (composites.length !== 1) return [];
+    return composites;
+  }
+  const fmOneQuestion = question.match(/^关于自然数 1，下面说法正确的是哪一个？$/);
+  if (fmOneQuestion) {
+    return optionsEqualTo(options, "1既不是质数也不是合数");
   }
 
   return null;

@@ -2339,6 +2339,108 @@ const catalogInputs: TemplateInput[] = [
       ],
     },
   },
+  // P2-13b factors-multiples：成对枚举正因数（1 和 n 本身各算一个），数完数总个数。
+  {
+    id: "num-fm-01", skillCode: "factors-multiples", domain: "number_operations",
+    difficulty: 2, structureTag: "factor-count",
+    stemPattern: "{{n}} 的因数个数是多少？",
+    answerSpecPattern: numberAnswer(),
+    explanationPattern: "从 1 开始成对找 {{n}} 的因数：{{pairs}}，一共 {{answer}} 个，所以 {{n}} 有 {{answer}} 个因数。",
+    variables: {
+      n: [30, 36, 28], answer: [8, 9, 6],
+      pairs: ["1 和 30、2 和 15、3 和 10、5 和 6", "1 和 36、2 和 18、3 和 12、4 和 9、6 和 6", "1 和 28、2 和 14、4 和 7"],
+    },
+  },
+  // P2-13b factors-multiples：最小的因数是 1，n 只用于钉住题干，结论不变。
+  {
+    id: "num-fm-02", skillCode: "factors-multiples", domain: "number_operations",
+    difficulty: 1, structureTag: "factor-extremes", answerMode: "choice",
+    stemPattern: "一个非零自然数 {{n}} 的最小因数是哪一个？"
+      + "A. {{optionA}}  B. {{optionB}}  C. 0  D. 不存在",
+    answerSpecPattern: choiceAnswer("A"),
+    explanationPattern: "任何非零自然数都能被 1 整除，而没有比 1 更小的正因数，所以 {{n}} 最小的因数是 1，选 A。",
+    variables: {
+      n: [12, 24, 36],
+      optionA: [1, 1, 1], optionB: ["它本身", "它本身", "它本身"],
+    },
+  },
+  // P2-13b factors-multiples：m 以内 k 的倍数有 floor(m/k) 个，「以内」含端点。
+  {
+    id: "num-fm-03", skillCode: "factors-multiples", domain: "number_operations",
+    difficulty: 2, structureTag: "multiples-count",
+    stemPattern: "{{m}} 以内 {{k}} 的倍数个数是多少？",
+    answerSpecPattern: numberAnswer(),
+    explanationPattern: "{{m}} 以内 {{k}} 的倍数从 {{k}} 开始：{{multiples}}；用 {{m}} ÷ {{k}} 取整得 {{answer}}（「以内」包括端点 {{m}}），所以有 {{answer}} 个。",
+    variables: {
+      m: [50, 50, 50], k: [7, 8, 9], answer: [7, 6, 5],
+      multiples: ["7、14、21、28、35、42、49", "8、16、24、32、40、48", "9、18、27、36、45"],
+    },
+  },
+  // P2-13b factors-multiples：2 的倍数个位是偶数，5 的倍数个位是 0 或 5，同时满足
+  // 只能个位是 0；题干的 n 必须确实个位为 0。
+  {
+    id: "num-fm-04", skillCode: "factors-multiples", domain: "number_operations",
+    difficulty: 1, structureTag: "divisibility-2-5", answerMode: "choice",
+    stemPattern: "{{n}} 是 2 和 5 的公倍数。它符合下面哪一个特征？"
+      + "A. 个位上是 5  B. 个位上是偶数  C. 各位上的数字和是 3 的倍数  D. 个位上是 0",
+    answerSpecPattern: choiceAnswer("D"),
+    explanationPattern: "2 的倍数个位是 0、2、4、6、8，5 的倍数个位是 0 或 5；同时满足两个条件，个位只能是 0，所以选 D。",
+    variables: {
+      n: [10, 30, 100],
+    },
+  },
+  // P2-13b factors-multiples：3 的倍数看各位数字之和，四个选项中恰好一个能被 3
+  // 整除；干扰项兼顾奇偶知识点（奇数/偶数均有）。
+  {
+    id: "num-fm-05", skillCode: "factors-multiples", domain: "number_operations",
+    difficulty: 2, structureTag: "divisibility-3", answerMode: "choice",
+    stemPattern: "下面各数中，是 3 的倍数的是哪一个？"
+      + "A. {{a}}  B. {{b}}  C. {{c}}  D. {{d}}",
+    answerSpecPattern: choiceAnswer("B"),
+    explanationPattern: "各位上的数字和是 3 的倍数，这个数就是 3 的倍数：{{b}} 的数字和 {{sumB}} 能被 3 整除，所以选 B。",
+    variables: {
+      a: [26, 17, 70], b: [45, 51, 24], c: [52, 38, 49], d: [80, 64, 86],
+      sumB: [9, 6, 6],
+    },
+  },
+  // P2-13b factors-multiples：质数只有 1 和本身两个因数，合数还有别的因数，1 既
+  // 不是质数也不是合数；候选数都在 30 以内，三个实例覆盖三种问法。
+  {
+    id: "num-fm-06", skillCode: "factors-multiples", domain: "number_operations",
+    difficulty: 2, structureTag: "prime-composite", answerMode: "choice",
+    stemPattern: "{{question}}"
+      + "A. {{a}}  B. {{b}}  C. {{c}}  D. {{d}}",
+    answerSpecPattern: choiceAnswer("B"),
+    explanationPattern: "{{reason}}，所以选 B。",
+    variables: {
+      question: [
+        "下面各数中，哪一个是质数？",
+        "下面各数中，哪一个是合数？",
+        "关于自然数 1，下面说法正确的是哪一个？",
+      ],
+      a: [21, 13, "1 是质数"],
+      b: [23, 15, "1 既不是质数也不是合数"],
+      c: [27, 19, "1 是合数"],
+      d: [1, 7, "1 既是质数也是合数"],
+      reason: [
+        "23 只有 1 和 23 两个因数，是质数；21、27 是合数，1 既不是质数也不是合数",
+        "15 的因数有 1、3、5、15，除了 1 和本身还有别的因数，是合数；13、19、7 都是质数",
+        "1 只有 1 这一个因数，不符合质数（两个因数）也不符合合数（三个及以上因数）",
+      ],
+    },
+  },
+  // P2-13b factors-multiples：先求两个数的最小公倍数，再找不小于 100 的第一个倍数。
+  {
+    id: "num-fm-07", skillCode: "factors-multiples", domain: "number_operations",
+    difficulty: 3, structureTag: "lcm-lower-bound",
+    stemPattern: "同时是 {{a}}、{{b}} 的倍数的最小三位数是多少？",
+    answerSpecPattern: numberAnswer(),
+    explanationPattern: "{{a}} 和 {{b}} 的最小公倍数是 {{lcm}}；不小于 100 的第一个 {{lcm}} 的倍数是 {{lcm}} × {{factor}} = {{answer}}，所以最小三位数是 {{answer}}。",
+    variables: {
+      a: [2, 2, 3], b: [3, 5, 5], lcm: [6, 10, 15], factor: [17, 10, 7],
+      answer: [102, 100, 105],
+    },
+  },
 ];
 
 export const phase2Catalog: ReviewedTemplate[] = catalogInputs.map(reviewed);

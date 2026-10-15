@@ -923,3 +923,160 @@ describe("coordinate-pairs 数对锚定规则（P2-13a）", () => {
       .toEqual(["unsupported_choice_pattern"]);
   });
 });
+
+describe("factors-multiples 因数与倍数锚定规则（P2-13b）", () => {
+  type ChoiceLetter = "A" | "B" | "C" | "D";
+
+  // 规则 F1 factor-count：枚举 1..n 中能整除 n 的正因数并计数。
+  test.each([
+    ["30 的因数个数是多少？", 8],
+    ["36 的因数个数是多少？", 9],
+    ["28 的因数个数是多少？", 6],
+  ])("num-fm-01 因数计数（%s）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer)).toEqual([]);
+    expect(validateWritten(stem, answer + 1)).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 守卫：F1 只枚举 n ≤ 100 的正整数；n=101 越界不锚定。
+  test("num-fm-01 n=101 越界不被锚定 → unsupported_number_pattern", () => {
+    const stem = "101 的因数个数是多少？";
+    expect(validateWritten(stem, 2)).toEqual(["unsupported_number_pattern"]);
+  });
+
+  // 同形错误栽法：把「倍数个数」当因数个数（30 以内 2 的倍数有 15 个）不是
+  // 因数个数（8 个），锚定后按枚举重算判错。
+  test("num-fm-01 把倍数个数当作因数个数作答报 incorrect_number_answer", () => {
+    const stem = "30 的因数个数是多少？";
+    expect(validateWritten(stem, 15)).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 规则 F2 multiples-count：m 以内 k 的倍数个数 = floor(m/k)，「以内」含端点。
+  test.each([
+    ["50 以内 7 的倍数个数是多少？", 7],
+    ["50 以内 8 的倍数个数是多少？", 6],
+    ["50 以内 9 的倍数个数是多少？", 5],
+  ])("num-fm-03 范围内倍数计数（%s）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer)).toEqual([]);
+    expect(validateWritten(stem, answer + 1)).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 守卫：F2 只支持 m ≤ 100；m=101 越界不锚定。
+  test("num-fm-03 m=101 越界不被锚定 → unsupported_number_pattern", () => {
+    const stem = "101 以内 7 的倍数个数是多少？";
+    expect(validateWritten(stem, 14)).toEqual(["unsupported_number_pattern"]);
+  });
+
+  // 规则 F4 lcm-lower-bound：先求 lcm(a,b)，再找 ≥100 的第一个倍数。
+  test.each([
+    ["同时是 2、3 的倍数的最小三位数是多少？", 102],
+    ["同时是 2、5 的倍数的最小三位数是多少？", 100],
+    ["同时是 3、5 的倍数的最小三位数是多少？", 105],
+  ])("num-fm-07 最小公倍数下界（%s）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer)).toEqual([]);
+    expect(validateWritten(stem, answer + 1)).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 负向：a、b 钉死在 {2,3,5} 集合中，其它值不锚定。
+  test("num-fm-07 a、b 不在 {2,3,5}（4、6）不被锚定 → unsupported_number_pattern", () => {
+    const stem = "同时是 4、6 的倍数的最小三位数是多少？";
+    expect(validateWritten(stem, 108)).toEqual(["unsupported_number_pattern"]);
+  });
+
+  // 分支 num-fm-02 factor-extremes：最小因数是 1、最大因数是它本身；n 仅用于
+  // 把题干形态钉死，结论固定。三个实例都问最小因数，正确项 A。
+  test.each([
+    ["一个非零自然数 12 的最小因数是哪一个？"
+      + "A. 1  B. 它本身  C. 0  D. 不存在"],
+    ["一个非零自然数 24 的最小因数是哪一个？"
+      + "A. 1  B. 它本身  C. 0  D. 不存在"],
+    ["一个非零自然数 36 的最小因数是哪一个？"
+      + "A. 1  B. 它本身  C. 0  D. 不存在"],
+  ])("num-fm-02 最小因数（%s）A 命中，错误字母报 incorrect_choice_answer", (stem) => {
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("A") }))
+      .toEqual([]);
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("B") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 分支 num-fm-04 divisibility-2-5：同时是 2 和 5 的倍数，个位上是 0。
+  // 题干给出的公倍数 n 必须确实个位为 0，否则陈述造假、安全落空。
+  test.each([
+    ["10 是 2 和 5 的公倍数。它符合下面哪一个特征？"
+      + "A. 个位上是 5  B. 个位上是偶数  C. 各位上的数字和是 3 的倍数  D. 个位上是 0"],
+    ["30 是 2 和 5 的公倍数。它符合下面哪一个特征？"
+      + "A. 个位上是 5  B. 个位上是偶数  C. 各位上的数字和是 3 的倍数  D. 个位上是 0"],
+    ["100 是 2 和 5 的公倍数。它符合下面哪一个特征？"
+      + "A. 个位上是 5  B. 个位上是偶数  C. 各位上的数字和是 3 的倍数  D. 个位上是 0"],
+  ])("num-fm-04 2 和 5 倍数特征（%s）D 命中，错误字母报 incorrect_choice_answer", (stem) => {
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("D") }))
+      .toEqual([]);
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("A") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 分支 num-fm-05 divisibility-3：从 4 个选项按各位数字和重算，恰好 1 个能被
+  // 3 整除时命中该选项；三个实例正确项都是 B。
+  test.each([
+    ["下面各数中，是 3 的倍数的是哪一个？"
+      + "A. 26  B. 45  C. 52  D. 80", "B"],
+    ["下面各数中，是 3 的倍数的是哪一个？"
+      + "A. 17  B. 51  C. 38  D. 64", "B"],
+    ["下面各数中，是 3 的倍数的是哪一个？"
+      + "A. 70  B. 24  C. 49  D. 86", "B"],
+  ])("num-fm-05 按数字和重算选 3 的倍数（%s）正确字母命中，错误字母报 incorrect_choice_answer", (stem, correct) => {
+    const wrong: ChoiceLetter = correct === "B" ? "C" : "B";
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec(correct as ChoiceLetter) }))
+      .toEqual([]);
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec(wrong) }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 重算安全落空：两个选项都是 3 的倍数（12、15）时没有唯一答案。
+  test("num-fm-05 两个选项都是 3 的倍数时不唯一 → incorrect_choice_answer", () => {
+    const stem = "下面各数中，是 3 的倍数的是哪一个？"
+      + "A. 12  B. 15  C. 20  D. 22";
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("A") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 重算安全落空：没有一个选项是 3 的倍数（16、25、34、43）时任何字母都被拒。
+  test("num-fm-05 没有选项是 3 的倍数时安全落空 → incorrect_choice_answer", () => {
+    const stem = "下面各数中，是 3 的倍数的是哪一个？"
+      + "A. 16  B. 25  C. 34  D. 43";
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("B") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 分支 num-fm-06 prime-composite：三种问法（找质数/找合数/1 的归类），候选数
+  // ≤30，按 2..sqrt(n) 试除重算，三个实例正确项都是 B。
+  test.each([
+    ["下面各数中，哪一个是质数？"
+      + "A. 21  B. 23  C. 27  D. 1", "B"],
+    ["下面各数中，哪一个是合数？"
+      + "A. 13  B. 15  C. 19  D. 7", "B"],
+    ["关于自然数 1，下面说法正确的是哪一个？"
+      + "A. 1 是质数  B. 1 既不是质数也不是合数  C. 1 是合数  D. 1 既是质数也是合数", "B"],
+  ])("num-fm-06 质数/合数/1 归类（%s）正确字母命中，错误字母报 incorrect_choice_answer", (stem, correct) => {
+    const wrong: ChoiceLetter = correct === "B" ? "C" : "B";
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec(correct as ChoiceLetter) }))
+      .toEqual([]);
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec(wrong) }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 重算安全落空：找质数但多个选项是质数（11、13、17）时没有唯一答案。
+  test("num-fm-06 多个选项是质数时不唯一 → incorrect_choice_answer", () => {
+    const stem = "下面各数中，哪一个是质数？"
+      + "A. 11  B. 13  C. 15  D. 17";
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("B") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 重算安全落空：找合数但没有一个选项是合数（2、3、5、7 全是质数）。
+  test("num-fm-06 没有选项是合数时安全落空 → incorrect_choice_answer", () => {
+    const stem = "下面各数中，哪一个是合数？"
+      + "A. 2  B. 3  C. 5  D. 7";
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("A") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+});
