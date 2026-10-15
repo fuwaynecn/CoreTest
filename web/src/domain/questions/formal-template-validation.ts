@@ -180,6 +180,16 @@ function numericList(value: string): number[] {
   return values;
 }
 
+// P2-13c tree-planting：植树问题四种栽法的棵数。段数 = 总长 ÷ 间距，再按情境
+// 短语分支：两端都栽 = 段+1；一端栽一端不栽 = 段；两端都不栽 = 段−1；封闭图形
+// （圆形池塘，首尾重合）= 段。情境短语由规则 A 与 T7 选择分支从题干捕获后传入，
+// 故两个锚定入口共用同一判定而不导出库文件（brief 允许的最小文件级函数）。
+function plantTreeCount(segments: number, situation: string): number {
+  if (situation === "两端都栽") return segments + 1;
+  if (situation === "两端都不栽") return segments - 1;
+  return segments; // 一端栽一端不栽、封闭图形（首尾重合）棵数都等于段数
+}
+
 const numericRules: NumericRule[] = [
   {
     pattern: /^一个平角被分成两个角，其中一个是 (-?\d+(?:\.\d+)?) 度，另一个是多少度？$/,
@@ -938,6 +948,53 @@ const numericRules: NumericRule[] = [
       );
       const lcm = a * b / gcd(a, b);
       return Math.ceil(100 / lcm) * lcm;
+    },
+  },
+  // P2-13c tree-planting 规则 A（unit "棵"，Ruling 1）：一条正则四个交替分支覆盖
+  // T1 两端都栽 / T2 一端栽一端不栽 / T3 两端都不栽 / T4 封闭图形。每支 3 个捕获：
+  // 总长 L、间距 d 与情境短语（情境词写进模式并被捕获，分支不得只靠数字猜栽法）。
+  // 守卫：d ∈ [2,10]、L/d ∈ [4,20] 且整除，否则安全落空。
+  {
+    pattern: /^在一条长 (\d+) 米的小路一侧栽树，每隔 (\d+) 米栽一棵，(两端都栽|一端栽，另一端不栽)。一共要栽多少棵？$|^两栋楼之间有一条长 (\d+) 米的小路，在小路一侧每隔 (\d+) 米栽一棵，(两端都不栽)。一共要栽多少棵？$|^一个圆形池塘周长 (\d+) 米，沿池边每隔 (\d+) 米栽一棵。一共要栽多少棵？$/,
+    unit: "棵",
+    accept: (captures) => {
+      const numeric = captures.filter((value) => value !== undefined && /^\d+$/.test(value));
+      if (numeric.length !== 2) return false;
+      const length = Number(numeric[0]);
+      const spacing = Number(numeric[1]);
+      return spacing >= 2 && spacing <= 10
+        && length % spacing === 0
+        && length / spacing >= 4 && length / spacing <= 20;
+    },
+    calculate: (captures) => {
+      // 直路两支为捕获 1–3（L、d、情境），两楼之间一支为捕获 4–6（L、d、情境），
+      // 封闭圆形一支只有捕获 7–8（L、d），情境固定为「圆形池塘」。
+      const numeric = captures.filter((value) => value !== undefined && /^\d+$/.test(value));
+      const length = Number(numeric[0]);
+      const spacing = Number(numeric[1]);
+      const segments = length / spacing;
+      const situation = captures.find((value) =>
+        value !== undefined && /^\d+$/.test(value) === false) ?? "圆形池塘";
+      return plantTreeCount(segments, situation);
+    },
+  },
+  // P2-13c tree-planting 规则 B（unit null，Ruling 1/2）：锯木头双向。一条正则两个
+  // 交替分支：「锯成 n 段，需要锯（ ）次」→ n−1（n≥2）；「锯了 m 次，锯成了（ ）段」
+  // → m+1（m≥1）。设问方向由「次/段」所在的填空捕获，关键词参与分支定向。
+  {
+    pattern: /^一根木头锯成 (\d+) 段，需要锯（ ）次。$|^一根木头锯了 (\d+) 次，锯成了（ ）段。$/,
+    unit: null,
+    accept: (captures) => {
+      const numeric = captures.filter((value) => value !== undefined);
+      if (numeric.length !== 1) return false;
+      const n = Number(numeric[0]);
+      if (!Number.isInteger(n)) return false;
+      // 第一支（段→次，捕获在前段）要求 n≥2；第二支（次→段，捕获在中段）要求 m≥1。
+      return captures[0] !== undefined ? n >= 2 : n >= 1;
+    },
+    calculate: (captures) => {
+      const n = Number(captures.find((value) => value !== undefined));
+      return captures[0] !== undefined ? n - 1 : n + 1;
     },
   },
 ];
@@ -1702,6 +1759,40 @@ function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOptio
   const fmOneQuestion = question.match(/^关于自然数 1，下面说法正确的是哪一个？$/);
   if (fmOneQuestion) {
     return optionsEqualTo(options, "1既不是质数也不是合数");
+  }
+
+  // P2-13c tree-planting app-tp-06 stairs-floors：从 a 楼走到 b 楼要走 b−a 层楼梯
+  // （楼层差，不是 b 层）。a、b 捕获参与计算；守卫 b>a、a≥1、b≤30。四个选项必须
+  // 是纯数字，恰好一个等于 b−a 时命中，否则安全落空。
+  const tpStairs = question.match(/^小明从 (\d+) 楼走到 (\d+) 楼，一共要走几层楼梯？$/);
+  if (tpStairs) {
+    const from = Number(tpStairs[1]);
+    const to = Number(tpStairs[2]);
+    if (!Number.isInteger(from) || !Number.isInteger(to)
+        || from < 1 || to > 30 || to <= from) return [];
+    const floors = to - from;
+    const matches = options.filter(({ text }) => /^\d+$/.test(text.trim())
+      && Number(text.trim()) === floors);
+    return matches.length === 1 ? matches : [];
+  }
+
+  // P2-13c tree-planting app-tp-07 plant-mode-choose：给情境辨别栽法。分支必须从
+  // 题干 L/d 与情境词重算棵数（复用 plantTreeCount，不导出生产 helper），再在
+  // 「N 棵」选项中找唯一重算值；0 个或 2+ 个命中安全落空。守卫与规则 A 相同。
+  const tpChoose = question.match(
+    /^在一条长 (\d+) 米的小路一侧栽树，每隔 (\d+) 米栽一棵，(两端都栽|一端栽，另一端不栽|两端都不栽)。下面哪一个是正确的棵数？$/,
+  );
+  if (tpChoose) {
+    const length = Number(tpChoose[1]);
+    const spacing = Number(tpChoose[2]);
+    if (spacing < 2 || spacing > 10 || length % spacing !== 0
+        || length / spacing < 4 || length / spacing > 20) return [];
+    const expected = plantTreeCount(length / spacing, tpChoose[3]);
+    const matches = options.filter(({ text }) => {
+      const optionMatch = text.match(/^(\d+) 棵$/);
+      return optionMatch !== null && Number(optionMatch[1]) === expected;
+    });
+    return matches.length === 1 ? matches : [];
   }
 
   return null;

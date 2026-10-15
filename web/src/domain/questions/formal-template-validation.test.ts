@@ -1080,3 +1080,104 @@ describe("factors-multiples 因数与倍数锚定规则（P2-13b）", () => {
       .toEqual(["incorrect_choice_answer"]);
   });
 });
+
+describe("tree-planting 植树问题锚定规则（P2-13c）", () => {
+  type ChoiceLetter = "A" | "B" | "C" | "D";
+
+  const validateChoice = (stem: string, letter: ChoiceLetter) => (
+    renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec(letter) })
+  );
+
+  // 规则 A 四种栽法各 1 个正例：正确棵数 []、错误棵数 incorrect_number_answer，
+  // 答案单位必须是「棵」。
+  test.each([
+    ["在一条长 30 米的小路一侧栽树，每隔 5 米栽一棵，两端都栽。一共要栽多少棵？", 7],
+    ["在一条长 20 米的小路一侧栽树，每隔 5 米栽一棵，一端栽，另一端不栽。一共要栽多少棵？", 4],
+    ["两栋楼之间有一条长 24 米的小路，在小路一侧每隔 4 米栽一棵，两端都不栽。一共要栽多少棵？", 5],
+    ["一个圆形池塘周长 40 米，沿池边每隔 5 米栽一棵。一共要栽多少棵？", 8],
+  ])("规则 A 四种栽法（%s）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "棵")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "棵")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 单位负向：不带单位报 missing_unit，错配「米」报 unit_mismatch（规则 A 静态单位为「棵」）。
+  test("规则 A 两端都栽：缺单位报 missing_unit，错单位报 unit_mismatch", () => {
+    const stem = "在一条长 30 米的小路一侧栽树，每隔 5 米栽一棵，两端都栽。一共要栽多少棵？";
+    expect(validateWritten(stem, 7)).toEqual(["missing_unit"]);
+    expect(validateWritten(stem, 7, "米")).toEqual(["unit_mismatch"]);
+  });
+
+  // 计划硬性负向：同一组 L、d，用错误栽法的棵数作答必须被拒——证明情境关键词
+  // （两端都栽/一端栽/两端都不栽/封闭图形）真的参与分支判定，而非只靠数字锚定。
+  test.each([
+    // T1 两端都栽（段 6、棵 7）：T2 的「段数」6 与 T3 的「段−1」5 都不能通过。
+    ["在一条长 30 米的小路一侧栽树，每隔 5 米栽一棵，两端都栽。一共要栽多少棵？", 6],
+    ["在一条长 30 米的小路一侧栽树，每隔 5 米栽一棵，两端都栽。一共要栽多少棵？", 5],
+    // T2 一端栽（段 4、棵 4）：T1 的「段+1」5 不能通过。
+    ["在一条长 20 米的小路一侧栽树，每隔 5 米栽一棵，一端栽，另一端不栽。一共要栽多少棵？", 5],
+    // T3 两端都不栽（段 6、棵 5）：T2 的「段数」6 不能通过。
+    ["两栋楼之间有一条长 24 米的小路，在小路一侧每隔 4 米栽一棵，两端都不栽。一共要栽多少棵？", 6],
+    // T4 封闭图形（段 8、棵 8，首尾重合）：T1 的「段+1」9 不能通过。
+    ["一个圆形池塘周长 40 米，沿池边每隔 5 米栽一棵。一共要栽多少棵？", 9],
+  ])("规则 A 错误栽法答案（%s 答 %d）报 incorrect_number_answer", (stem, wrongAnswer) => {
+    expect(validateWritten(stem, wrongAnswer, "棵")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 规则 A 守卫：间距 d 必须 2–10、段数 L/d 必须 4–20 且整除；越界不锚定。
+  test.each([
+    "在一条长 20 米的小路一侧栽树，每隔 1 米栽一棵，两端都栽。一共要栽多少棵？",
+    "在一条长 44 米的小路一侧栽树，每隔 11 米栽一棵，两端都栽。一共要栽多少棵？",
+    "在一条长 15 米的小路一侧栽树，每隔 5 米栽一棵，两端都栽。一共要栽多少棵？",
+    "在一条长 42 米的小路一侧栽树，每隔 2 米栽一棵，两端都栽。一共要栽多少棵？",
+    "在一条长 25 米的小路一侧栽树，每隔 4 米栽一棵，两端都栽。一共要栽多少棵？",
+  ])("规则 A 守卫越界/不整除（%s）不锚定 → unsupported_number_pattern", (stem) => {
+    expect(validateWritten(stem, 10, "棵")).toEqual(["unsupported_number_pattern"]);
+  });
+
+  // 规则 B 锯木两向正例：5 段→4 次（n−1）、3 次→4 段（m+1），答案为纯数（unit null）。
+  test.each([
+    ["一根木头锯成 5 段，需要锯（ ）次。", 4],
+    ["一根木头锯了 3 次，锯成了（ ）段。", 4],
+  ])("规则 B 锯木双向（%s）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer)).toEqual([]);
+    expect(validateWritten(stem, answer + 1)).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 规则 B 守卫：锯成 1 段需要 0 锯，n=1 越界（n≥2）不锚定。
+  test("规则 B 锯成 1 段（n=1）不锚定 → unsupported_number_pattern", () => {
+    const stem = "一根木头锯成 1 段，需要锯（ ）次。";
+    expect(validateWritten(stem, 0)).toEqual(["unsupported_number_pattern"]);
+  });
+
+  // T6 stairs-floors：从 a 楼到 b 楼走 b−a 层楼梯；选项为纯数字，正确项均为 B。
+  test.each([
+    ["小明从 1 楼走到 4 楼，一共要走几层楼梯？A. 4  B. 3  C. 2  D. 5", "B"],
+    ["小明从 2 楼走到 6 楼，一共要走几层楼梯？A. 5  B. 4  C. 3  D. 6", "B"],
+    ["小明从 3 楼走到 8 楼，一共要走几层楼梯？A. 6  B. 5  C. 4  D. 7", "B"],
+  ])("app-tp-06 楼层差（%s）正确字母命中，错误字母报 incorrect_choice_answer", (stem, correct) => {
+    const wrong: ChoiceLetter = "C";
+    expect(validateChoice(stem, correct as ChoiceLetter)).toEqual([]);
+    expect(validateChoice(stem, wrong)).toEqual(["incorrect_choice_answer"]);
+  });
+
+  // T7 plant-mode-choose：三个实例分别是 T1/T2/T3 三种栽法，分支必须从题干 L/d
+  // 与情境词重算棵数，再在「N 棵」选项中找唯一命中；正确项均为 B。
+  test.each([
+    ["在一条长 40 米的小路一侧栽树，每隔 4 米栽一棵，两端都栽。下面哪一个是正确的棵数？"
+      + "A. 10 棵  B. 11 棵  C. 9 棵  D. 12 棵", "B"],
+    ["在一条长 36 米的小路一侧栽树，每隔 3 米栽一棵，一端栽，另一端不栽。下面哪一个是正确的棵数？"
+      + "A. 11 棵  B. 12 棵  C. 13 棵  D. 10 棵", "B"],
+    ["在一条长 32 米的小路一侧栽树，每隔 4 米栽一棵，两端都不栽。下面哪一个是正确的棵数？"
+      + "A. 8 棵  B. 7 棵  C. 6 棵  D. 9 棵", "B"],
+  ])("app-tp-07 按情境词重算棵数（%s）正确字母命中，错误字母报 incorrect_choice_answer", (stem, correct) => {
+    expect(validateChoice(stem, correct as ChoiceLetter)).toEqual([]);
+    expect(validateChoice(stem, "A")).toEqual(["incorrect_choice_answer"]);
+  });
+
+  // T7 重算落空负向：四个选项（10、9、12、13 棵）里都没有重算棵数 11，任何字母都不 []。
+  test("app-tp-07 选项中没有重算棵数时安全落空 → incorrect_choice_answer", () => {
+    const stem = "在一条长 40 米的小路一侧栽树，每隔 4 米栽一棵，两端都栽。下面哪一个是正确的棵数？"
+      + "A. 10 棵  B. 9 棵  C. 12 棵  D. 13 棵";
+    expect(validateChoice(stem, "B")).toEqual(["incorrect_choice_answer"]);
+  });
+});

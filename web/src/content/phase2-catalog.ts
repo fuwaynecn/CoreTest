@@ -2441,6 +2441,103 @@ const catalogInputs: TemplateInput[] = [
       answer: [102, 100, 105],
     },
   },
+
+  // P2-13c tree-planting：植树问题。段数 = 总长 ÷ 间距，再按栽法决定棵数；
+  // 数值由 {{length}}、{{gap}}、{{segments}}、{{answer}} 锁定，解释写出段数与棵数关系。
+  {
+    id: "app-tp-01", skillCode: "tree-planting", domain: "application_modeling",
+    difficulty: 2, structureTag: "plant-both-ends",
+    stemPattern: "在一条长 {{length}} 米的小路一侧栽树，每隔 {{gap}} 米栽一棵，两端都栽。一共要栽多少棵？",
+    answerSpecPattern: numberAnswer("棵"),
+    explanationPattern: "段数 = 总长 ÷ 间距 = {{length}} ÷ {{gap}} = {{segments}} 段；两端都栽时棵数 = 段数 + 1 = {{answer}} 棵。",
+    variables: {
+      length: [30, 42, 32], gap: [5, 6, 4], segments: [6, 7, 8], answer: [7, 8, 9],
+    },
+  },
+  {
+    id: "app-tp-02", skillCode: "tree-planting", domain: "application_modeling",
+    difficulty: 2, structureTag: "plant-one-end",
+    stemPattern: "在一条长 {{length}} 米的小路一侧栽树，每隔 {{gap}} 米栽一棵，一端栽，另一端不栽。一共要栽多少棵？",
+    answerSpecPattern: numberAnswer("棵"),
+    explanationPattern: "段数 = 总长 ÷ 间距 = {{length}} ÷ {{gap}} = {{segments}} 段；一端栽一端不栽时棵数 = 段数 = {{answer}} 棵。",
+    variables: {
+      length: [20, 36, 28], gap: [5, 4, 4], segments: [4, 9, 7], answer: [4, 9, 7],
+    },
+  },
+  {
+    id: "app-tp-03", skillCode: "tree-planting", domain: "application_modeling",
+    difficulty: 2, structureTag: "plant-neither-end",
+    stemPattern: "两栋楼之间有一条长 {{length}} 米的小路，在小路一侧每隔 {{gap}} 米栽一棵，两端都不栽。一共要栽多少棵？",
+    answerSpecPattern: numberAnswer("棵"),
+    explanationPattern: "段数 = 总长 ÷ 间距 = {{length}} ÷ {{gap}} = {{segments}} 段；两端都不栽时棵数 = 段数 − 1 = {{answer}} 棵。",
+    variables: {
+      length: [24, 35, 40], gap: [4, 5, 5], segments: [6, 7, 8], answer: [5, 6, 7],
+    },
+  },
+  {
+    id: "app-tp-04", skillCode: "tree-planting", domain: "application_modeling",
+    difficulty: 2, structureTag: "plant-closed-loop",
+    stemPattern: "一个圆形池塘周长 {{length}} 米，沿池边每隔 {{gap}} 米栽一棵。一共要栽多少棵？",
+    answerSpecPattern: numberAnswer("棵"),
+    explanationPattern: "段数 = 总长 ÷ 间距 = {{length}} ÷ {{gap}} = {{segments}} 段；封闭图形首尾重合，棵数 = 段数 = {{answer}} 棵。",
+    variables: {
+      length: [40, 30, 36], gap: [5, 3, 6], segments: [8, 10, 6], answer: [8, 10, 6],
+    },
+  },
+  // P2-13c tree-planting：锯木头。段→次为 n−1，次→段为 m+1；两个方向共用
+  // numberAnswer()（无单位，Ruling 2），设问词「次/段」写在题干文字里。
+  {
+    id: "app-tp-05", skillCode: "tree-planting", domain: "application_modeling",
+    difficulty: 2, structureTag: "saw-cuts",
+    stemPattern: "{{question}}",
+    answerSpecPattern: numberAnswer(),
+    explanationPattern: "{{reason}}",
+    variables: {
+      question: [
+        "一根木头锯成 5 段，需要锯（ ）次。",
+        "一根木头锯成 8 段，需要锯（ ）次。",
+        "一根木头锯了 9 次，锯成了（ ）段。",
+      ],
+      answer: [4, 7, 10],
+      reason: [
+        "锯成 5 段需要锯 5 − 1 = 4 次。",
+        "锯成 8 段需要锯 8 − 1 = 7 次。",
+        "锯了 9 次，锯成 9 + 1 = 10 段。",
+      ],
+    },
+  },
+  // P2-13c tree-planting：爬楼。从 a 楼到 b 楼走 b−a 层楼梯（楼层差），选项为纯数字。
+  {
+    id: "app-tp-06", skillCode: "tree-planting", domain: "application_modeling",
+    difficulty: 1, structureTag: "stairs-floors", answerMode: "choice",
+    stemPattern: "小明从 {{from}} 楼走到 {{to}} 楼，一共要走几层楼梯？"
+      + "A. {{a}}  B. {{b}}  C. {{c}}  D. {{d}}",
+    answerSpecPattern: choiceAnswer("B"),
+    explanationPattern: "从 {{from}} 楼走到 {{to}} 楼，要走的楼梯层数 = {{to}} − {{from}} = {{answer}} 层，所以选 B。",
+    variables: {
+      from: [1, 2, 4], to: [4, 6, 9], answer: [3, 4, 5],
+      a: [4, 5, 6], b: [3, 4, 5], c: [2, 3, 4], d: [5, 6, 7],
+    },
+  },
+  // P2-13c tree-planting：辨别栽法。三个实例分别用 T1/T2/T3 三种栽法，分支从题干
+  // L/d 与情境词重算棵数，再与「N 棵」选项比对；干扰项取段数 ± 几的典型错误棵数。
+  {
+    id: "app-tp-07", skillCode: "tree-planting", domain: "application_modeling",
+    difficulty: 3, structureTag: "plant-mode-choose", answerMode: "choice",
+    stemPattern: "在一条长 {{length}} 米的小路一侧栽树，每隔 {{gap}} 米栽一棵，{{mode}}。下面哪一个是正确的棵数？"
+      + "A. {{a}}  B. {{b}}  C. {{c}}  D. {{d}}",
+    answerSpecPattern: choiceAnswer("B"),
+    explanationPattern: "段数 = {{length}} ÷ {{gap}} = {{segments}} 段；{{relation}}，所以正确棵数是 {{answer}} 棵，选 B。",
+    variables: {
+      length: [40, 36, 32], gap: [4, 3, 4], segments: [10, 12, 8], answer: [11, 12, 7],
+      mode: ["两端都栽", "一端栽，另一端不栽", "两端都不栽"],
+      relation: ["两端都栽棵数 = 段数 + 1", "一端栽一端不栽棵数 = 段数", "两端都不栽棵数 = 段数 − 1"],
+      a: ["10 棵", "11 棵", "8 棵"],
+      b: ["11 棵", "12 棵", "7 棵"],
+      c: ["9 棵", "13 棵", "6 棵"],
+      d: ["12 棵", "10 棵", "9 棵"],
+    },
+  },
 ];
 
 export const phase2Catalog: ReviewedTemplate[] = catalogInputs.map(reviewed);
