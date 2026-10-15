@@ -88,6 +88,8 @@ const expectedIds = [
   "data-compare-03", "data-compare-04", "data-compare-05", "data-compare-06",
   "app-multi-step-05", "app-multi-step-06",
   "num-reverse-check-04", "num-reverse-check-05", "num-reverse-check-06",
+  "geo-coord-01", "geo-coord-02", "geo-coord-03", "geo-coord-04",
+  "geo-coord-05", "geo-coord-06", "geo-coord-07",
 ];
 
 const regionalIds = [
@@ -111,19 +113,19 @@ function countBy<K extends "contentTier" | "domain" | "difficulty">(key: K) {
   }, {});
 }
 
-test("contains the approved exact 244-template blueprint", () => {
+test("contains the approved exact 251-template blueprint", () => {
   expect(phase2Catalog.map((template) => template.id)).toEqual(expectedIds);
-  expect(countBy("contentTier")).toEqual({ core: 219, regional: 18, transition: 7 });
+  expect(countBy("contentTier")).toEqual({ core: 226, regional: 18, transition: 7 });
   expect(phase2Skills).toHaveLength(54);
   expect(countBy("domain")).toEqual({
     number_operations: 62,
     equation_algebra: 25,
-    geometry_space: 46,
+    geometry_space: 53,
     data_statistics: 32,
     application_modeling: 49,
     thinking_habits: 30,
   });
-  expect(countBy("difficulty")).toEqual({ 1: 42, 2: 106, 3: 75, 4: 21 });
+  expect(countBy("difficulty")).toEqual({ 1: 44, 2: 109, 3: 77, 4: 21 });
   expect(phase2Catalog.filter(({ contentTier }) => contentTier === "regional")
     .map(({ id }) => id)).toEqual(regionalIds);
   expect(phase2Catalog.filter(({ contentTier }) => contentTier === "transition")
@@ -241,7 +243,7 @@ test("rejects a wrong answer label for every canonical choice template", () => {
   const nextLabel = { A: "B", B: "C", C: "D", D: "A" } as const;
   const choiceTemplates = phase2Catalog.filter(({ answerMode }) => answerMode === "choice");
 
-  expect(choiceTemplates).toHaveLength(65);
+  expect(choiceTemplates).toHaveLength(72);
   for (const template of choiceTemplates) {
     const answer = template.answerSpecPattern as { kind: "choice"; value: keyof typeof nextLabel };
     const mutated = {

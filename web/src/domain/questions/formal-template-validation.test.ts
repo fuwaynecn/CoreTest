@@ -734,3 +734,192 @@ describe("multi-step-model / reverse-check 补齐新增锚定（P2-10e）", () =
     expect(validateWritten(stem, 38)).toEqual(["invalid_number_pattern"]);
   });
 });
+
+describe("coordinate-pairs 数对锚定规则（P2-13a）", () => {
+  type ChoiceLetter = "A" | "B" | "C" | "D";
+
+  // 规则 C2-1 coord-read：第 c 列第 r 行用数对表示，先列后行，期望 (c,r)。
+  test.each([
+    ["方格图中第 3 列第 5 行的位置，用数对表示是哪一个？"
+      + "A. (5,3)  B. (3,5)  C. (3,4)  D. (4,5)", "B", "D"],
+    ["方格图中第 6 列第 2 行的位置，用数对表示是哪一个？"
+      + "A. (2,6)  B. (6,1)  C. (6,2)  D. (7,2)", "C", "A"],
+    ["方格图中第 8 列第 7 行的位置，用数对表示是哪一个？"
+      + "A. (8,7)  B. (7,8)  C. (8,6)  D. (9,7)", "A", "B"],
+  ])("geo-coord-01 读图写数对（%s）正确字母无错误，错误字母报 incorrect_choice_answer", (stem, correct, wrong) => {
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec(correct as ChoiceLetter) }))
+      .toEqual([]);
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec(wrong as ChoiceLetter) }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 规则 C2-2 coord-locate：数对 (c,r) 表示第 c 列第 r 行的点，按固定措辞锚定。
+  test.each([
+    ["数对 (3,5) 表示方格图中的哪个点？"
+      + "A. 第 5 列第 3 行的点  B. 第 3 列第 4 行的点  C. 第 3 列第 5 行的点  D. 第 4 列第 5 行的点", "C", "B"],
+    ["数对 (6,2) 表示方格图中的哪个点？"
+      + "A. 第 6 列第 2 行的点  B. 第 2 列第 6 行的点  C. 第 6 列第 3 行的点  D. 第 7 列第 2 行的点", "A", "C"],
+    ["数对 (8,7) 表示方格图中的哪个点？"
+      + "A. 第 7 列第 8 行的点  B. 第 8 列第 6 行的点  C. 第 9 列第 7 行的点  D. 第 8 列第 7 行的点", "D", "A"],
+  ])("geo-coord-02 按数对找点（%s）正确字母无错误，错误字母报 incorrect_choice_answer", (stem, correct, wrong) => {
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec(correct as ChoiceLetter) }))
+      .toEqual([]);
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec(wrong as ChoiceLetter) }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 规则 C1 coord-translate-right：向右平移列加，行不变。
+  test.each([
+    ["方格图中一个点的位置用数对表示是 (3,4)，把这个点向右平移 2 格。平移后的点用数对表示是："
+      + "A. (5,4)  B. (4,3)  C. (3,6)  D. (5,5)", "A", "D"],
+    ["方格图中一个点的位置用数对表示是 (5,7)，把这个点向右平移 4 格。平移后的点用数对表示是："
+      + "A. (7,5)  B. (9,7)  C. (5,8)  D. (6,7)", "B", "C"],
+    ["方格图中一个点的位置用数对表示是 (2,6)，把这个点向右平移 3 格。平移后的点用数对表示是："
+      + "A. (2,9)  B. (3,6)  C. (5,6)  D. (5,5)", "C", "A"],
+  ])("geo-coord-03 向右平移（%s）正确字母无错误，错误字母报 incorrect_choice_answer", (stem, correct, wrong) => {
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec(correct as ChoiceLetter) }))
+      .toEqual([]);
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec(wrong as ChoiceLetter) }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 规则 C1 coord-translate-up：行从下往上编号，向上平移行加，列不变。
+  test.each([
+    ["方格图的行从下往上编号。一个点在 (4,2) 的位置，把这个点向上平移 3 格，平移后的点用数对表示是："
+      + "A. (7,2)  B. (4,5)  C. (2,4)  D. (5,4)", "B", "A"],
+    ["方格图的行从下往上编号。一个点在 (6,5) 的位置，把这个点向上平移 2 格，平移后的点用数对表示是："
+      + "A. (8,5)  B. (5,6)  C. (6,7)  D. (6,4)", "C", "B"],
+    ["一个点在方格图中的位置用数对表示是 (8,1)，把这个点向上平移 4 格（方格图的行从下往上编号，向上行号增大）。平移后的点用数对表示是："
+      + "A. (8,5)  B. (5,8)  C. (7,1)  D. (8,4)", "A", "C"],
+  ])("geo-coord-04 向上平移（%s）正确字母无错误，错误字母报 incorrect_choice_answer", (stem, correct, wrong) => {
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec(correct as ChoiceLetter) }))
+      .toEqual([]);
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec(wrong as ChoiceLetter) }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 规则 C1 复合 coord-translate-two-axis：两次不同轴方向的平移分步算。
+  test.each([
+    ["方格图中一个点的位置用数对表示是 (2,3)，把这个点先向右平移 3 格，再向上平移 2 格。平移后的点用数对表示是："
+      + "A. (4,6)  B. (5,3)  C. (2,4)  D. (5,5)", "D", "C"],
+    ["方格图中一个点的位置用数对表示是 (8,2)，把这个点先向上平移 4 格，再向左平移 3 格。平移后的点用数对表示是："
+      + "A. (12,5)  B. (5,6)  C. (8,5)  D. (5,2)", "B", "D"],
+    ["方格图中一个点的位置用数对表示是 (4,8)，把这个点先向右平移 5 格，再向下平移 3 格（方格图的行从下往上编号）。平移后的点用数对表示是："
+      + "A. (9,5)  B. (5,9)  C. (4,4)  D. (9,8)", "A", "B"],
+  ])("geo-coord-05 两次平移（%s）正确字母无错误，错误字母报 incorrect_choice_answer", (stem, correct, wrong) => {
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec(correct as ChoiceLetter) }))
+      .toEqual([]);
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec(wrong as ChoiceLetter) }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 规则 06 coord-column-row-rule：数对中第一个数表示列，第二个数表示行。
+  test.each([
+    ["数对 (3,4) 中，3 表示什么？"
+      + "A. 第 3 行  B. 3 个格子  C. 第 3 列  D. 第 4 列", "C", "B"],
+    ["数对 (6,2) 中，6 表示什么？"
+      + "A. 第 6 列  B. 第 6 行  C. 2 个格子  D. 第 2 列", "A", "C"],
+    ["数对 (8,7) 中，8 表示什么？"
+      + "A. 第 7 列  B. 第 8 行  C. 第 8 列  D. 8 个格子", "C", "A"],
+  ])("geo-coord-06 数对第一个数表示列（%s）正确字母无错误，错误字母报 incorrect_choice_answer", (stem, correct, wrong) => {
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec(correct as ChoiceLetter) }))
+      .toEqual([]);
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec(wrong as ChoiceLetter) }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 规则 07 coord-same-column-row：第一个数相同→同一列，第二个数相同→同一行，按捕获重算。
+  test.each([
+    ["数对 (3,4) 和 (3,7) 表示的两个点，它们的位置关系是："
+      + "A. 在同一列  B. 在同一行  C. 是同一个点  D. 既不同列也不同行", "A"],
+    ["数对 (5,2) 和 (8,2) 表示的两个点，它们的位置关系是："
+      + "A. 在同一行  B. 在同一列  C. 是同一个点  D. 既不同列也不同行", "A"],
+    ["数对 (6,4) 和 (2,4) 表示的两个点，它们的位置关系是："
+      + "A. 在同一行  B. 在同一列  C. 是同一个点  D. 既不同列也不同行", "A"],
+  ])("geo-coord-07 同列/同行判定（%s）A 命中，错误字母报 incorrect_choice_answer", (stem) => {
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("A") }))
+      .toEqual([]);
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("B") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 负向：行列词序说反（第 3 行第 5 列）不满足 C2-1 的窄固定词序「第 c 列第 r 行」，
+  // 也不被其它分支接受 → unsupported_choice_pattern；关键是错误形态绝不返回 []。
+  test("geo-coord-01 行列词序说反时不被任何分支锚定 → unsupported_choice_pattern", () => {
+    const stem = "方格图中第 3 行第 5 列的位置，用数对表示是哪一个？"
+      + "A. (3,5)  B. (5,3)  C. (3,4)  D. (4,5)";
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("A") }))
+      .toEqual(["unsupported_choice_pattern"]);
+  });
+
+  // 负向：只沿题干未声明的方向平移（题干说向右，起点第 1 列时结果列 < 1 不成立；
+  // 这里用「向左」但答案按向右算）不被任何分支锚定为正确。
+  test("geo-coord-03 题干声明向右、按向上作答报 incorrect_choice_answer", () => {
+    const stem = "方格图中一个点的位置用数对表示是 (3,4)，把这个点向右平移 2 格。平移后的点用数对表示是："
+      + "A. (5,4)  B. (4,3)  C. (3,6)  D. (5,5)";
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("C") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 负向：第 1 列向左平移 2 格，结果列 < 1，单平移分支形态匹配但安全落空（[]），
+  // 任何单一字母都被判 incorrect_choice_answer，绝不返回 []。
+  test("geo-coord-03 平移后列小于 1 时安全落空 → incorrect_choice_answer", () => {
+    const stem = "方格图中一个点的位置用数对表示是 (1,4)，把这个点向左平移 2 格。平移后的点用数对表示是："
+      + "A. (3,4)  B. (4,1)  C. (1,6)  D. (3,3)";
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("A") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 负向：第 1 行向下平移 2 格，结果行 < 1，单平移分支形态匹配但安全落空。
+  test("geo-coord-04 平移后行小于 1 时安全落空 → incorrect_choice_answer", () => {
+    const stem = "方格图的行从下往上编号。一个点在 (4,1) 的位置，把这个点向下平移 2 格，平移后的点用数对表示是："
+      + "A. (6,1)  B. (4,3)  C. (2,4)  D. (4,2)";
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("B") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 负向：两次平移都在同一轴（先右再左），不是两轴复合平移，形态匹配但轴检查
+  // 安全落空，任何单一字母都报 incorrect_choice_answer。
+  test("geo-coord-05 两次同方向轴平移被复合分支安全落空 → incorrect_choice_answer", () => {
+    const stem = "方格图中一个点的位置用数对表示是 (5,3)，把这个点先向右平移 3 格，再向左平移 1 格。平移后的点用数对表示是："
+      + "A. (8,3)  B. (7,3)  C. (5,6)  D. (4,3)";
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("B") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 负向：复合平移结果列 < 1（第 2 列向左 5 格），形态匹配但 translatedPair
+  // 安全落空，任何单一字母都报 incorrect_choice_answer。
+  test("geo-coord-05 复合平移后列小于 1 时安全落空 → incorrect_choice_answer", () => {
+    const stem = "方格图中一个点的位置用数对表示是 (2,3)，把这个点先向上平移 2 格，再向左平移 5 格。平移后的点用数对表示是："
+      + "A. (7,5)  B. (4,1)  C. (2,5)  D. (3,3)";
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("A") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 负向：geo-coord-06 题干的数字与被问数字不一致（问 4 而数对里没有 4），
+  // 反向引用不匹配，分支不接受该形态。
+  test("geo-coord-06 被问数字不在数对中时不被锚定 → unsupported_choice_pattern", () => {
+    const stem = "数对 (3,5) 中，4 表示什么？"
+      + "A. 第 4 行  B. 4 个格子  C. 第 4 列  D. 第 5 列";
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("C") }))
+      .toEqual(["unsupported_choice_pattern"]);
+  });
+
+  // 负向：geo-coord-07 两个数对完全相同时「同一列」与「同一行」都成立，没有单一
+  // 结论可锚定，分支安全落空（返回 []），任何单一字母（含「是同一个点」）都被判
+  // incorrect_choice_answer，绝不返回 []。
+  test("geo-coord-07 两个相同数对时无单一结论 → incorrect_choice_answer", () => {
+    const stem = "数对 (3,4) 和 (3,4) 表示的两个点，它们的位置关系是："
+      + "A. 在同一列  B. 在同一行  C. 是同一个点  D. 既不同列也不同行";
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("C") }))
+      .toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 负向：与数对无关的选择题形态不被任何新分支误锚。
+  test("无关选择题不被数对分支误锚 → unsupported_choice_pattern", () => {
+    const stem = "下面哪一个图形是三角形？"
+      + "A. 圆  B. 三角形  C. 正方形  D. 长方形";
+    expect(renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec("B") }))
+      .toEqual(["unsupported_choice_pattern"]);
+  });
+});

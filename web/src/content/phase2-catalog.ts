@@ -2226,6 +2226,119 @@ const catalogInputs: TemplateInput[] = [
       product: [504, 450, 720], factor: [14, 18, 15], answer: [36, 25, 48],
     },
   },
+
+  // P2-13a coordinate-pairs：读图写数对，先列后行。
+  {
+    id: "geo-coord-01", skillCode: "coordinate-pairs", domain: "geometry_space",
+    difficulty: 1, structureTag: "coord-read", answerMode: "choice",
+    stemPattern: "方格图中第 {{c}} 列第 {{r}} 行的位置，用数对表示是哪一个？"
+      + "A. ({{r}},{{c}})  B. ({{c}},{{r}})  C. ({{c}},{{rm1}})  D. ({{cp1}},{{r}})",
+    answerSpecPattern: choiceAnswer("B"),
+    explanationPattern: "数对先写列再写行：第 {{c}} 列第 {{r}} 行用数对表示是 ({{c}},{{r}})，选 B。",
+    variables: {
+      c: [3, 6, 8], r: [5, 2, 7], rm1: [4, 1, 6], cp1: [4, 7, 9],
+    },
+  },
+  // P2-13a coordinate-pairs：按数对找点，(c,r) 即第 c 列第 r 行的点。
+  {
+    id: "geo-coord-02", skillCode: "coordinate-pairs", domain: "geometry_space",
+    difficulty: 1, structureTag: "coord-locate", answerMode: "choice",
+    stemPattern: "数对 ({{c}},{{r}}) 表示方格图中的哪个点？"
+      + "A. 第 {{r}} 列第 {{c}} 行的点  B. 第 {{c}} 列第 {{rm1}} 行的点"
+      + "  C. 第 {{c}} 列第 {{r}} 行的点  D. 第 {{cp1}} 列第 {{r}} 行的点",
+    answerSpecPattern: choiceAnswer("C"),
+    explanationPattern: "数对的第一个数表示列、第二个数表示行：({{c}},{{r}}) 就是第 {{c}} 列第 {{r}} 行的点，选 C。",
+    variables: {
+      c: [3, 6, 8], r: [5, 2, 7], rm1: [4, 1, 6], cp1: [4, 7, 9],
+    },
+  },
+  // P2-13a coordinate-pairs：向右平移，列加、行不变。
+  // 干扰项：B 行列互换、C 只改行（把格数错加在行上）、D 只改列但方向反。
+  {
+    id: "geo-coord-03", skillCode: "coordinate-pairs", domain: "geometry_space",
+    difficulty: 2, structureTag: "coord-translate-right", answerMode: "choice",
+    stemPattern: "方格图中一个点的位置用数对表示是 ({{x}},{{y}})，把这个点向右平移 {{n}} 格。平移后的点用数对表示是："
+      + "A. ({{xa}},{{y}})  B. ({{y}},{{xa}})  C. ({{x}},{{yb}})  D. ({{xb}},{{y}})",
+    answerSpecPattern: choiceAnswer("A"),
+    explanationPattern: "向右平移只改变列：列由 {{x}} 加 {{n}} 得到 {{xa}}，行 {{y}} 不变，所以是 ({{xa}},{{y}})，选 A。",
+    variables: {
+      x: [4, 6, 5], y: [5, 7, 6], n: [2, 2, 3],
+      xa: [6, 8, 8], xb: [2, 4, 2], yb: [7, 9, 9],
+    },
+  },
+  // P2-13a coordinate-pairs：向上平移，行从下往上编号故行加、列不变。
+  // 干扰项：A 行列互换、C 只改列（把格数错加在列上）、D 只改行但方向反。
+  {
+    id: "geo-coord-04", skillCode: "coordinate-pairs", domain: "geometry_space",
+    difficulty: 2, structureTag: "coord-translate-up", answerMode: "choice",
+    stemPattern: "方格图的行从下往上编号。一个点在 ({{x}},{{y}}) 的位置，把这个点向上平移 {{n}} 格，平移后的点用数对表示是："
+      + "A. ({{ya}},{{x}})  B. ({{x}},{{ya}})  C. ({{xa2}},{{y}})  D. ({{x}},{{yb}})",
+    answerSpecPattern: choiceAnswer("B"),
+    explanationPattern: "方格图的行从下往上编号，向上平移行号增大：行由 {{y}} 加 {{n}} 得到 {{ya}}，列 {{x}} 不变，所以是 ({{x}},{{ya}})，选 B。",
+    variables: {
+      x: [4, 6, 8], y: [5, 7, 3], n: [3, 2, 2],
+      ya: [8, 9, 5], xa2: [7, 8, 10], yb: [2, 5, 1],
+    },
+  },
+  // P2-13a coordinate-pairs：两次不同轴方向的平移分步算。
+  // 干扰项：A 行列互换、B 只走第一步（中间点）、C 只走第二步（单坐标改变）。
+  {
+    id: "geo-coord-05", skillCode: "coordinate-pairs", domain: "geometry_space",
+    difficulty: 3, structureTag: "coord-translate-two-axis", answerMode: "choice",
+    stemPattern: "方格图中一个点的位置用数对表示是 ({{x}},{{y}})，把这个点先向{{dir1}}平移 {{a}} 格，再向{{dir2}}平移 {{b}} 格。平移后的点用数对表示是："
+      + "A. ({{ansY}},{{ansX}})  B. ({{midX}},{{midY}})  C. ({{c2x}},{{c2y}})  D. ({{ansX}},{{ansY}})",
+    answerSpecPattern: choiceAnswer("D"),
+    explanationPattern: "两次平移分步算：{{step1}}；{{step2}}，终点是 ({{ansX}},{{ansY}})，选 D。",
+    variables: {
+      x: [2, 8, 4], y: [3, 2, 8],
+      dir1: ["右", "上", "右"], a: [4, 4, 5],
+      dir2: ["上", "左", "下"], b: [2, 3, 3],
+      midX: [6, 8, 9], midY: [3, 6, 8],
+      ansX: [6, 5, 9], ansY: [5, 6, 5],
+      c2x: [2, 5, 4], c2y: [5, 2, 5],
+      step1: [
+        "先向右平移 4 格，列 2+4=6，位置是 (6,3)",
+        "先向上平移 4 格，行 2+4=6，位置是 (8,6)",
+        "先向右平移 5 格，列 4+5=9，位置是 (9,8)",
+      ],
+      step2: [
+        "再向上平移 2 格，行 3+2=5",
+        "再向左平移 3 格，列 8-3=5",
+        "再向下平移 3 格，行 8-3=5",
+      ],
+    },
+  },
+  // P2-13a coordinate-pairs：数对第一个数表示列（先列后行的概念）。
+  {
+    id: "geo-coord-06", skillCode: "coordinate-pairs", domain: "geometry_space",
+    difficulty: 2, structureTag: "coord-column-row-rule", answerMode: "choice",
+    stemPattern: "数对 ({{c}},{{r}}) 中，{{c}} 表示什么？"
+      + "A. 第 {{c}} 行  B. {{c}} 个格子  C. 第 {{c}} 列  D. 第 {{r}} 列",
+    answerSpecPattern: choiceAnswer("C"),
+    explanationPattern: "数对先列后行：({{c}},{{r}}) 中第一个数 {{c}} 表示第 {{c}} 列，第二个数 {{r}} 表示第 {{r}} 行，选 C。",
+    variables: {
+      c: [3, 6, 8], r: [4, 2, 7],
+    },
+  },
+  // P2-13a coordinate-pairs：两个数对第一个数相同→同一列，第二个数相同→同一行。
+  {
+    id: "geo-coord-07", skillCode: "coordinate-pairs", domain: "geometry_space",
+    difficulty: 3, structureTag: "coord-same-column-row", answerMode: "choice",
+    stemPattern: "数对 ({{x1}},{{y1}}) 和 ({{x2}},{{y2}}) 表示的两个点，它们的位置关系是："
+      + "A. {{conclusion}}  B. {{other}}  C. 是同一个点  D. 既不同列也不同行",
+    answerSpecPattern: choiceAnswer("A"),
+    explanationPattern: "数对第一个数相同表示同一列，第二个数相同表示同一行：{{reason}}，所以{{conclusion}}，选 A。",
+    variables: {
+      x1: [3, 5, 6], y1: [4, 2, 4], x2: [3, 8, 2], y2: [7, 2, 4],
+      conclusion: ["在同一列", "在同一行", "在同一行"],
+      other: ["在同一行", "在同一列", "在同一列"],
+      reason: [
+        "两个数对第一个数都是 3",
+        "两个数对第二个数都是 2",
+        "两个数对第二个数都是 4",
+      ],
+    },
+  },
 ];
 
 export const phase2Catalog: ReviewedTemplate[] = catalogInputs.map(reviewed);

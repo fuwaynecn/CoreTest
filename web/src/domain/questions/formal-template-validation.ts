@@ -1066,6 +1066,26 @@ function checkIsTrue(evidence: CheckEquation): boolean {
     && sameNumber(evaluateBinary(evidence.operation), evidence.result);
 }
 
+// P2-13a coordinate-pairs：数对平移一步。向右列加、向左列减；方格图行从下往上
+// 编号，向上行加、向下行减。x/y/格数都按非负整数 \d+ 捕获；结果列或行小于 1
+// 时返回 null，调用方据此安全落空（不锚定）。
+function translatedPair(
+  x: number,
+  y: number,
+  direction: string,
+  steps: number,
+): { x: number; y: number } | null {
+  let nextX = x;
+  let nextY = y;
+  if (direction === "右") nextX = x + steps;
+  else if (direction === "左") nextX = x - steps;
+  else if (direction === "上") nextY = y + steps;
+  else if (direction === "下") nextY = y - steps;
+  else return null;
+  if (!Number.isInteger(nextX) || !Number.isInteger(nextY) || nextX < 1 || nextY < 1) return null;
+  return { x: nextX, y: nextY };
+}
+
 function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOption[] | null {
   const question = choiceQuestion(stem);
   if (!question) return null;
@@ -1482,7 +1502,94 @@ function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOptio
   // 若两个选项都是合法逆运算检查，则单一答案字母被拒。
   match = question.match(/^计算 (.+) 得到 (-?\d+(?:\.\d+)?)。下面哪种验算方法最有说服力？$/);
   if (match) {
-    return options.filter(({ text }) => relatedInverseCheck(match[1], Number(match[2]), text));
+    const checkExpression = match[1];
+    const checkClaim = Number(match[2]);
+    return options.filter(({ text }) => relatedInverseCheck(checkExpression, checkClaim, text));
+  }
+
+  // P2-13a coordinate-pairs C2-1 读图写数对：第 c 列第 r 行按「先列后行」写成 (c,r)。
+  // 词序钉死为「第 c 列第 r 行」，行列词序说反（第 c 行第 r 列）不匹配本分支。
+  match = question.match(/^方格图中第 (\d+) 列第 (\d+) 行的位置，用数对表示是哪一个？$/);
+  if (match) {
+    const column = Number(match[1]);
+    const row = Number(match[2]);
+    if (column < 1 || row < 1) return [];
+    return optionsEqualTo(options, `(${column},${row})`);
+  }
+
+  // P2-13a coordinate-pairs C2-2 按数对找点：数对 (c,r) 表示「第 c 列第 r 行的点」，
+  // 按固定措辞与选项做字面对应，行列互换或单坐标改动的描述都不命中。
+  match = question.match(/^数对 \((\d+),(\d+)\) 表示方格图中的哪个点？$/);
+  if (match) {
+    const column = Number(match[1]);
+    const row = Number(match[2]);
+    if (column < 1 || row < 1) return [];
+    return optionsEqualTo(options, `第 ${column} 列第 ${row} 行的点`);
+  }
+
+  // P2-13a coordinate-pairs C1 一次平移：题干给出起点 (x,y)、方向词与格数，方向
+  // 与格数都被捕获参与计算（右/左改列、上/下改行，向上行号增大）。三条窄正则
+  // 分别对应 geo-coord-03/04 的三种审阅起句，避免误锚定同句式旧形态；结果列或行
+  // 小于 1 时 translatedPair 返回 null，分支安全落空（返回 []），目标 (x,y)
+  // 半角形态与选项唯一字面相等才算锚定。
+  const singleTranslation = question.match(
+    /^方格图中一个点的位置用数对表示是 \((\d+),(\d+)\)，把这个点向(右|左|上|下)平移 (\d+) 格。平移后的点用数对表示是：$/,
+  ) ?? question.match(
+    /^方格图的行从下往上编号。一个点在 \((\d+),(\d+)\) 的位置，把这个点向(右|左|上|下)平移 (\d+) 格，平移后的点用数对表示是：$/,
+  ) ?? question.match(
+    /^一个点在方格图中的位置用数对表示是 \((\d+),(\d+)\)，把这个点向(右|左|上|下)平移 (\d+) 格（方格图的行从下往上编号，向上行号增大）。平移后的点用数对表示是：$/,
+  );
+  if (singleTranslation) {
+    const target = translatedPair(
+      Number(singleTranslation[1]),
+      Number(singleTranslation[2]),
+      singleTranslation[3],
+      Number(singleTranslation[4]),
+    );
+    if (!target) return [];
+    return optionsEqualTo(options, `(${target.x},${target.y})`);
+  }
+
+  // P2-13a coordinate-pairs C1 复合：两次平移分步算。两个方向必须分属列轴与行轴
+  // （右/左 与 上/下 各一次，先右再上或先上再左均可），两次同轴平移虽匹配形态但
+  // 被轴检查拒绝（返回 []）；起点、两步结果的列/行都必须仍为正整数，否则安全落空。
+  const compoundTranslation = question.match(
+    /^方格图中一个点的位置用数对表示是 \((\d+),(\d+)\)，把这个点先向(右|左|上|下)平移 (\d+) 格，再向(右|左|上|下)平移 (\d+) 格(?:（方格图的行从下往上编号）)?。平移后的点用数对表示是：$/,
+  );
+  if (compoundTranslation) {
+    const columnAxis = new Set(["右", "左"]);
+    if (columnAxis.has(compoundTranslation[3]) === columnAxis.has(compoundTranslation[5])) return [];
+    const first = translatedPair(
+      Number(compoundTranslation[1]),
+      Number(compoundTranslation[2]),
+      compoundTranslation[3],
+      Number(compoundTranslation[4]),
+    );
+    if (!first) return [];
+    const second = translatedPair(first.x, first.y, compoundTranslation[5], Number(compoundTranslation[6]));
+    if (!second) return [];
+    return optionsEqualTo(options, `(${second.x},${second.y})`);
+  }
+
+  // P2-13a coordinate-pairs 概念 06：数对中第一个数表示列、第二个数表示行。被问
+  // 数字用反向引用 \1 钉死为数对中的第一个数，问其它数字的形态不匹配本分支。
+  match = question.match(/^数对 \((\d+),\d+\) 中，\1 表示什么？$/);
+  if (match) {
+    return optionsEqualTo(options, `第 ${match[1]} 列`);
+  }
+
+  // P2-13a coordinate-pairs 概念 07：两个数对第一个数相同→同一列，第二个数相同→
+  // 同一行；结论由捕获的两个有序对重算，不写死。两个数完全相同（同一点）时
+  // 两种结论同时成立，单一选项无法成立，安全落空。
+  match = question.match(/^数对 \((\d+),(\d+)\) 和 \((\d+),(\d+)\) 表示的两个点，它们的位置关系是：$/);
+  if (match) {
+    const [firstColumn, firstRow, secondColumn, secondRow] = match.slice(1, 5).map(Number);
+    if ([firstColumn, firstRow, secondColumn, secondRow].some((value) => value < 1)) return [];
+    const sameColumn = firstColumn === secondColumn;
+    const sameRow = firstRow === secondRow;
+    // 同一点（两数都相同）或两数都不同，都不属于「同一列/同一行」的单一结论。
+    if (sameColumn === sameRow) return [];
+    return optionsEqualTo(options, sameColumn ? "在同一列" : "在同一行");
   }
 
   return null;
