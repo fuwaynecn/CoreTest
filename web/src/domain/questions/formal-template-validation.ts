@@ -190,6 +190,12 @@ function plantTreeCount(segments: number, situation: string): number {
   return segments; // 一端栽一端不栽、封闭图形（首尾重合）棵数都等于段数
 }
 
+// P2-13e defective-items D1 正向严格查表：只有这 5 个教学规模被锚定。n=8/10 等
+// 即使 ⌈log₃n⌉ 与表内值相同，也因不是表成员而安全落空（表驱动，不是浮点公式）。
+const defectiveWeighingsTable: Readonly<Record<number, number>> = {
+  2: 1, 3: 1, 9: 2, 12: 2, 27: 3,
+};
+
 const numericRules: NumericRule[] = [
   {
     pattern: /^一个平角被分成两个角，其中一个是 (-?\d+(?:\.\d+)?) 度，另一个是多少度？$/,
@@ -1010,6 +1016,25 @@ const numericRules: NumericRule[] = [
       return to > from && to - from <= 6;
     },
     calculate: ([fromText, toText]) => (Number(toText) - Number(fromText)) * 30,
+  },
+  // P2-13e defective-items D1 正向：已知次品较（轻|重）时保证找出次品的最少称量次数。
+  // 严格表驱动（不是任意 n 的 ⌈log₃n⌉ 公式）：n∈{2,3,9,12,27}→{1,1,2,2,3}，
+  // 表外（n=8、10 等即使 ⌈log₃n⌉ 相同）由 accept 守卫拒绝，安全落空。物品名由窄
+  // 中文字符类接纳（零件/乒乓球/糖果风格，只换情境不改答案）；方向词（轻|重）显式
+  // 交替并捕获，次数与方向无关。di-02/di-03 的规模引导语前缀是写进模式的可选项。
+  {
+    pattern: /^(?:先想想 9 里面有几个 3。|每称一次最多能排除约三分之二的物品。)?有 (\d+) 个([一-龥]{1,4})，其中有 1 个是次品，次品较(轻|重)。用天平称，至少称几次就能保证找出次品？$/,
+    unit: "次",
+    accept: ([nText]) => Object.hasOwn(defectiveWeighingsTable, Number(nText)),
+    calculate: ([nText]) => defectiveWeighingsTable[Number(nText)],
+  },
+  // P2-13e defective-items D1 反向：称 k 次最多能从 3^k 个物品里保证找出 1 个
+  // 较（轻|重）次品（1→3、2→9、3→27）。k 用 (1|2|3) 钉死，k=4 等表外形态不匹配
+  // 本规则，安全落空 unsupported_number_pattern；物品名由窄中文字符类接纳。
+  {
+    pattern: /^用天平称，最多称 (1|2|3) 次就能保证找出 1 个较(轻|重)的次品，([一-龥]{1,4})最多有多少个？$/,
+    unit: "个",
+    calculate: ([kText]) => 3 ** Number(kText),
   },
 ];
 
@@ -1892,6 +1917,33 @@ function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOptio
     /^(?:电风扇的叶片在旋转。|风车的叶片在旋转。|飞机的螺旋桨在旋转。)?一个图形经过旋转后，下面哪个说法正确？$/,
   );
   if (rot07) return optionsEqualTo(options, "形状和大小都不变，位置和方向改变");
+
+  // P2-13e defective-items D2（app-di-04/05）：第一次称量的三分组。从捕获的 n
+  // 现场重算 q=floor(n/3)、r=n%3：r=0→(q,q,q)、r=1→(q+1,q,q)（多出的 1 放任
+  // 一组，降序呈现）、r=2→(q+1,q+1,q)；绝不把答案写死在分支里。n 用窄数字交替
+  // 钉在 3..12 教学集合，物品名由窄中文字符类接纳；选项文本半角括号+半角逗号无空格。
+  const diSplit = question.match(
+    /^有 ((?:[3-9]|1[0-2])) 个([一-龥]{1,4})，其中 1 个次品较(轻|重)。第一次称，应该怎样分组？$/,
+  );
+  if (diSplit) {
+    const n = Number(diSplit[1]);
+    const q = Math.floor(n / 3);
+    const r = n % 3;
+    const groups = r === 0
+      ? [q, q, q]
+      : r === 1
+        ? [q + 1, q, q]
+        : [q + 1, q + 1, q];
+    return optionsEqualTo(options, `(${groups.join(",")})`);
+  }
+
+  // P2-13e defective-items app-di-07：没告诉次品是轻还是重时，只锚定定性结论
+  // 「需要称的次数通常会增加」——先要试出方向，绝不写精确次数（避免与「12 球 3 次
+  // 可解」的精确反例冲突）。n 用 \d+ 捕获但不参与结论；物品名由窄中文字符类接纳。
+  const diUnknown = question.match(
+    /^有 (\d+) 个([一-龥]{1,4})，(?:没有告诉我们次品是轻还是重|不知道次品是轻是重)。要保证找出次品，称的次数会怎样？$/,
+  );
+  if (diUnknown) return optionsEqualTo(options, "需要称的次数通常会增加");
 
   return null;
 }

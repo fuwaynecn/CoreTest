@@ -1357,3 +1357,145 @@ describe("rotation 旋转锚定规则（P2-13d）", () => {
     expect(validateChoice(stem, "B")).toEqual(["incorrect_choice_answer"]);
   });
 });
+
+describe("defective-items 找次品锚定规则（P2-13e）", () => {
+  type ChoiceLetter = "A" | "B" | "C" | "D";
+
+  const validateChoice = (stem: string, letter: ChoiceLetter) => (
+    renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec(letter) })
+  );
+
+  // D1 正向：已知次品较（轻|重）时，保证找出次品的最少称量次数。次数严格按教学
+  // 映射表 {2:1,3:1,9:2,12:2,27:3} 查表，物品名（零件/乒乓球/糖果）与方向词
+  // （较(轻|重)）由正则窄字符类/交替捕获，不改变答案。
+  test.each([
+    ["有 2 个零件，其中有 1 个是次品，次品较轻。用天平称，至少称几次就能保证找出次品？", 1],
+    ["有 3 个乒乓球，其中有 1 个是次品，次品较轻。用天平称，至少称几次就能保证找出次品？", 1],
+    ["有 9 个糖果，其中有 1 个是次品，次品较重。用天平称，至少称几次就能保证找出次品？", 2],
+    ["有 12 个零件，其中有 1 个是次品，次品较轻。用天平称，至少称几次就能保证找出次品？", 2],
+    ["有 27 个乒乓球，其中有 1 个是次品，次品较重。用天平称，至少称几次就能保证找出次品？", 3],
+  ])("D1 正向（%s）正确次数无错误，错误次数报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "次")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "次")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 三个独立模板（app-di-01/02/03）靠规模与题干引导语区分：引导语前缀写死在
+  // 规则的可选交替中，引导语后仍按同一映射表查表锚定。
+  test.each([
+    ["先想想 9 里面有几个 3。有 9 个糖果，其中有 1 个是次品，次品较轻。用天平称，至少称几次就能保证找出次品？", 2],
+    ["每称一次最多能排除约三分之二的物品。有 27 个零件，其中有 1 个是次品，次品较重。用天平称，至少称几次就能保证找出次品？", 3],
+  ])("D1 正向带规模引导语前缀（%s）同样锚定", (stem, answer) => {
+    expect(validateWritten(stem, answer, "次")).toEqual([]);
+  });
+
+  // 单位负向：缺单位报 missing_unit，错配「个」报 unit_mismatch（规则静态单位为「次」）。
+  test("D1 正向缺单位报 missing_unit，错单位报 unit_mismatch", () => {
+    const stem = "有 3 个零件，其中有 1 个是次品，次品较轻。用天平称，至少称几次就能保证找出次品？";
+    expect(validateWritten(stem, 1)).toEqual(["missing_unit"]);
+    expect(validateWritten(stem, 1, "个")).toEqual(["unit_mismatch"]);
+  });
+
+  // 表驱动守卫硬性负向：n=8、10 即使 ⌈log₃n⌉ 同为 2/3，n=100 超出教学集合，
+  // 都必须安全落空 unsupported_number_pattern，证明不是任意 n 的 log₃ 公式。
+  test.each([
+    "有 8 个零件，其中有 1 个是次品，次品较轻。用天平称，至少称几次就能保证找出次品？",
+    "有 10 个零件，其中有 1 个是次品，次品较重。用天平称，至少称几次就能保证找出次品？",
+    "有 100 个乒乓球，其中有 1 个是次品，次品较轻。用天平称，至少称几次就能保证找出次品？",
+  ])("D1 正向表外 n（%s）不锚定 → unsupported_number_pattern", (stem) => {
+    expect(validateWritten(stem, 4, "次")).toEqual(["unsupported_number_pattern"]);
+  });
+
+  // 方向词缺失（没有「较轻/较重」）的同句式题干不被锚定。
+  test("D1 正向方向词缺失不被锚定 → unsupported_number_pattern", () => {
+    const stem = "有 9 个零件，其中有 1 个是次品。用天平称，至少称几次就能保证找出次品？";
+    expect(validateWritten(stem, 2, "次")).toEqual(["unsupported_number_pattern"]);
+  });
+
+  // D1 反向：称 k 次最多能从 3^k 个物品里保证找出 1 个较（轻|重）的次品。
+  // k 钉死 (1|2|3)，物品名由窄字符类接纳；1→3、2→9、3→27。
+  test.each([
+    ["用天平称，最多称 1 次就能保证找出 1 个较轻的次品，零件最多有多少个？", 3],
+    ["用天平称，最多称 2 次就能保证找出 1 个较轻的次品，乒乓球最多有多少个？", 9],
+    ["用天平称，最多称 3 次就能保证找出 1 个较重的次品，糖果最多有多少个？", 27],
+  ])("D1 反向（%s）正确个数无错误，错误个数报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "个")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "个")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // D1 反向表外 k：k=4 不被正则钉死，安全落空 unsupported_number_pattern。
+  test("D1 反向 k=4 表外不锚定 → unsupported_number_pattern", () => {
+    const stem = "用天平称，最多称 4 次就能保证找出 1 个较轻的次品，零件最多有多少个？";
+    expect(validateWritten(stem, 81, "个")).toEqual(["unsupported_number_pattern"]);
+  });
+
+  // D2：第一次称量的三分组。分支必须从捕获的 n 重算 q=floor(n/3)、r=n%3：
+  // r=0→(q,q,q)、r=1→(q+1,q,q)、r=2→(q+1,q+1,q)，选项文本半角括号逗号无空格。
+  // app-di-04 可均分 n=3/6/9；app-di-05 不平均 n=4/5/8；正确项统一放 B。
+  test.each([
+    [
+      "有 3 个零件，其中 1 个次品较轻。第一次称，应该怎样分组？"
+        + "A. (3,0,0)  B. (1,1,1)  C. (2,1,0)  D. (2,0,1)",
+    ],
+    [
+      "有 6 个乒乓球，其中 1 个次品较轻。第一次称，应该怎样分组？"
+        + "A. (3,2,1)  B. (2,2,2)  C. (4,2,0)  D. (6,0,0)",
+    ],
+    [
+      "有 9 个糖果，其中 1 个次品较重。第一次称，应该怎样分组？"
+        + "A. (4,4,1)  B. (3,3,3)  C. (4,3,2)  D. (8,1,0)",
+    ],
+    [
+      "有 4 个零件，其中 1 个次品较轻。第一次称，应该怎样分组？"
+        + "A. (2,2,0)  B. (2,1,1)  C. (4,0,0)  D. (3,1,0)",
+    ],
+    [
+      "有 5 个乒乓球，其中 1 个次品较重。第一次称，应该怎样分组？"
+        + "A. (3,2,0)  B. (2,2,1)  C. (5,0,0)  D. (4,1,0)",
+    ],
+    [
+      "有 8 个糖果，其中 1 个次品较轻。第一次称，应该怎样分组？"
+        + "A. (4,4,0)  B. (3,3,2)  C. (4,3,1)  D. (8,0,0)",
+    ],
+  ])("D2 三分组（%s）正确字母 []，错误字母报 incorrect_choice_answer", (stem) => {
+    expect(validateChoice(stem, "B")).toEqual([]);
+    expect(validateChoice(stem, "A")).toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 零个正确分组：四个选项都不等于从 n=9 重算的 (3,3,3)，任何单一字母都被拒。
+  // （两个正确分组无法构造：选项文本先做 compactText 去重，两个都等于 (3,3,3)
+  // 的选项会先报 duplicate_choice_option，到不了重算分支。）
+  test("D2 选项中没有重算分组时安全落空 → incorrect_choice_answer", () => {
+    const stem = "有 9 个零件，其中 1 个次品较轻。第一次称，应该怎样分组？"
+      + "A. (4,4,1)  B. (4,3,2)  C. (8,1,0)  D. (5,2,2)";
+    for (const letter of ["A", "B", "C", "D"] as const) {
+      expect(validateChoice(stem, letter)).toEqual(["incorrect_choice_answer"]);
+    }
+  });
+
+  // n=13 超出 3..12 教学集合，形态不被分支锚定 → unsupported_choice_pattern。
+  test("D2 n=13 表外形态不锚定 → unsupported_choice_pattern", () => {
+    const stem = "有 13 个零件，其中 1 个次品较轻。第一次称，应该怎样分组？"
+      + "A. (5,4,4)  B. (6,4,3)  C. (7,6,0)  D. (13,0,0)";
+    expect(validateChoice(stem, "A")).toEqual(["unsupported_choice_pattern"]);
+  });
+
+  // app-di-07：没告诉次品是轻还是重时，只锚定定性结论「需要称的次数通常会增加」，
+  // n 用 \d+ 捕获但不参与结论（不写精确次数）。两种「不知轻重」语义都识别。
+  test.each([
+    [
+      "有 3 个零件，没有告诉我们次品是轻还是重。要保证找出次品，称的次数会怎样？"
+        + "A. 需要称的次数通常会增加  B. 称的次数一定更少  C. 称的次数完全不变  D. 不用称就能找出",
+    ],
+    [
+      "有 9 个乒乓球，不知道次品是轻是重。要保证找出次品，称的次数会怎样？"
+        + "A. 需要称的次数通常会增加  B. 称的次数一定更少  C. 称的次数完全不变  D. 不用称就能找出",
+    ],
+    [
+      "有 12 个糖果，没有告诉我们次品是轻还是重。要保证找出次品，称的次数会怎样？"
+        + "A. 需要称的次数通常会增加  B. 称的次数一定更少  C. 称的次数完全不变  D. 不用称就能找出",
+    ],
+  ])("07 不知轻重定性结论（%s）A 命中，错误字母报 incorrect_choice_answer", (stem) => {
+    expect(validateChoice(stem, "A")).toEqual([]);
+    expect(validateChoice(stem, "B")).toEqual(["incorrect_choice_answer"]);
+  });
+});

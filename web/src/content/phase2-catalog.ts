@@ -2680,6 +2680,128 @@ const catalogInputs: TemplateInput[] = [
       object: ["电风扇的叶片", "风车的叶片", "飞机的螺旋桨"],
     },
   },
+  // P2-13e defective-items app-di-01：3 个物品找较（轻|重）次品的最少称量次数（入门
+  // 规模，难度 1）。与 02/03 共用 D1 表驱动规则但不是换词充数：规模 3→9→27 是 3 的幂
+  // 递进，难度 1/2/3，引导语按规模递进（基础情境 → 「9 里面有几个 3」→ 每次排除约 2/3）。
+  {
+    id: "app-di-01", skillCode: "defective-items", domain: "thinking_habits",
+    difficulty: 1, structureTag: "weigh-3",
+    stemPattern: "有 3 个{{item}}，其中有 1 个是次品，次品较{{direction}}。用天平称，至少称几次就能保证找出次品？",
+    answerSpecPattern: numberAnswer("次"),
+    explanationPattern: "把 3 个{{item}}平均分成 3 组，每组 1 个，任取 2 个称 1 次就能确定次品，"
+      + "所以至少称 {{answer}} 次。",
+    variables: {
+      item: ["零件", "乒乓球", "糖果"],
+      direction: ["轻", "重", "轻"],
+      answer: [1, 1, 1],
+    },
+  },
+  // P2-13e defective-items app-di-02：9 个物品（中间规模，难度 2）。引导语把 9 拆成
+  // 「3 个 3」：第一次三等分后只剩 3 个待查，再称 1 次，共 2 次。
+  {
+    id: "app-di-02", skillCode: "defective-items", domain: "thinking_habits",
+    difficulty: 2, structureTag: "weigh-9",
+    stemPattern: "先想想 9 里面有几个 3。有 9 个{{item}}，其中有 1 个是次品，次品较{{direction}}。用天平称，至少称几次就能保证找出次品？",
+    answerSpecPattern: numberAnswer("次"),
+    explanationPattern: "先想想 9 里面有 3 个 3：把 9 个{{item}}平均分成 3 组，每组 3 个，称 1 次锁定"
+      + "次品所在的组；组内 3 个再三等分称 1 次，共 {{answer}} 次。",
+    variables: {
+      item: ["零件", "乒乓球", "糖果"],
+      direction: ["轻", "重", "轻"],
+      answer: [2, 2, 2],
+    },
+  },
+  // P2-13e defective-items app-di-03：27 个物品（最大规模，难度 3）。每次最多排除约
+  // 三分之二，27=3³ 对应 3 次称量，体现次数与 3 的幂关系。
+  {
+    id: "app-di-03", skillCode: "defective-items", domain: "thinking_habits",
+    difficulty: 3, structureTag: "weigh-27",
+    stemPattern: "每称一次最多能排除约三分之二的物品。有 27 个{{item}}，其中有 1 个是次品，次品较{{direction}}。用天平称，至少称几次就能保证找出次品？",
+    answerSpecPattern: numberAnswer("次"),
+    explanationPattern: "每称一次最多能排除约三分之二的物品：27 个{{item}}三等分后剩 9 个，再称剩 3 个，"
+      + "第三次锁定次品；3¹=3、3²=9、3³=27，所以至少称 {{answer}} 次。",
+    variables: {
+      item: ["零件", "乒乓球", "糖果"],
+      direction: ["重", "轻", "重"],
+      answer: [3, 3, 3],
+    },
+  },
+  // P2-13e defective-items app-di-04：可均分情形（r=0）的第一次三分组，3/6/9 →
+  // (1,1,1)/(2,2,2)/(3,3,3)。分支从捕获的 n 重算，选项含不平均二分、随意分、没分组
+  // 三类典型干扰，正确项统一放 B。
+  {
+    id: "app-di-04", skillCode: "defective-items", domain: "thinking_habits",
+    difficulty: 2, structureTag: "weigh-9-split", answerMode: "choice",
+    stemPattern: "有 {{n}} 个{{item}}，其中 1 个次品较{{direction}}。第一次称，应该怎样分组？"
+      + "A. {{a}}  B. {{b}}  C. {{c}}  D. {{d}}",
+    answerSpecPattern: choiceAnswer("B"),
+    explanationPattern: "第一次称要把 {{n}} 个{{item}}尽量平均分成 3 组：{{n}}÷3={{q}} 且正好分完，"
+      + "所以分成 {{b}}，称一次就能把次品范围缩到 {{q}} 个以内，选 B。",
+    variables: {
+      n: [3, 6, 9],
+      item: ["零件", "乒乓球", "糖果"],
+      direction: ["轻", "轻", "重"],
+      a: ["(3,0,0)", "(3,2,1)", "(4,4,1)"],
+      b: ["(1,1,1)", "(2,2,2)", "(3,3,3)"],
+      c: ["(2,1,0)", "(4,2,0)", "(4,3,2)"],
+      d: ["(2,0,1)", "(6,0,0)", "(8,1,0)"],
+      q: [1, 2, 3],
+    },
+  },
+  // P2-13e defective-items app-di-05：不能均分时（r=1/r=2）的第一次三分组，4/5/8 →
+  // (2,1,1)/(2,2,1)/(3,3,2)。多出来的 1～2 个放任两组（降序呈现），同样由 n 现场重算。
+  {
+    id: "app-di-05", skillCode: "defective-items", domain: "thinking_habits",
+    difficulty: 3, structureTag: "weigh-8-split", answerMode: "choice",
+    stemPattern: "有 {{n}} 个{{item}}，其中 1 个次品较{{direction}}。第一次称，应该怎样分组？"
+      + "A. {{a}}  B. {{b}}  C. {{c}}  D. {{d}}",
+    answerSpecPattern: choiceAnswer("B"),
+    explanationPattern: "{{n}} 个{{item}}不能被 3 整除：先每组放 {{q}} 个，多出的 {{remainder}} 个"
+      + "分放进 {{extraGroups}} 组（按数量从多到少排列），所以第一次分成 {{b}}，三组数量最接近，选 B。",
+    variables: {
+      n: [4, 5, 8],
+      item: ["零件", "乒乓球", "糖果"],
+      direction: ["轻", "重", "轻"],
+      a: ["(2,2,0)", "(3,2,0)", "(4,4,0)"],
+      b: ["(2,1,1)", "(2,2,1)", "(3,3,2)"],
+      c: ["(4,0,0)", "(5,0,0)", "(4,3,1)"],
+      d: ["(3,1,0)", "(4,1,0)", "(8,0,0)"],
+      q: [1, 1, 2],
+      remainder: [1, 2, 2],
+      extraGroups: ["1 个", "2 个", "2 个"],
+    },
+  },
+  // P2-13e defective-items app-di-06：D1 反向，称 1 次最多能从 3 个物品里保证找出次品
+  // （3¹=3）。目录只收录 k=1 的教学形态；k=2/3 仅在锚定规则测试中覆盖。
+  {
+    id: "app-di-06", skillCode: "defective-items", domain: "thinking_habits",
+    difficulty: 2, structureTag: "weigh-logic",
+    stemPattern: "用天平称，最多称 1 次就能保证找出 1 个较{{direction}}的次品，{{item}}最多有多少个？",
+    answerSpecPattern: numberAnswer("个"),
+    explanationPattern: "称 1 次时，天平两盘各放 1 个、旁边再放 1 个，3 种结果（左盘轻/右盘轻/平衡）"
+      + "最多区分 3 个物品，即 3¹=3，所以最多有 {{answer}} 个。",
+    variables: {
+      direction: ["轻", "重", "轻"],
+      item: ["零件", "乒乓球", "糖果"],
+      answer: [3, 3, 3],
+    },
+  },
+  // P2-13e defective-items app-di-07：没告诉次品是轻还是重时，只要求定性结论——先要试出
+  // 方向，需要称的次数通常会增加；分支不锚定任何精确次数（n 捕获但不参与结论），规避
+  // 「12 球 3 次可解」的精确反例。
+  {
+    id: "app-di-07", skillCode: "defective-items", domain: "thinking_habits",
+    difficulty: 2, structureTag: "weigh-unknown-direction", answerMode: "choice",
+    stemPattern: "有 {{n}} 个{{item}}，没有告诉我们次品是轻还是重。要保证找出次品，称的次数会怎样？"
+      + "A. 需要称的次数通常会增加  B. 称的次数一定更少  C. 称的次数完全不变  D. 不用称就能找出",
+    answerSpecPattern: choiceAnswer("A"),
+    explanationPattern: "不知道次品是轻是重时，还要先称一称试出次品的方向，所以需要称的次数通常会"
+      + "增加（小学阶段只要求这个定性判断，不要求精确次数），选 A。",
+    variables: {
+      n: [3, 9, 12],
+      item: ["零件", "乒乓球", "糖果"],
+    },
+  },
 ];
 
 export const phase2Catalog: ReviewedTemplate[] = catalogInputs.map(reviewed);
