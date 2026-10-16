@@ -196,6 +196,12 @@ const defectiveWeighingsTable: Readonly<Record<number, number>> = {
   2: 1, 3: 1, 9: 2, 12: 3, 27: 3,
 };
 
+// P2-13f fraction E2/E3：欧几里得最大公因数（brief 允许的最小非导出文件级 helper；
+// 最小公倍数由调用处以 b×d/gcdOf 内联，与 P2-13b F4 既有写法一致）。
+function gcdOf(left: number, right: number): number {
+  return right === 0 ? left : gcdOf(right, left % right);
+}
+
 const numericRules: NumericRule[] = [
   {
     pattern: /^一个平角被分成两个角，其中一个是 (-?\d+(?:\.\d+)?) 度，另一个是多少度？$/,
@@ -1035,6 +1041,63 @@ const numericRules: NumericRule[] = [
     pattern: /^用天平称，最多称 (1|2|3) 次就能保证找出 1 个较(轻|重)的次品，([一-龥]{1,4})最多有多少个？$/,
     unit: "个",
     calculate: ([kText]) => 3 ** Number(kText),
+  },
+  // P2-13f fraction E1 equivalent-fraction（num-fraction-07）：a/b = ?/d，分数基本
+  // 性质分子分母同乘 k=d/b，未知分子 = a×k。守卫：原分母 b∈2..9、新分母 d 整除 b、
+  // 且是放大（k∈2..6，故 d>b 自动满足），a∈1..b 真/等值分数；不整除或缩小（约分
+  // 方向）安全落空 unsupported_number_pattern。
+  {
+    pattern: /^把 (\d+)\/(\d+) 化成分母是 (\d+) 的等值分数，分子应该是多少？$/,
+    unit: null,
+    accept: ([aText, bText, dText]) => {
+      const a = Number(aText);
+      const b = Number(bText);
+      const d = Number(dText);
+      return b >= 2 && b <= 9
+        && a >= 1 && a <= b
+        && d % b === 0
+        && d / b >= 2 && d / b <= 6;
+    },
+    calculate: ([aText, bText, dText]) => (
+      Number(aText) * (Number(dText) / Number(bText))
+    ),
+  },
+  // P2-13f fraction E2 common-denominator（num-fraction-08）：通分 a/b 与 c/d 的最小
+  // 公分母 = lcm(b,d)=b×d/gcdOf(b,d)。分子 a、c 捕获但不参与计算（通分只看分母）。
+  // 守卫：两分母均 ∈2..9 且不相等（同分母无需通分）、lcm≤36；越界安全落空。
+  {
+    pattern: /^把 (\d+)\/(\d+) 和 (\d+)\/(\d+) 通分，最小公分母是多少？$/,
+    unit: null,
+    accept: ([, bText, , dText]) => {
+      const b = Number(bText);
+      const d = Number(dText);
+      return b >= 2 && b <= 9 && d >= 2 && d <= 9
+        && b !== d
+        && b * d / gcdOf(b, d) <= 36;
+    },
+    calculate: ([, bText, , dText]) => {
+      const b = Number(bText);
+      const d = Number(dText);
+      return b * d / gcdOf(b, d);
+    },
+  },
+  // P2-13f fraction E3 simplify-result 分母版（num-fraction-09，控制器 Ruling）：
+  // a/b 化成最简分数后的分母 = b/gcdOf(a,b)。题干与既有约分求分子规则（:659 附近
+  // 「…分子是多少？」，答 a/gcd）只一字之差，两条正则互斥，新规则尾置。守卫：
+  // a<b 真分数、b≤24；gcd=1（本身已最简）仍锚定，答案即原分母。
+  {
+    pattern: /^把 (\d+)\/(\d+) 化成最简分数后，分母是多少？$/,
+    unit: null,
+    accept: ([aText, bText]) => {
+      const a = Number(aText);
+      const b = Number(bText);
+      return a >= 1 && a < b && b <= 24;
+    },
+    calculate: ([aText, bText]) => {
+      const a = Number(aText);
+      const b = Number(bText);
+      return b / gcdOf(a, b);
+    },
   },
 ];
 

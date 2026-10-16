@@ -1499,3 +1499,94 @@ describe("defective-items 找次品锚定规则（P2-13e）", () => {
     expect(validateChoice(stem, "B")).toEqual(["incorrect_choice_answer"]);
   });
 });
+
+describe("fraction 分数性质补题锚定规则（P2-13f）", () => {
+  // E1 equivalent-fraction（num-fraction-07）：a/b = ?/d，分数基本性质
+  // 分子分母同乘 k=d/b，未知分子 = a×k。
+  test.each([
+    ["把 2/3 化成分母是 12 的等值分数，分子应该是多少？", 8],
+    ["把 1/4 化成分母是 20 的等值分数，分子应该是多少？", 5],
+    ["把 3/5 化成分母是 15 的等值分数，分子应该是多少？", 9],
+  ])("E1 等值分数（%s）正确答案 []，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer)).toEqual([]);
+    expect(validateWritten(stem, answer + 1)).toEqual(["incorrect_number_answer"]);
+  });
+
+  // E1 守卫：d 不是 b 的倍数（k 非整数）时形态不锚定，安全落空。
+  test("E1 d%b≠0（2/3 分母变 10）不锚定 → unsupported_number_pattern", () => {
+    const stem = "把 2/3 化成分母是 10 的等值分数，分子应该是多少？";
+    expect(validateWritten(stem, 8)).toEqual(["unsupported_number_pattern"]);
+  });
+
+  // E1 守卫：d<b 是约分方向（k 为真分数），不属于「放大成等值分数」题型。
+  test("E1 d<b 缩小情形（2/6 分母变 3）不锚定 → unsupported_number_pattern", () => {
+    const stem = "把 2/6 化成分母是 3 的等值分数，分子应该是多少？";
+    expect(validateWritten(stem, 1)).toEqual(["unsupported_number_pattern"]);
+  });
+
+  // E2 common-denominator（num-fraction-08）：通分只看分母，最小公分母 = lcm(b,d)；
+  // 分子被捕获但不参与计算（5/6 与 3/8 也锚 24，而非分子的任何函数）。
+  test.each([
+    ["把 1/2 和 1/3 通分，最小公分母是多少？", 6],
+    ["把 2/3 和 1/4 通分，最小公分母是多少？", 12],
+    ["把 5/6 和 3/8 通分，最小公分母是多少？", 24],
+  ])("E2 最小公分母（%s）正确答案 []，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer)).toEqual([]);
+    expect(validateWritten(stem, answer + 1)).toEqual(["incorrect_number_answer"]);
+  });
+
+  // E2 守卫：同分母分数无需通分，安全落空（1/3 和 2/3）。
+  test("E2 两个分母相同不锚定 → unsupported_number_pattern", () => {
+    const stem = "把 1/3 和 2/3 通分，最小公分母是多少？";
+    expect(validateWritten(stem, 3)).toEqual(["unsupported_number_pattern"]);
+  });
+
+  // E2 守卫：lcm(7,8)=56 > 36，超出教学规模，安全落空。
+  test("E2 lcm>36（分母 7 和 8）不锚定 → unsupported_number_pattern", () => {
+    const stem = "把 1/7 和 1/8 通分，最小公分母是多少？";
+    expect(validateWritten(stem, 56)).toEqual(["unsupported_number_pattern"]);
+  });
+
+  // E3 simplify-result 分母版（num-fraction-09，控制器 Ruling）：约分后分母
+  // = b/gcd(a,b)；题干只与既有求分子规则差一个字（分「母」vs 分「子」）。
+  test.each([
+    ["把 8/12 化成最简分数后，分母是多少？", 3],
+    ["把 6/8 化成最简分数后，分母是多少？", 4],
+    ["把 9/15 化成最简分数后，分母是多少？", 5],
+  ])("E3 约分求分母（%s）正确答案 []，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer)).toEqual([]);
+    expect(validateWritten(stem, answer + 1)).toEqual(["incorrect_number_answer"]);
+  });
+
+  // E3 边界：gcd=1 时分数本身已最简，最简分母就是原分母，仍应锚定。
+  test("E3 gcd=1（2/3 已最简）仍锚定，答案为原分母 3", () => {
+    const stem = "把 2/3 化成最简分数后，分母是多少？";
+    expect(validateWritten(stem, 3)).toEqual([]);
+  });
+
+  // E3 守卫：b>24 超出计划教学规模（8/36），安全落空。
+  test("E3 b>24（8/36）不锚定 → unsupported_number_pattern", () => {
+    const stem = "把 8/36 化成最简分数后，分母是多少？";
+    expect(validateWritten(stem, 9)).toEqual(["unsupported_number_pattern"]);
+  });
+
+  // E3 守卫：a≥b 不是真分数（如 12/8），安全落空。
+  test("E3 a≥b 非真分数（12/8）不锚定 → unsupported_number_pattern", () => {
+    const stem = "把 12/8 化成最简分数后，分母是多少？";
+    expect(validateWritten(stem, 2)).toEqual(["unsupported_number_pattern"]);
+  });
+
+  // 回归：8/12 求分子仍由既有 :659 规则锚定得 2（a/gcd=8/4），
+  // 8/12 求分母由新 E3 锚定得 3（b/gcd=12/4），两规则一字之差、互不串锚。
+  test("8/12 求分子→2 仍归既有约分求分子规则（E3 加入后不变）", () => {
+    const stem = "把 8/12 化成最简分数后，分子是多少？";
+    expect(validateWritten(stem, 2)).toEqual([]);
+    expect(validateWritten(stem, 3)).toEqual(["incorrect_number_answer"]);
+  });
+
+  test("8/12 求分母→3 归新 E3 规则，不串到求分子答案 2", () => {
+    const stem = "把 8/12 化成最简分数后，分母是多少？";
+    expect(validateWritten(stem, 3)).toEqual([]);
+    expect(validateWritten(stem, 2)).toEqual(["incorrect_number_answer"]);
+  });
+});

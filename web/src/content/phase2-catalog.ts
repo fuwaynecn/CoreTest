@@ -2802,6 +2802,38 @@ const catalogInputs: TemplateInput[] = [
       item: ["零件", "乒乓球", "糖果"],
     },
   },
+
+  // P2-13f fraction 分数意义与性质补 3 模板（num-fraction-07/08/09，均 d2 numeric）。
+  {
+    id: "num-fraction-07", skillCode: "fraction", domain: "number_operations",
+    difficulty: 2, structureTag: "equivalent-fraction", answerMode: "written",
+    stemPattern: "把 {{a}}/{{b}} 化成分母是 {{d}} 的等值分数，分子应该是多少？",
+    answerSpecPattern: numberAnswer(),
+    explanationPattern: "分数的分子和分母同时乘同一个不为 0 的数，分数大小不变；分母 {{b}} 乘 {{k}} 变成 {{d}}，分子 {{a}} 也乘 {{k}}，得到 {{answer}}。",
+    variables: {
+      a: [2, 1, 3], b: [3, 4, 5], d: [12, 20, 15], k: [4, 5, 3], answer: [8, 5, 9],
+    },
+  },
+  {
+    id: "num-fraction-08", skillCode: "fraction", domain: "number_operations",
+    difficulty: 2, structureTag: "common-denominator", answerMode: "written",
+    stemPattern: "把 {{a}}/{{b}} 和 {{c}}/{{dd}} 通分，最小公分母是多少？",
+    answerSpecPattern: numberAnswer(),
+    explanationPattern: "通分只看两个分母：{{b}} 和 {{dd}} 的公倍数中最小的是 {{answer}}，所以最小公分母是 {{answer}}。",
+    variables: {
+      a: [1, 2, 5], b: [2, 3, 6], c: [1, 1, 3], dd: [3, 4, 8], answer: [6, 12, 24],
+    },
+  },
+  {
+    id: "num-fraction-09", skillCode: "fraction", domain: "number_operations",
+    difficulty: 2, structureTag: "simplify-result", answerMode: "written",
+    stemPattern: "把 {{a}}/{{b}} 化成最简分数后，分母是多少？",
+    answerSpecPattern: numberAnswer(),
+    explanationPattern: "约分时分子和分母同时除以它们的最大公因数 {{g}}，分母 {{b}} ÷ {{g}} = {{answer}}。",
+    variables: {
+      a: [8, 6, 9], b: [12, 8, 15], g: [4, 2, 3], answer: [3, 4, 5],
+    },
+  },
 ];
 
 export const phase2Catalog: ReviewedTemplate[] = catalogInputs.map(reviewed);
