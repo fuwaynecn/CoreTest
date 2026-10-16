@@ -14,6 +14,11 @@ const BADGE_ICONS: Record<string, string> = {
 };
 
 function topicBadgeIcon(code: string) {
+  if (code.startsWith("topic-coordinate-pairs")) return "🗺️";
+  if (code.startsWith("topic-rotation")) return "📐";
+  if (code.startsWith("topic-factors-multiples")) return "🔢";
+  if (["tree-planting", "defective-items"]
+    .some((part) => code.startsWith(`topic-${part}`))) return "🧩";
   if (code.startsWith("topic-equation")) return "⚖️";
   if (["angle", "perimeter", "area", "volume", "composite-geometry", "spatial", "length-conversion",
     "position-direction", "circle", "cylinder-cone"]
