@@ -193,7 +193,7 @@ function plantTreeCount(segments: number, situation: string): number {
 // P2-13e defective-items D1 正向严格查表：只有这 5 个教学规模被锚定。n=8/10 等
 // 即使 ⌈log₃n⌉ 与表内值相同，也因不是表成员而安全落空（表驱动，不是浮点公式）。
 const defectiveWeighingsTable: Readonly<Record<number, number>> = {
-  2: 1, 3: 1, 9: 2, 12: 2, 27: 3,
+  2: 1, 3: 1, 9: 2, 12: 3, 27: 3,
 };
 
 const numericRules: NumericRule[] = [
@@ -1018,7 +1018,7 @@ const numericRules: NumericRule[] = [
     calculate: ([fromText, toText]) => (Number(toText) - Number(fromText)) * 30,
   },
   // P2-13e defective-items D1 正向：已知次品较（轻|重）时保证找出次品的最少称量次数。
-  // 严格表驱动（不是任意 n 的 ⌈log₃n⌉ 公式）：n∈{2,3,9,12,27}→{1,1,2,2,3}，
+  // 严格表驱动（不是任意 n 的 ⌈log₃n⌉ 公式）：n∈{2,3,9,12,27}→{1,1,2,3,3}，
   // 表外（n=8、10 等即使 ⌈log₃n⌉ 相同）由 accept 守卫拒绝，安全落空。物品名由窄
   // 中文字符类接纳（零件/乒乓球/糖果风格，只换情境不改答案）；方向词（轻|重）显式
   // 交替并捕获，次数与方向无关。di-02/di-03 的规模引导语前缀是写进模式的可选项。
