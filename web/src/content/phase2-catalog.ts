@@ -2871,6 +2871,69 @@ const catalogInputs: TemplateInput[] = [
       answer: [600, 800, 5],
     },
   },
+
+  // P2-13h volume 体积补 5 模板（geo-volume-04..08，均 d2 numeric，3 lockstep 实例）。
+  {
+    id: "geo-volume-04", skillCode: "volume", domain: "geometry_space",
+    difficulty: 2, structureTag: "cube-volume", answerMode: "written",
+    stemPattern: "一个正方体的棱长是 {{edge}} 厘米，它的体积是多少立方厘米？",
+    answerSpecPattern: numberAnswer("立方厘米"),
+    explanationPattern: "正方体体积等于棱长乘棱长乘棱长，也就是棱长的立方：{{edge}} × {{edge}} × {{edge}} = {{answer}} 立方厘米。",
+    variables: {
+      edge: [3, 4, 5],
+      answer: [27, 64, 125],
+    },
+  },
+  {
+    id: "geo-volume-05", skillCode: "volume", domain: "geometry_space",
+    difficulty: 2, structureTag: "cuboid-surface-area", answerMode: "written",
+    stemPattern: "一个长方体长 {{length}} 厘米、宽 {{width}} 厘米、高 {{height}} 厘米，它的表面积是多少平方厘米？",
+    answerSpecPattern: numberAnswer("平方厘米"),
+    explanationPattern: "长方体 6 个面两两相等，表面积等于 2 ×（长×宽 + 长×高 + 宽×高）：2 ×（{{length}}×{{width}} + {{length}}×{{height}} + {{width}}×{{height}}）= {{answer}} 平方厘米。",
+    variables: {
+      length: [4, 6, 8],
+      width: [3, 5, 5],
+      height: [2, 4, 3],
+      answer: [52, 148, 158],
+    },
+  },
+  {
+    id: "geo-volume-06", skillCode: "volume", domain: "geometry_space",
+    difficulty: 2, structureTag: "open-top-surface", answerMode: "written",
+    stemPattern: "做一个无盖的长方体玻璃鱼缸，长 {{length}} 厘米、宽 {{width}} 厘米、高 {{height}} 厘米，至少需要多少平方厘米的玻璃？",
+    answerSpecPattern: numberAnswer("平方厘米"),
+    explanationPattern: "无盖鱼缸只有 5 个面，少一个顶面：玻璃面积 = 长×宽 + 2×长×高 + 2×宽×高 = {{length}}×{{width}} + 2×{{length}}×{{height}} + 2×{{width}}×{{height}} = {{answer}} 平方厘米。",
+    variables: {
+      length: [5, 8, 6],
+      width: [4, 5, 4],
+      height: [3, 4, 3],
+      answer: [74, 144, 84],
+    },
+  },
+  {
+    id: "geo-volume-07", skillCode: "volume", domain: "geometry_space",
+    difficulty: 2, structureTag: "capacity-unit", answerMode: "written",
+    stemPattern: "{{liters}} 升 = 多少毫升？",
+    answerSpecPattern: numberAnswer("毫升"),
+    explanationPattern: "1 升 = 1000 毫升，升换算成毫升要乘进率 1000：{{liters}} × 1000 = {{answer}} 毫升。",
+    variables: {
+      liters: [3, 5, 8],
+      answer: [3000, 5000, 8000],
+    },
+  },
+  {
+    id: "geo-volume-08", skillCode: "volume", domain: "geometry_space",
+    difficulty: 2, structureTag: "displacement-volume", answerMode: "written",
+    stemPattern: "一个长方体水缸的底面积是 {{baseArea}} 平方厘米，放入一块石头后，水面从 {{heightBefore}} 厘米上升到 {{heightAfter}} 厘米，这块石头的体积是多少立方厘米？",
+    answerSpecPattern: numberAnswer("立方厘米"),
+    explanationPattern: "排水法中，石头体积等于排开水的体积：底面积 × 水面上升的高度，{{baseArea}} ×（{{heightAfter}} - {{heightBefore}}）= {{answer}} 立方厘米。",
+    variables: {
+      baseArea: [50, 80, 60],
+      heightBefore: [8, 12, 10],
+      heightAfter: [10, 15, 13],
+      answer: [100, 240, 180],
+    },
+  },
 ];
 
 export const phase2Catalog: ReviewedTemplate[] = catalogInputs.map(reviewed);

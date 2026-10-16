@@ -1700,3 +1700,218 @@ describe("area 面积补题锚定规则（P2-13g）", () => {
     expect(validateWritten(areaStem, 6, "米")).toEqual(["unit_mismatch", "incorrect_number_answer"]);
   });
 });
+
+describe("volume 体积补题锚定规则（P2-13h）", () => {
+  // V1 cube-volume（geo-volume-04）：正方体体积 = 棱长³。
+  // 「正方体」「棱长」为独有词，与长方体体积旧规则（长/宽/高）互斥。
+  test.each([
+    ["一个正方体的棱长是 3 厘米，它的体积是多少立方厘米？", 27],
+    ["一个正方体的棱长是 4 厘米，它的体积是多少立方厘米？", 64],
+    ["一个正方体的棱长是 5 厘米，它的体积是多少立方厘米？", 125],
+  ])("V1 正方体（%s）正确答案 []，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "立方厘米")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "立方厘米")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 负向：a³ 错答成 a²（棱长平方）必须被拒（以 a=3 为例：9 是面积不是体积）。
+  test("V1 错答棱长平方 a²=9 报 incorrect_number_answer", () => {
+    const stem = "一个正方体的棱长是 3 厘米，它的体积是多少立方厘米？";
+    expect(validateWritten(stem, 9, "立方厘米")).toEqual(["incorrect_number_answer"]);
+  });
+
+  test("V1 单位负向：缺单位报 missing_unit，错单位报 unit_mismatch", () => {
+    const stem = "一个正方体的棱长是 4 厘米，它的体积是多少立方厘米？";
+    expect(validateWritten(stem, 64)).toEqual(["missing_unit"]);
+    expect(validateWritten(stem, 64, "平方厘米")).toEqual(["unit_mismatch"]);
+  });
+
+  // 守卫（红前即过）：a=1 与 a=10 超出教学规模 2..9，规则安全落空 unsupported。
+  test.each([
+    ["一个正方体的棱长是 1 厘米，它的体积是多少立方厘米？", 1],
+    ["一个正方体的棱长是 10 厘米，它的体积是多少立方厘米？", 1000],
+  ])("V1 棱长越界 a=%# 不锚定 → unsupported_number_pattern", (stem, answer) => {
+    expect(validateWritten(stem, answer, "立方厘米")).toEqual(["unsupported_number_pattern"]);
+  });
+
+  // V2 cuboid-surface-area（geo-volume-05）：长方体表面积 = 2(lw+lh+wh)。
+  // 「一个长方体长…表面积是多少平方厘米」与既有体积规则
+  // （「长方体长…体积是多少立方厘米」）同句数字、尾词互斥。
+  test.each([
+    ["一个长方体长 4 厘米、宽 3 厘米、高 2 厘米，它的表面积是多少平方厘米？", 52],
+    ["一个长方体长 6 厘米、宽 5 厘米、高 4 厘米，它的表面积是多少平方厘米？", 148],
+    ["一个长方体长 8 厘米、宽 5 厘米、高 3 厘米，它的表面积是多少平方厘米？", 158],
+  ])("V2 长方体表面积（%s）正确答案 []，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "平方厘米")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "平方厘米")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 负向（以 4,3,2 为例）：漏 ×2 的 lw+lh+wh=26、与体积 lwh=24 都必须被拒。
+  test("V2 漏 ×2=26 与体积答案 24 均报 incorrect_number_answer", () => {
+    const stem = "一个长方体长 4 厘米、宽 3 厘米、高 2 厘米，它的表面积是多少平方厘米？";
+    expect(validateWritten(stem, 26, "平方厘米")).toEqual(["incorrect_number_answer"]);
+    expect(validateWritten(stem, 24, "平方厘米")).toEqual(["incorrect_number_answer"]);
+  });
+
+  test("V2 单位负向：缺单位报 missing_unit，错单位（立方厘米）报 unit_mismatch", () => {
+    const stem = "一个长方体长 6 厘米、宽 5 厘米、高 4 厘米，它的表面积是多少平方厘米？";
+    expect(validateWritten(stem, 148)).toEqual(["missing_unit"]);
+    expect(validateWritten(stem, 148, "立方厘米")).toEqual(["unit_mismatch"]);
+  });
+
+  // 守卫（红前即过）：长 1 厘米与长 25 厘米超出 2..20，规则安全落空 unsupported。
+  test.each([
+    ["一个长方体长 1 厘米、宽 3 厘米、高 2 厘米，它的表面积是多少平方厘米？", 22],
+    ["一个长方体长 25 厘米、宽 5 厘米、高 4 厘米，它的表面积是多少平方厘米？", 490],
+  ])("V2 边长越界（%s）不锚定 → unsupported_number_pattern", (stem, answer) => {
+    expect(validateWritten(stem, answer, "平方厘米")).toEqual(["unsupported_number_pattern"]);
+  });
+
+  // V3 open-top-surface（geo-volume-06）：无盖鱼缸玻璃面积 = lw+2lh+2wh。
+  // 「无盖」「玻璃」为独有词，与 V2 封闭表面积（有盖、六个面）互斥。
+  test.each([
+    ["做一个无盖的长方体玻璃鱼缸，长 5 厘米、宽 4 厘米、高 3 厘米，至少需要多少平方厘米的玻璃？", 74],
+    ["做一个无盖的长方体玻璃鱼缸，长 8 厘米、宽 5 厘米、高 4 厘米，至少需要多少平方厘米的玻璃？", 144],
+    ["做一个无盖的长方体玻璃鱼缸，长 6 厘米、宽 4 厘米、高 3 厘米，至少需要多少平方厘米的玻璃？", 84],
+  ])("V3 无盖鱼缸（%s）正确答案 []，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "平方厘米")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "平方厘米")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 负向（以 5,4,3 为例）：封闭六面表面积 2(lw+lh+wh)=94、体积 lwh=60 都必须被拒。
+  test("V3 封闭表面积 94 与体积 60 均报 incorrect_number_answer", () => {
+    const stem = "做一个无盖的长方体玻璃鱼缸，长 5 厘米、宽 4 厘米、高 3 厘米，至少需要多少平方厘米的玻璃？";
+    expect(validateWritten(stem, 94, "平方厘米")).toEqual(["incorrect_number_answer"]);
+    expect(validateWritten(stem, 60, "平方厘米")).toEqual(["incorrect_number_answer"]);
+  });
+
+  test("V3 单位负向：缺单位报 missing_unit，错单位（平方米）报 unit_mismatch", () => {
+    const stem = "做一个无盖的长方体玻璃鱼缸，长 8 厘米、宽 5 厘米、高 4 厘米，至少需要多少平方厘米的玻璃？";
+    expect(validateWritten(stem, 144)).toEqual(["missing_unit"]);
+    expect(validateWritten(stem, 144, "平方米")).toEqual(["unit_mismatch"]);
+  });
+
+  // 守卫（红前即过）：宽 1 厘米与高 25 厘米超出 2..20，规则安全落空 unsupported。
+  test.each([
+    ["做一个无盖的长方体玻璃鱼缸，长 5 厘米、宽 1 厘米、高 3 厘米，至少需要多少平方厘米的玻璃？", 41],
+    ["做一个无盖的长方体玻璃鱼缸，长 8 厘米、宽 5 厘米、高 25 厘米，至少需要多少平方厘米的玻璃？", 690],
+  ])("V3 边长越界（%s）不锚定 → unsupported_number_pattern", (stem, answer) => {
+    expect(validateWritten(stem, answer, "平方厘米")).toEqual(["unsupported_number_pattern"]);
+  });
+
+  // V4a capacity-unit（geo-volume-07，catalog 唯一上目录方向）：N 升 → N×1000 毫升。
+  test.each([
+    ["3 升 = 多少毫升？", 3000],
+    ["5 升 = 多少毫升？", 5000],
+    ["8 升 = 多少毫升？", 8000],
+  ])("V4a 升→毫升（%s）正确答案 []，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "毫升")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "毫升")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 负向：3 升答 30（进率记成 10）或 30000（进率记成 10000）都必须被拒。
+  test("V4a 3 升答 30/30000 均报 incorrect_number_answer", () => {
+    const stem = "3 升 = 多少毫升？";
+    expect(validateWritten(stem, 30, "毫升")).toEqual(["incorrect_number_answer"]);
+    expect(validateWritten(stem, 30000, "毫升")).toEqual(["incorrect_number_answer"]);
+  });
+
+  test("V4a 单位负向：缺单位报 missing_unit，答升报 unit_mismatch", () => {
+    const stem = "5 升 = 多少毫升？";
+    expect(validateWritten(stem, 5000)).toEqual(["missing_unit"]);
+    expect(validateWritten(stem, 5000, "升")).toEqual(["unit_mismatch"]);
+  });
+
+  // V4b（最终裁决：仅 validator 覆盖，不上 catalog）：N 立方厘米 → N÷1000 升，
+  // 守卫 n%1000===0。4000→4 锚定；4500 非整除安全落空 unsupported。
+  test("V4b 4000 立方厘米→4 升正确答案 []，错误答案报 incorrect_number_answer", () => {
+    const stem = "4000 立方厘米 = 多少升？";
+    expect(validateWritten(stem, 4, "升")).toEqual([]);
+    expect(validateWritten(stem, 5, "升")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 守卫（红前即过）：4500 立方厘米 = 4.5 升非整数答案，规则安全落空 unsupported。
+  test("V4b 4500 立方厘米非整除不锚定 → unsupported_number_pattern", () => {
+    const stem = "4500 立方厘米 = 多少升？";
+    expect(validateWritten(stem, 4.5, "升")).toEqual(["unsupported_number_pattern"]);
+  });
+
+  test("V4b 单位负向：4000 立方厘米缺单位报 missing_unit，答毫升报 unit_mismatch", () => {
+    const stem = "4000 立方厘米 = 多少升？";
+    expect(validateWritten(stem, 4)).toEqual(["missing_unit"]);
+    expect(validateWritten(stem, 4, "毫升")).toEqual(["unit_mismatch"]);
+  });
+
+  // V5 displacement-volume（geo-volume-08）：石头体积 = 底面积 ×（h2−h1）。
+  // 「水面从…上升到」为独有词；守卫 h2>h1。
+  test.each([
+    ["一个长方体水缸的底面积是 50 平方厘米，放入一块石头后，水面从 8 厘米上升到 10 厘米，这块石头的体积是多少立方厘米？", 100],
+    ["一个长方体水缸的底面积是 80 平方厘米，放入一块石头后，水面从 12 厘米上升到 15 厘米，这块石头的体积是多少立方厘米？", 240],
+    ["一个长方体水缸的底面积是 60 平方厘米，放入一块石头后，水面从 10 厘米上升到 13 厘米，这块石头的体积是多少立方厘米？", 180],
+  ])("V5 排水法（%s）正确答案 []，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "立方厘米")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "立方厘米")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 负向（以 50,8,10 为例）：底面积×h2=500、底面积×h1=400 都必须被拒。
+  test("V5 错答 S×h2=500 与 S×h1=400 均报 incorrect_number_answer", () => {
+    const stem = "一个长方体水缸的底面积是 50 平方厘米，放入一块石头后，水面从 8 厘米上升到 10 厘米，这块石头的体积是多少立方厘米？";
+    expect(validateWritten(stem, 500, "立方厘米")).toEqual(["incorrect_number_answer"]);
+    expect(validateWritten(stem, 400, "立方厘米")).toEqual(["incorrect_number_answer"]);
+  });
+
+  test("V5 单位负向：缺单位报 missing_unit，错单位（平方厘米）报 unit_mismatch", () => {
+    const stem = "一个长方体水缸的底面积是 80 平方厘米，放入一块石头后，水面从 12 厘米上升到 15 厘米，这块石头的体积是多少立方厘米？";
+    expect(validateWritten(stem, 240)).toEqual(["missing_unit"]);
+    expect(validateWritten(stem, 240, "平方厘米")).toEqual(["unit_mismatch"]);
+  });
+
+  // 守卫（红前即过）：h2≤h1（水面不升反降）物理上不成立，规则安全落空 unsupported。
+  test.each([
+    ["一个长方体水缸的底面积是 50 平方厘米，放入一块石头后，水面从 10 厘米上升到 8 厘米，这块石头的体积是多少立方厘米？", 100],
+    ["一个长方体水缸的底面积是 50 平方厘米，放入一块石头后，水面从 9 厘米上升到 9 厘米，这块石头的体积是多少立方厘米？", 0],
+  ])("V5 h2≤h1（%s）不锚定 → unsupported_number_pattern", (stem, answer) => {
+    expect(validateWritten(stem, answer, "立方厘米")).toEqual(["unsupported_number_pattern"]);
+  });
+
+  // 跨规则回归：同尺寸 (4,3,2)，表面积题由 V2 锚定 52，体积题仍由旧 :232 规则锚定 24，
+  // 两规则尾词互斥、互不串锚。
+  test("回归：同尺寸 (4,3,2) 表面积→52（V2）与体积→24（旧规则）互不串", () => {
+    const surface = "一个长方体长 4 厘米、宽 3 厘米、高 2 厘米，它的表面积是多少平方厘米？";
+    const volume = "长方体长 4 厘米、宽 3 厘米、高 2 厘米，体积是多少立方厘米？";
+    expect(validateWritten(surface, 52, "平方厘米")).toEqual([]);
+    expect(validateWritten(surface, 24, "平方厘米")).toEqual(["incorrect_number_answer"]);
+    expect(validateWritten(volume, 24, "立方厘米")).toEqual([]);
+    expect(validateWritten(volume, 52, "立方厘米")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 跨规则回归：同尺寸 (5,4,3)，无盖鱼缸 74（V3）与封闭表面积 94（V2）各锚各的，
+  // 有盖/无盖关键词不同，互不串。
+  test("回归：(5,4,3) 无盖→74（V3）与封闭表面积→94（V2）互不串", () => {
+    const openTop = "做一个无盖的长方体玻璃鱼缸，长 5 厘米、宽 4 厘米、高 3 厘米，至少需要多少平方厘米的玻璃？";
+    const closed = "一个长方体长 5 厘米、宽 4 厘米、高 3 厘米，它的表面积是多少平方厘米？";
+    expect(validateWritten(openTop, 74, "平方厘米")).toEqual([]);
+    expect(validateWritten(openTop, 94, "平方厘米")).toEqual(["incorrect_number_answer"]);
+    expect(validateWritten(closed, 94, "平方厘米")).toEqual([]);
+    expect(validateWritten(closed, 74, "平方厘米")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 跨规则回归（红前即过）：正方体棱长题干不得落到长方体体积旧规则，反之亦然。
+  test("回归：正方体 V1 与长方体体积旧规则互不串", () => {
+    const cube = "一个正方体的棱长是 3 厘米，它的体积是多少立方厘米？";
+    const cuboid = "长方体长 3 厘米、宽 3 厘米、高 3 厘米，体积是多少立方厘米？";
+    expect(validateWritten(cube, 27, "立方厘米")).toEqual([]);
+    expect(validateWritten(cuboid, 27, "立方厘米")).toEqual([]);
+  });
+
+  // 跨规则回归（红前即过）：圆柱表面积（π 语境）不被 V2 串锚；
+  // 升果汁均分（小数除法）与水箱百分数旧题不被 V4 串锚。
+  test("回归：圆柱表面积与升语境旧题不被新规则串锚", () => {
+    const cylinderSurface = "圆柱底面半径是 2 厘米，高是 5 厘米（π 取 3.14），它的表面积是多少平方厘米？";
+    // 2×3.14×2×5 + 2×3.14×2² = 62.8 + 25.12 = 87.92
+    expect(validateWritten(cylinderSurface, 87.92, "平方厘米")).toEqual([]);
+    // 旧：1.5 升果汁平均分给 6 人 → 0.25 升（:697 小数除法规则）
+    expect(validateWritten("把 1.5 升果汁平均分给 6 个小朋友，每人分得多少升？", 0.25, "升")).toEqual([]);
+    // 旧：水箱 200 升，上午 20%、下午 30%，还剩 200×(1−50%)=100 升（:323 百分数规则）
+    expect(validateWritten("水箱原有 200 升水，上午用去 20%，下午又用去原有总量的 30%。还剩多少升？", 100, "升")).toEqual([]);
+  });
+});

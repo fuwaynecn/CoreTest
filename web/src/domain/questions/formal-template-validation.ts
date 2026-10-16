@@ -1152,6 +1152,96 @@ const numericRules: NumericRule[] = [
         : Number(captures[1]) / 100
     ),
   },
+  // P2-13h volume V1 cube-volume（geo-volume-04）：正方体体积 = 棱长³。
+  // 「正方体」「棱长」是与长方体体积旧规则（长/宽/高，:232）的区分词。
+  // 守卫：棱长 a ∈ 2..9（计划教学规模），越界形态安全落空 unsupported。
+  {
+    pattern: /^一个正方体的棱长是 (\d+) 厘米，它的体积是多少立方厘米？$/,
+    unit: "立方厘米",
+    accept: ([aText]) => {
+      const a = Number(aText);
+      return a >= 2 && a <= 9;
+    },
+    calculate: ([aText]) => {
+      const a = Number(aText);
+      return a * a * a;
+    },
+  },
+  // P2-13h volume V2 cuboid-surface-area（geo-volume-05）：长方体表面积
+  // = 2(lw+lh+wh)。与 :232 体积规则同句长/宽/高数字，但尾词「表面积…平方厘米」
+  // 与「体积…立方厘米」互斥；新规则尾置、独有词「一个长方体长…表面积」不遮蔽旧规则。
+  // 守卫：l、w、h 均为 2..20 正整数；表面积恒为偶数整数，无需偶积守卫。
+  {
+    pattern: /^一个长方体长 (\d+) 厘米、宽 (\d+) 厘米、高 (\d+) 厘米，它的表面积是多少平方厘米？$/,
+    unit: "平方厘米",
+    accept: ([lText, wText, hText]) => {
+      const l = Number(lText);
+      const w = Number(wText);
+      const h = Number(hText);
+      return l >= 2 && l <= 20 && w >= 2 && w <= 20 && h >= 2 && h <= 20;
+    },
+    calculate: ([lText, wText, hText]) => {
+      const l = Number(lText);
+      const w = Number(wText);
+      const h = Number(hText);
+      return 2 * (l * w + l * h + w * h);
+    },
+  },
+  // P2-13h volume V3 open-top-surface（geo-volume-06）：无盖长方体鱼缸玻璃面积
+  // = lw+2lh+2wh（5 个面，少一个顶面）。「无盖」「玻璃」为独有词，与 V2 封闭
+  // 表面积（6 个面）互斥。守卫：l、w、h 均为 2..20 正整数。
+  {
+    pattern: /^做一个无盖的长方体玻璃鱼缸，长 (\d+) 厘米、宽 (\d+) 厘米、高 (\d+) 厘米，至少需要多少平方厘米的玻璃？$/,
+    unit: "平方厘米",
+    accept: ([lText, wText, hText]) => {
+      const l = Number(lText);
+      const w = Number(wText);
+      const h = Number(hText);
+      return l >= 2 && l <= 20 && w >= 2 && w <= 20 && h >= 2 && h <= 20;
+    },
+    calculate: ([lText, wText, hText]) => {
+      const l = Number(lText);
+      const w = Number(wText);
+      const h = Number(hText);
+      return l * w + 2 * l * h + 2 * w * h;
+    },
+  },
+  // P2-13h volume V4a capacity-unit（geo-volume-07，catalog 唯一上目录方向，
+  // 控制器最终裁决）：N 升 → N×1000 毫升，静态单位统一「毫升」。
+  {
+    pattern: /^(\d+) 升 = 多少毫升？$/,
+    unit: "毫升",
+    accept: ([nText]) => Number(nText) >= 1,
+    calculate: ([nText]) => Number(nText) * 1000,
+  },
+  // P2-13h volume V4b（最终裁决：仅 validator 测试覆盖，不上 catalog）：
+  // N 立方厘米 → N÷1000 升。守卫 n%1000===0（整数答案；4500→4.5 安全落空）。
+  // 与 V4a 拆成两条规则以保持各自动态答案单位静态（毫升/升），避免跨实例混单位。
+  {
+    pattern: /^(\d+) 立方厘米 = 多少升？$/,
+    unit: "升",
+    accept: ([nText]) => {
+      const n = Number(nText);
+      return n >= 1000 && n % 1000 === 0;
+    },
+    calculate: ([nText]) => Number(nText) / 1000,
+  },
+  // P2-13h volume V5 displacement-volume（geo-volume-08）：排水法石头体积
+  // = 底面积 ×（h2−h1）。「水面从…上升到」为独有词。守卫 h2>h1（水面必须上升）、
+  // S、h1、h2 为正整数且 S≤200；h2≤h1 形态安全落空 unsupported。
+  {
+    pattern: /^一个长方体水缸的底面积是 (\d+) 平方厘米，放入一块石头后，水面从 (\d+) 厘米上升到 (\d+) 厘米，这块石头的体积是多少立方厘米？$/,
+    unit: "立方厘米",
+    accept: ([sText, h1Text, h2Text]) => {
+      const s = Number(sText);
+      const h1 = Number(h1Text);
+      const h2 = Number(h2Text);
+      return s >= 1 && s <= 200 && h1 >= 1 && h2 >= 1 && h2 > h1;
+    },
+    calculate: ([sText, h1Text, h2Text]) => (
+      Number(sText) * (Number(h2Text) - Number(h1Text))
+    ),
+  },
 ];
 
 function numberProof(stem: string): NumberProof | null {

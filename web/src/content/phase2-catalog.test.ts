@@ -100,6 +100,7 @@ const expectedIds = [
   "app-di-05", "app-di-06", "app-di-07",
   "num-fraction-07", "num-fraction-08", "num-fraction-09",
   "geo-area-05", "geo-area-06", "geo-area-07",
+  "geo-volume-04", "geo-volume-05", "geo-volume-06", "geo-volume-07", "geo-volume-08",
 ];
 
 const regionalIds = [
@@ -123,19 +124,19 @@ function countBy<K extends "contentTier" | "domain" | "difficulty">(key: K) {
   }, {});
 }
 
-test("contains the approved exact 285-template blueprint", () => {
+test("contains the approved exact 290-template blueprint", () => {
   expect(phase2Catalog.map((template) => template.id)).toEqual(expectedIds);
-  expect(countBy("contentTier")).toEqual({ core: 260, regional: 18, transition: 7 });
+  expect(countBy("contentTier")).toEqual({ core: 265, regional: 18, transition: 7 });
   expect(phase2Skills).toHaveLength(54);
   expect(countBy("domain")).toEqual({
     number_operations: 72,
     equation_algebra: 25,
-    geometry_space: 63,
+    geometry_space: 68,
     data_statistics: 32,
     application_modeling: 56,
     thinking_habits: 37,
   });
-  expect(countBy("difficulty")).toEqual({ 1: 51, 2: 130, 3: 83, 4: 21 });
+  expect(countBy("difficulty")).toEqual({ 1: 51, 2: 135, 3: 83, 4: 21 });
   expect(phase2Catalog.filter(({ contentTier }) => contentTier === "regional")
     .map(({ id }) => id)).toEqual(regionalIds);
   expect(phase2Catalog.filter(({ contentTier }) => contentTier === "transition")
@@ -275,7 +276,7 @@ test("rejects a wrong generated answer for every supported numeric template", ()
     && (template.answerSpecPattern as { kind?: string }).kind === "number"
   ));
 
-  expect(numberTemplates).toHaveLength(183);
+  expect(numberTemplates).toHaveLength(188);
   for (const template of numberTemplates) {
     const answers = template.variantSpec.variables.answer;
     const mutated = {
@@ -328,7 +329,7 @@ test("rejects a wrong unit for every canonical numeric target without metadata d
     (template.answerSpecPattern as { kind?: string }).kind === "number"
   ));
 
-  expect(numericTemplates).toHaveLength(198);
+  expect(numericTemplates).toHaveLength(203);
   for (const template of numericTemplates) {
     const answer = template.answerSpecPattern as {
       kind: "number"; value: unknown; tolerance: number; unit: string | null;
