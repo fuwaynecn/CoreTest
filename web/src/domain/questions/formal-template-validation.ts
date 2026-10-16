@@ -1865,10 +1865,11 @@ function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOptio
     return optionsEqualTo(options, missing);
   }
 
-  // P2-13d rotation geo-rot-02：辨认顺时针/逆时针。三个情境词写进窄正则交替：
-  // 指针正常走动、拧紧瓶盖、开水龙头放水为顺时针；构造的「指针倒着走」为逆时针。
+  // P2-13d rotation geo-rot-02：辨认顺时针/逆时针。四个情境词写进窄正则交替：
+  // 时针正常走动、拧紧瓶盖、分针正常走动为顺时针（钟表指针正常走动=顺时针）；
+  // 构造的「指针倒着走」为逆时针，该负向由校验器测试直接覆盖。
   const rot02 = question.match(
-    /^(钟表上的指针正常走动|拧紧饮料瓶瓶盖时|打开水龙头放水时把手这样转动|钟表上的指针倒着走)(?:，这样转动)?是什么方向？$/,
+    /^(钟表上的指针正常走动|拧紧饮料瓶瓶盖时|钟表上的分针正常走动|钟表上的指针倒着走)，是往哪个方向转动？$/,
   );
   if (rot02) {
     return optionsEqualTo(options, rot02[1] === "钟表上的指针倒着走" ? "逆时针" : "顺时针");
@@ -1884,8 +1885,12 @@ function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOptio
   }
 
   // P2-13d rotation geo-rot-07：旋转性质固定结论。旋转是刚体运动，形状和大小都
-  // 不变，只有位置和方向改变；窄正则钉死问法与正确项字面。
-  const rot07 = question.match(/^一个图形经过旋转后，下面哪个说法正确？$/);
+  // 不变，只有位置和方向改变；题干可带三种旋转物体前缀之一（电风扇叶片/风车叶片/
+  // 飞机螺旋桨），使 3 个 lockstep 实例题干互异，也兼容无前缀的固定结论问法；
+  // 正确项字面钉死。
+  const rot07 = question.match(
+    /^(?:电风扇的叶片在旋转。|风车的叶片在旋转。|飞机的螺旋桨在旋转。)?一个图形经过旋转后，下面哪个说法正确？$/,
+  );
   if (rot07) return optionsEqualTo(options, "形状和大小都不变，位置和方向改变");
 
   return null;

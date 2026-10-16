@@ -1306,18 +1306,19 @@ describe("rotation 旋转锚定规则（P2-13d）", () => {
   });
 
   // geo-rot-02 方向辨认：3 个顺时针情境统一锚定「顺时针」（放 A）。
+  // 实例 1 时针正常走动、实例 2 拧紧瓶盖（righty-tighty）、实例 3 分针正常走动。
   test.each([
-    "钟表上的指针正常走动，这样转动是什么方向？A. 顺时针  B. 逆时针  C. 平移  D. 翻转",
-    "拧紧饮料瓶瓶盖时，这样转动是什么方向？A. 顺时针  B. 逆时针  C. 平移  D. 翻转",
-    "打开水龙头放水时把手这样转动是什么方向？A. 顺时针  B. 逆时针  C. 平移  D. 翻转",
+    "钟表上的指针正常走动，是往哪个方向转动？A. 顺时针  B. 逆时针  C. 平移  D. 翻转",
+    "拧紧饮料瓶瓶盖时，是往哪个方向转动？A. 顺时针  B. 逆时针  C. 平移  D. 翻转",
+    "钟表上的分针正常走动，是往哪个方向转动？A. 顺时针  B. 逆时针  C. 平移  D. 翻转",
   ])("geo-rot-02 顺时针情境（%s）A 命中，逆时针被拒", (stem) => {
     expect(validateChoice(stem, "A")).toEqual([]);
     expect(validateChoice(stem, "B")).toEqual(["incorrect_choice_answer"]);
   });
 
-  // 逆时针对逆方向的重算用构造 stem 覆盖：指针倒着走 → 逆时针。
+  // 逆时针对逆方向的重算用构造 stem 覆盖：指针倒着走 → 逆时针（该负向已被本测试直接覆盖）。
   test("geo-rot-02 钟表指针倒着走锚定逆时针，顺时针被拒", () => {
-    const stem = "钟表上的指针倒着走，这样转动是什么方向？"
+    const stem = "钟表上的指针倒着走，是往哪个方向转动？"
       + "A. 顺时针  B. 逆时针  C. 平移  D. 翻转";
     expect(validateChoice(stem, "B")).toEqual([]);
     expect(validateChoice(stem, "A")).toEqual(["incorrect_choice_answer"]);
@@ -1342,9 +1343,15 @@ describe("rotation 旋转锚定规则（P2-13d）", () => {
     expect(validateChoice(stem, "B")).toEqual(["incorrect_choice_answer"]);
   });
 
-  // geo-rot-07 旋转性质：固定结论选择。
-  test("geo-rot-07 旋转不改变形状和大小：正确项 []，错误字母 incorrect_choice_answer", () => {
-    const stem = "一个图形经过旋转后，下面哪个说法正确？"
+  // geo-rot-07 旋转性质：固定结论选择。题干允许三种旋转物体前缀（电风扇叶片/风车叶片/
+  // 飞机螺旋桨）使 3 个 lockstep 实例题干互异，也兼容无前缀的原固定结论问法。
+  test.each([
+    "电风扇的叶片在旋转。一个图形经过旋转后，下面哪个说法正确？",
+    "风车的叶片在旋转。一个图形经过旋转后，下面哪个说法正确？",
+    "飞机的螺旋桨在旋转。一个图形经过旋转后，下面哪个说法正确？",
+    "一个图形经过旋转后，下面哪个说法正确？",
+  ])("geo-rot-07 旋转不改变形状和大小（%s）正确项 []，错误字母 incorrect_choice_answer", (prefixStem) => {
+    const stem = prefixStem
       + "A. 形状和大小都不变，位置和方向改变  B. 形状发生改变  C. 大小发生改变  D. 只有位置改变，方向不变";
     expect(validateChoice(stem, "A")).toEqual([]);
     expect(validateChoice(stem, "B")).toEqual(["incorrect_choice_answer"]);

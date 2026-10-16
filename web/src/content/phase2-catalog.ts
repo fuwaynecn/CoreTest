@@ -2557,12 +2557,12 @@ const catalogInputs: TemplateInput[] = [
       c: ["旋转方向", "旋转中心", "旋转角度"],
     },
   },
-  // P2-13d rotation geo-rot-02：辨认顺/逆时针。三个情境（钟表指针正常走动、拧紧饮料瓶
-  // 瓶盖、打开水龙头放水）都对应顺时针，窄正则只锚定这三种起句与构造的「倒着走」。
+  // P2-13d rotation geo-rot-02：辨认顺/逆时针。三个情境（钟表时针正常走动、拧紧饮料瓶
+  // 瓶盖、钟表分针正常走动）都无歧义地对应顺时针，窄正则只锚定这三种起句与构造的「倒着走」。
   {
     id: "geo-rot-02", skillCode: "rotation", domain: "geometry_space",
     difficulty: 1, structureTag: "rot-direction", answerMode: "choice",
-    stemPattern: "{{scene}}，这样转动是什么方向？"
+    stemPattern: "{{scene}}，是往哪个方向转动？"
       + "A. 顺时针  B. 逆时针  C. 平移  D. 翻转",
     answerSpecPattern: choiceAnswer("A"),
     explanationPattern: "{{reason}}，与钟表指针正常走动的方向一致，是顺时针，选 A。",
@@ -2570,12 +2570,12 @@ const catalogInputs: TemplateInput[] = [
       scene: [
         "钟表上的指针正常走动",
         "拧紧饮料瓶瓶盖时",
-        "打开水龙头放水时把手这样转动",
+        "钟表上的分针正常走动",
       ],
       reason: [
         "钟表上的指针正常走动时向右转动",
         "拧紧饮料瓶瓶盖时把手向右转动",
-        "打开水龙头放水时把手向右转动",
+        "钟表上的分针正常走动时向右转动",
       ],
     },
   },
@@ -2593,7 +2593,7 @@ const catalogInputs: TemplateInput[] = [
     variables: {
       ac: [2, 4, 1], ar: [5, 5, 2],
       bc: [5, 4, 1], br: [5, 2, 5],
-      a: ["(6,5)", "(3,4)", "(2,2)"],
+      a: ["(6,5)", "(4,3)", "(2,5)"],
       b: ["(2,2)", "(1,5)", "(4,2)"],
       c: ["(2,8)", "(7,5)", "(-2,2)"],
       d: ["(-1,5)", "(4,8)", "(1,-1)"],
@@ -2666,18 +2666,18 @@ const catalogInputs: TemplateInput[] = [
     },
   },
   // P2-13d rotation geo-rot-07：旋转的性质（固定结论）。旋转是刚体运动，形状和大小都
-  // 不变，只有位置和方向改变。题干无可变数据，用 explanation 中的 {{shape}} 承载 3 个
-  // lockstep 实例（题干保持锚定字面不变）。
+  // 不变，只有位置和方向改变。题干用旋转物体 {{object}}（电风扇叶片/风车叶片/螺旋桨）
+  // 承载 3 个 lockstep 实例，三实例题干互异、结论与选项冻结不变。
   {
     id: "geo-rot-07", skillCode: "rotation", domain: "geometry_space",
     difficulty: 1, structureTag: "rot-property", answerMode: "choice",
-    stemPattern: "一个图形经过旋转后，下面哪个说法正确？"
+    stemPattern: "{{object}}在旋转。一个图形经过旋转后，下面哪个说法正确？"
       + "A. 形状和大小都不变，位置和方向改变  B. 形状发生改变  C. 大小发生改变  D. 只有位置改变，方向不变",
     answerSpecPattern: choiceAnswer("A"),
-    explanationPattern: "旋转只改变图形的位置和方向，不改变形状和大小；把{{shape}}旋转后，"
-      + "它的形状、大小与原来完全相同，所以选 A。",
+    explanationPattern: "旋转只改变图形的位置和方向，不改变形状和大小；{{object}}旋转时"
+      + "形状、大小也始终不变，所以选 A。",
     variables: {
-      shape: ["一个三角形", "一个正方形", "一面小旗"],
+      object: ["电风扇的叶片", "风车的叶片", "飞机的螺旋桨"],
     },
   },
 ];
