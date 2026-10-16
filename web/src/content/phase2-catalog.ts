@@ -2834,6 +2834,43 @@ const catalogInputs: TemplateInput[] = [
       a: [8, 6, 9], b: [12, 8, 15], g: [4, 2, 3], answer: [3, 4, 5],
     },
   },
+  {
+    id: "geo-area-05", skillCode: "area", domain: "geometry_space",
+    difficulty: 2, structureTag: "parallelogram-area", answerMode: "written",
+    stemPattern: "一个平行四边形的底是 {{base}} 厘米，这条底边上的高是 {{height}} 厘米，{{slant}}面积是多少平方厘米？",
+    answerSpecPattern: numberAnswer("平方厘米"),
+    explanationPattern: "平行四边形的面积等于底乘与它对应的高，{{base}} × {{height}} = {{answer}} 平方厘米。",
+    variables: {
+      base: [6, 12, 8],
+      height: [4, 5, 5],
+      slant: ["", "", "另一条边长 7 厘米。"],
+      answer: [24, 60, 40],
+    },
+  },
+  {
+    id: "geo-area-06", skillCode: "area", domain: "geometry_space",
+    difficulty: 2, structureTag: "trapezoid-area", answerMode: "written",
+    stemPattern: "一个梯形的上底是 {{upper}} 厘米、下底是 {{lower}} 厘米，高是 {{height}} 厘米，面积是多少平方厘米？",
+    answerSpecPattern: numberAnswer("平方厘米"),
+    explanationPattern: "梯形面积等于上底与下底的和乘高再除以 2，({{upper}} + {{lower}}) × {{height}} ÷ 2 = {{answer}} 平方厘米。",
+    variables: {
+      upper: [3, 6, 7],
+      lower: [5, 8, 9],
+      height: [4, 5, 6],
+      answer: [16, 35, 48],
+    },
+  },
+  {
+    id: "geo-area-07", skillCode: "area", domain: "geometry_space",
+    difficulty: 2, structureTag: "area-unit-convert", answerMode: "written",
+    stemPattern: "{{source}} = 多少平方分米？",
+    answerSpecPattern: numberAnswer("平方分米"),
+    explanationPattern: "相邻面积单位之间的进率是 100：平方米、平方分米、平方厘米相邻两级相差 100 倍，结果是 {{answer}} 平方分米。",
+    variables: {
+      source: ["6 平方米", "8 平方米", "500 平方厘米"],
+      answer: [600, 800, 5],
+    },
+  },
 ];
 
 export const phase2Catalog: ReviewedTemplate[] = catalogInputs.map(reviewed);

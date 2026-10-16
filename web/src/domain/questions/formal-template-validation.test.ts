@@ -1590,3 +1590,113 @@ describe("fraction 分数性质补题锚定规则（P2-13f）", () => {
     expect(validateWritten(stem, 2)).toEqual(["incorrect_number_answer"]);
   });
 });
+
+describe("area 面积补题锚定规则（P2-13g）", () => {
+  // A1 parallelogram-area（geo-area-05）：平行四边形面积 = 底 × 对应高。
+  // 「平行四边形」是与三角形（÷2）旧规则的区分词。
+  test.each([
+    ["一个平行四边形的底是 6 厘米，这条底边上的高是 4 厘米，面积是多少平方厘米？", 24],
+    ["一个平行四边形的底是 12 厘米，这条底边上的高是 5 厘米，面积是多少平方厘米？", 60],
+  ])("A1 平行四边形（%s）正确答案 []，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "平方厘米")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "平方厘米")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 干扰形态：第三捕获是「另一条边（斜边）长」，只捕获不参与计算；底 × 斜边
+  // （8×7=56）必须是错误答案，正确答案仍为 8×5=40。
+  test("A1 斜边干扰实例：斜边被捕获但不参与计算，底×斜边为错误答案", () => {
+    const stem = "一个平行四边形的底是 8 厘米，这条底边上的高是 5 厘米，另一条边长 7 厘米。面积是多少平方厘米？";
+    expect(validateWritten(stem, 40, "平方厘米")).toEqual([]);
+    expect(validateWritten(stem, 56, "平方厘米")).toEqual(["incorrect_number_answer"]);
+  });
+
+  test("A1 单位负向：缺单位报 missing_unit，错单位报 unit_mismatch", () => {
+    const stem = "一个平行四边形的底是 6 厘米，这条底边上的高是 4 厘米，面积是多少平方厘米？";
+    expect(validateWritten(stem, 24)).toEqual(["missing_unit"]);
+    expect(validateWritten(stem, 24, "平方米")).toEqual(["unit_mismatch"]);
+  });
+
+  // A2 trapezoid-area（geo-area-06）：梯形面积 = (上底+下底)×高÷2。
+  test.each([
+    ["一个梯形的上底是 3 厘米、下底是 5 厘米，高是 4 厘米，面积是多少平方厘米？", 16],
+    ["一个梯形的上底是 6 厘米、下底是 8 厘米，高是 5 厘米，面积是多少平方厘米？", 35],
+    ["一个梯形的上底是 7 厘米、下底是 9 厘米，高是 6 厘米，面积是多少平方厘米？", 48],
+  ])("A2 梯形（%s）正确答案 []，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "平方厘米")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "平方厘米")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 负向：忘记 ÷2（(a+b)×h）与只算 a×h 都必须被拒。
+  test("A2 忘记 ÷2（(a+b)×h=32）与只算 a×h=12 均报 incorrect_number_answer", () => {
+    const stem = "一个梯形的上底是 3 厘米、下底是 5 厘米，高是 4 厘米，面积是多少平方厘米？";
+    expect(validateWritten(stem, 32, "平方厘米")).toEqual(["incorrect_number_answer"]);
+    expect(validateWritten(stem, 12, "平方厘米")).toEqual(["incorrect_number_answer"]);
+  });
+
+  test("A2 单位负向：缺单位报 missing_unit，错单位报 unit_mismatch", () => {
+    const stem = "一个梯形的上底是 6 厘米、下底是 8 厘米，高是 5 厘米，面积是多少平方厘米？";
+    expect(validateWritten(stem, 35)).toEqual(["missing_unit"]);
+    expect(validateWritten(stem, 35, "平方分米")).toEqual(["unit_mismatch"]);
+  });
+
+  // 守卫（红前即过）：(a+b)×h 为奇数（(2+3)×3=15）时半整数答案不被教学集合支持，
+  // 规则必须安全落空 unsupported_number_pattern。
+  test("A2 (a+b)×h 为奇数（2,3,3→15）不锚定 → unsupported_number_pattern", () => {
+    const stem = "一个梯形的上底是 2 厘米、下底是 3 厘米，高是 3 厘米，面积是多少平方厘米？";
+    expect(validateWritten(stem, 7.5, "平方厘米")).toEqual(["unsupported_number_pattern"]);
+  });
+
+  // A3 area-unit-convert（geo-area-07）：一条规则承载两个方向，答案统一「平方分米」。
+  test.each([
+    ["6 平方米 = 多少平方分米？", 600],
+    ["8 平方米 = 多少平方分米？", 800],
+    ["500 平方厘米 = 多少平方分米？", 5],
+  ])("A3 相邻面积单位换算（%s）正确答案 []，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "平方分米")).toEqual([]);
+    expect(validateWritten(stem, answer + 1, "平方分米")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 负向：6 平方米答 60（按长度进率）或 6000（×1000）均被拒。
+  test("A3 6 平方米答 60/6000 均报 incorrect_number_answer", () => {
+    const stem = "6 平方米 = 多少平方分米？";
+    expect(validateWritten(stem, 60, "平方分米")).toEqual(["incorrect_number_answer"]);
+    expect(validateWritten(stem, 6000, "平方分米")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 守卫（红前即过）：平方厘米→平方分米要求 n%100===0；250 非整除（答案 2.5）
+  // 不属于相邻一步整数答案，安全落空。
+  test("A3 250 平方厘米非整除不锚定 → unsupported_number_pattern", () => {
+    const stem = "250 平方厘米 = 多少平方分米？";
+    expect(validateWritten(stem, 2.5, "平方分米")).toEqual(["unsupported_number_pattern"]);
+  });
+
+  test("A3 单位负向：缺单位报 missing_unit，答平方厘米报 unit_mismatch", () => {
+    const stem = "6 平方米 = 多少平方分米？";
+    expect(validateWritten(stem, 600)).toEqual(["missing_unit"]);
+    expect(validateWritten(stem, 600, "平方厘米")).toEqual(["unit_mismatch"]);
+  });
+
+  // 回归（红前即过）：同数字的三角形仍由旧规则 ÷2 锚定得 12，
+  // 平行四边形新规则不得串锚到三角形题干。
+  test("回归：三角形底 6 高 4 仍 ÷2=12，不被平行四边形规则串锚", () => {
+    const stem = "三角形底 6 厘米，高 4 厘米，面积是多少平方厘米？";
+    expect(validateWritten(stem, 12, "平方厘米")).toEqual([]);
+    expect(validateWritten(stem, 24, "平方厘米")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 回归（红前即过）：长方形面积旧题干仍由旧规则锚定。
+  test("回归：长方形长 9 宽 4 仍 36，不被新规则串锚", () => {
+    const stem = "长方形卡片长 9 厘米，宽 4 厘米，面积是多少平方厘米？";
+    expect(validateWritten(stem, 36, "平方厘米")).toEqual([]);
+    expect(validateWritten(stem, 24, "平方厘米")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // 回归（红前即过）：长度换算旧题（米/厘米，进率 100）不被面积换算规则串锚；
+  // 而面积题干也不会落到长度规则。
+  test("回归：长度换算旧题不与面积换算规则互串", () => {
+    const lengthStem = "步道前段长 5 米，后段长 40 厘米。全长是多少米？请写单位。";
+    expect(validateWritten(lengthStem, 5.4, "米")).toEqual([]);
+    const areaStem = "6 平方米 = 多少平方分米？";
+    expect(validateWritten(areaStem, 6, "米")).toEqual(["unit_mismatch", "incorrect_number_answer"]);
+  });
+});

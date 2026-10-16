@@ -1099,6 +1099,59 @@ const numericRules: NumericRule[] = [
       return b / gcdOf(a, b);
     },
   },
+  // P2-13g area A1 parallelogram-area（geo-area-05）：平行四边形面积 = 底 × 对应高。
+  // 「一个平行四边形…这条底边上的高」是与三角形（÷2）、长方形旧规则的区分词；可选
+  // 第三捕获是斜边「另一条边长」干扰信息，只被捕获、绝不参与计算（底×斜边必须是
+  // 错误答案）。守卫：底、高均为 2..30 正整数、积 ≤900；斜边有无与数值都不影响锚定。
+  {
+    pattern: /^一个平行四边形的底是 (\d+) 厘米，这条底边上的高是 (\d+) 厘米，(?:另一条边长 (\d+) 厘米。)?面积是多少平方厘米？$/,
+    unit: "平方厘米",
+    accept: ([bText, hText]) => {
+      const b = Number(bText);
+      const h = Number(hText);
+      return b >= 2 && b <= 30 && h >= 2 && h <= 30 && b * h <= 900;
+    },
+    calculate: ([bText, hText]) => Number(bText) * Number(hText),
+  },
+  // P2-13g area A2 trapezoid-area（geo-area-06）：梯形面积 = (上底+下底)×高÷2。
+  // 「梯形/上底/下底」为独有词。守卫：上底、下底、高均为 2..30 正整数，且
+  // (a+b)×h 为偶数（计划只支持整数答案；奇数积半整数形态安全落空 unsupported）。
+  {
+    pattern: /^一个梯形的上底是 (\d+) 厘米、下底是 (\d+) 厘米，高是 (\d+) 厘米，面积是多少平方厘米？$/,
+    unit: "平方厘米",
+    accept: ([aText, bText, hText]) => {
+      const a = Number(aText);
+      const b = Number(bText);
+      const h = Number(hText);
+      return a >= 2 && a <= 30 && b >= 2 && b <= 30 && h >= 2 && h <= 30
+        && ((a + b) * h) % 2 === 0;
+    },
+    calculate: ([aText, bText, hText]) => (
+      (Number(aText) + Number(bText)) * Number(hText) / 2
+    ),
+  },
+  // P2-13g area A3 area-unit-convert（geo-area-07，控制器 Ruling）：相邻面积单位
+  // 换算，一条规则承载两个方向，静态单位统一「平方分米」（参照锯木头双向规则的交替
+  // 捕获定向写法，与 length-conversion 的米/厘米题干零重叠）。第一分支（捕获组 1
+  // 命中）平方米→平方分米 ×100；第二分支（捕获组 2 命中）平方厘米→平方分米 ÷100，
+  // 守卫 n%100===0 且 n≥100（相邻一步、整数答案；250 等非整除形态安全落空）。
+  {
+    pattern: /^(\d+) 平方米 = 多少平方分米？$|^(\d+) 平方厘米 = 多少平方分米？$/,
+    unit: "平方分米",
+    accept: (captures) => {
+      if (captures[0] !== undefined) return Number(captures[0]) >= 1;
+      if (captures[1] !== undefined) {
+        const n = Number(captures[1]);
+        return n >= 100 && n % 100 === 0;
+      }
+      return false;
+    },
+    calculate: (captures) => (
+      captures[0] !== undefined
+        ? Number(captures[0]) * 100
+        : Number(captures[1]) / 100
+    ),
+  },
 ];
 
 function numberProof(stem: string): NumberProof | null {
