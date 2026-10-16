@@ -997,6 +997,20 @@ const numericRules: NumericRule[] = [
       return captures[0] !== undefined ? n - 1 : n + 1;
     },
   },
+  // P2-13d rotation R2：钟面时针从 a 时走到 b 时的旋转角 = (b−a) × 30 度
+  // （每大格 30°）。小时钉死在 1–12；守卫 b>a 且 b−a≤6（不跨 12 点、不取大于
+  // 半圈的大格数），越界（倒序/跨 7 大格）安全落空 unsupported_number_pattern。
+  // 与既有「两针较小夹角」规则（时针指向 X、分针指向 12）句式零重叠。
+  {
+    pattern: /^钟面上时针从 (1[0-2]|[1-9]) 时走到 (1[0-2]|[1-9]) 时，时针旋转了多少度？$/,
+    unit: "度",
+    accept: ([fromText, toText]) => {
+      const from = Number(fromText);
+      const to = Number(toText);
+      return to > from && to - from <= 6;
+    },
+    calculate: ([fromText, toText]) => (Number(toText) - Number(fromText)) * 30,
+  },
 ];
 
 function numberProof(stem: string): NumberProof | null {
@@ -1794,6 +1808,85 @@ function renderedChoiceProof(stem: string, options: ChoiceOption[]): ChoiceOptio
     });
     return matches.length === 1 ? matches : [];
   }
+
+  // P2-13d rotation geo-rot-03：线段 AB 绕端点 A（旋转中心）顺/逆转 90°，
+  // 求端点 B 的对应数对。分支从捕获的 A=(a,b)、B=(x,y) 与方向词重算 B′，绝不从
+  // 选项文本猜答案。数对 (列,行)，列向右 +、行向上 +；令 u=x−a、v=y−b：
+  // 顺转 (u,v)→(v,−u) 即 (a+v,b−u)，逆转→(−v,u) 即 (a−v,b+u)。中心、动点与
+  // 结果的列/行都必须是 1..10 正整数，否则安全落空 []。
+  const rot03 = question.match(
+    /^方格图（行从下往上编号）中，线段 AB 的两个端点用数对表示分别是 A\((\d+),(\d+)\) 和 B\((\d+),(\d+)\)。把线段 AB 绕点 A (顺时针|逆时针)旋转 90°，旋转后端点 B 的对应位置用数对表示是哪一个？$/,
+  );
+  if (rot03) {
+    const [a, b, x, y] = [rot03[1], rot03[2], rot03[3], rot03[4]].map(Number);
+    const u = x - a;
+    const v = y - b;
+    const target = rot03[5] === "顺时针"
+      ? { x: a + v, y: b - u }
+      : { x: a - v, y: b + u };
+    if ([a, b, x, y, target.x, target.y].some((value) =>
+      !Number.isInteger(value) || value < 1 || value > 10)) return [];
+    return optionsEqualTo(options, `(${target.x},${target.y})`);
+  }
+
+  // P2-13d rotation geo-rot-04：给点 P=(x,y) 与其顺转 90° 后的 P′=(x′,y′)，
+  // 反解旋转中心 O=(a,b)。由 x′=a+y−b、y′=b−x+a 联立得
+  // a=(x+x′+y′−y)/2、b=(x+y+y′−x′)/2。a、b 必须为 1..10 正整数；半整数中心
+  // （分子为奇数）安全落空 []，P 与 P′ 重合时中心不唯一也落空。选项形态钉死
+  // 「O(a,b)」，唯一字面相等才算锚定。
+  const rot04 = question.match(
+    /^方格图（行从下往上编号）中，点 P\((\d+),(\d+)\) 绕某个点顺时针旋转 90° 后的对应点是 P′\((\d+),(\d+)\)。这个旋转中心点 O 用数对表示是哪一个？$/,
+  );
+  if (rot04) {
+    const [x, y, xp, yp] = [rot04[1], rot04[2], rot04[3], rot04[4]].map(Number);
+    if (x === xp && y === yp) return [];
+    const twiceA = x + xp + yp - y;
+    const twiceB = x + y + yp - xp;
+    if (twiceA % 2 !== 0 || twiceB % 2 !== 0) return [];
+    const a = twiceA / 2;
+    const b = twiceB / 2;
+    if (a < 1 || a > 10 || b < 1 || b > 10) return [];
+    return optionsEqualTo(options, `O(${a},${b})`);
+  }
+
+  // P2-13d rotation geo-rot-01：辨认旋转描述中缺少的三要素之一。对「把三角形…，
+  // 缺少哪个旋转要素？」的描述部分只检测中心（绕点 X/以点…为中心）、方向
+  // （顺时针|逆时针）、角度（N° 或旋转 N 度）三类特征；恰好检测到 2 类时返回
+  // 缺失那一类的标签，3 类都在或不足 2 类时安全落空 []。
+  const rot01 = question.match(/^把三角形(.+?)，缺少哪个旋转要素？$/);
+  if (rot01) {
+    const description = rot01[1];
+    const hasCenter = /绕点\s*[A-Z]|以点.+?为中心/.test(description);
+    const hasDirection = /顺时针|逆时针/.test(description);
+    const hasAngle = /\d+\s*°|旋转\s*\d+\s*度/.test(description);
+    const presentCount = [hasCenter, hasDirection, hasAngle].filter(Boolean).length;
+    if (presentCount !== 2) return [];
+    const missing = !hasCenter ? "旋转中心" : !hasDirection ? "旋转方向" : "旋转角度";
+    return optionsEqualTo(options, missing);
+  }
+
+  // P2-13d rotation geo-rot-02：辨认顺时针/逆时针。三个情境词写进窄正则交替：
+  // 指针正常走动、拧紧瓶盖、开水龙头放水为顺时针；构造的「指针倒着走」为逆时针。
+  const rot02 = question.match(
+    /^(钟表上的指针正常走动|拧紧饮料瓶瓶盖时|打开水龙头放水时把手这样转动|钟表上的指针倒着走)(?:，这样转动)?是什么方向？$/,
+  );
+  if (rot02) {
+    return optionsEqualTo(options, rot02[1] === "钟表上的指针倒着走" ? "逆时针" : "顺时针");
+  }
+
+  // P2-13d rotation geo-rot-05：辨别旋转得到的图案。分支内小映射表按捕获的箭头
+  // shape 语义重算顺转 90° 后的符号（↑→→、→→↓、↓→←），不是按实例写死答案；
+  // 平移（原符号）、翻转、缩放（放大同符号）干扰项由选项唯一性自然排除。
+  const rot05 = question.match(/^把图形「([↑→↓])」绕中心顺时针旋转 90°，得到的图形是哪一个？$/);
+  if (rot05) {
+    const rotatedShape: Record<string, string> = { "↑": "→", "→": "↓", "↓": "←" };
+    return optionsEqualTo(options, `「${rotatedShape[rot05[1]]}」`);
+  }
+
+  // P2-13d rotation geo-rot-07：旋转性质固定结论。旋转是刚体运动，形状和大小都
+  // 不变，只有位置和方向改变；窄正则钉死问法与正确项字面。
+  const rot07 = question.match(/^一个图形经过旋转后，下面哪个说法正确？$/);
+  if (rot07) return optionsEqualTo(options, "形状和大小都不变，位置和方向改变");
 
   return null;
 }

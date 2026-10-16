@@ -1181,3 +1181,172 @@ describe("tree-planting 植树问题锚定规则（P2-13c）", () => {
     expect(validateChoice(stem, "B")).toEqual(["incorrect_choice_answer"]);
   });
 });
+
+describe("rotation 旋转锚定规则（P2-13d）", () => {
+  type ChoiceLetter = "A" | "B" | "C" | "D";
+
+  const validateChoice = (stem: string, letter: ChoiceLetter) => (
+    renderedQuestionErrors({ answerMode: "choice", stem, answerSpec: choiceSpec(letter) })
+  );
+
+  // R2 geo-rot-06 钟面指针旋转角度：从 a 时走到 b 时，(b−a) × 30 度。
+  test.each([
+    ["钟面上时针从 3 时走到 6 时，时针旋转了多少度？", 90],
+    ["钟面上时针从 2 时走到 6 时，时针旋转了多少度？", 120],
+    ["钟面上时针从 6 时走到 12 时，时针旋转了多少度？", 180],
+  ])("R2 钟面旋转角（%s）正确答案无错误，错误答案报 incorrect_number_answer", (stem, answer) => {
+    expect(validateWritten(stem, answer, "度")).toEqual([]);
+    expect(validateWritten(stem, answer + 30, "度")).toEqual(["incorrect_number_answer"]);
+  });
+
+  // R2 单位负向：无单位报 missing_unit，错配「米」报 unit_mismatch。
+  test("R2 缺单位报 missing_unit，错单位报 unit_mismatch", () => {
+    const stem = "钟面上时针从 3 时走到 6 时，时针旋转了多少度？";
+    expect(validateWritten(stem, 90)).toEqual(["missing_unit"]);
+    expect(validateWritten(stem, 90, "米")).toEqual(["unit_mismatch"]);
+  });
+
+  // R2 守卫负向：跨 7 大格（3→10）越过 n≤6 守卫，b≤a（6→3）不成立，均不锚定。
+  test.each([
+    "钟面上时针从 3 时走到 10 时，时针旋转了多少度？",
+    "钟面上时针从 6 时走到 3 时，时针旋转了多少度？",
+  ])("R2 越界/倒序（%s）不锚定 → unsupported_number_pattern", (stem) => {
+    expect(validateWritten(stem, 210, "度")).toEqual(["unsupported_number_pattern"]);
+  });
+
+  // geo-rot-03 顺转 90°：分支必须从捕获的端点坐标与方向词重算目标数对。
+  test.each([
+    [
+      // u=3,v=0：顺转 (2,2)=B；逆转 (2,8)=C；A 平移 (8,5)；D 180° (-1,5)
+      "方格图（行从下往上编号）中，线段 AB 的两个端点用数对表示分别是 A(2,5) 和 B(5,5)。把线段 AB 绕点 A 顺时针旋转 90°，旋转后端点 B 的对应位置用数对表示是哪一个？"
+        + "A. (8,5)  B. (2,2)  C. (2,8)  D. (-1,5)",
+      "C",
+    ],
+    [
+      // u=3,v=0：顺转 (5,3)=B；逆转 (5,9)=C；A 平移 (11,6)；D 180° (2,6)
+      "方格图（行从下往上编号）中，线段 AB 的两个端点用数对表示分别是 A(5,6) 和 B(8,6)。把线段 AB 绕点 A 顺时针旋转 90°，旋转后端点 B 的对应位置用数对表示是哪一个？"
+        + "A. (11,6)  B. (5,3)  C. (5,9)  D. (2,6)",
+      "C",
+    ],
+    [
+      // u=0,v=4：顺转 (7,4)=B；逆转 (-1,4)=C；A 平移 (4,8)（只改列）；D 180° (3,0)
+      "方格图（行从下往上编号）中，线段 AB 的两个端点用数对表示分别是 A(3,4) 和 B(3,8)。把线段 AB 绕点 A 顺时针旋转 90°，旋转后端点 B 的对应位置用数对表示是哪一个？"
+        + "A. (4,8)  B. (7,4)  C. (-1,4)  D. (3,0)",
+      "C",
+    ],
+  ])("geo-rot-03 顺转 90°（%s）正确字母命中，逆转/平移/180° 干扰项被拒", (stem, wrongLetter) => {
+    expect(validateChoice(stem, "B")).toEqual([]);
+    expect(validateChoice(stem, wrongLetter as ChoiceLetter)).toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 方向词缺失/被改的形态不被 geo-rot-03 分支锚定。
+  test("geo-rot-03 方向词被改时不被锚定 → unsupported_choice_pattern", () => {
+    const stem = "方格图（行从下往上编号）中，线段 AB 的两个端点用数对表示分别是 A(2,5) 和 B(5,5)。把线段 AB 绕点 A 旋转 90°，旋转后端点 B 的对应位置用数对表示是哪一个？"
+      + "A. (8,5)  B. (2,2)  C. (4,5)  D. (-1,5)";
+    expect(validateChoice(stem, "B")).toEqual(["unsupported_choice_pattern"]);
+  });
+
+  // geo-rot-04 反解中心：由 P、P′ 反解 O=(a,b)。
+  test.each([
+    [
+      "方格图（行从下往上编号）中，点 P(3,6) 绕某个点顺时针旋转 90° 后的对应点是 P′(6,3)。这个旋转中心点 O 用数对表示是哪一个？"
+        + "A. O(6,6)  B. O(3,3)  C. O(6,3)  D. O(4,4)",
+      "C",
+    ],
+    [
+      "方格图（行从下往上编号）中，点 P(4,5) 绕某个点顺时针旋转 90° 后的对应点是 P′(7,2)。这个旋转中心点 O 用数对表示是哪一个？"
+        + "A. O(4,5)  B. O(4,2)  C. O(5,4)  D. O(5,3)",
+      "A",
+    ],
+    [
+      "方格图（行从下往上编号）中，点 P(5,4) 绕某个点顺时针旋转 90° 后的对应点是 P′(2,1)。这个旋转中心点 O 用数对表示是哪一个？"
+        + "A. O(2,1)  B. O(2,4)  C. O(4,3)  D. O(3,3)",
+      "C",
+    ],
+  ])("geo-rot-04 反解旋转中心（%s）正确字母命中，错误中心干扰项被拒", (stem, wrongLetter) => {
+    expect(validateChoice(stem, "B")).toEqual([]);
+    expect(validateChoice(stem, wrongLetter as ChoiceLetter)).toEqual(["incorrect_choice_answer"]);
+  });
+
+  // geo-rot-04 半整数中心：P(1,1)→P′(2,1) 反解 2b=1、b=0.5，中心不是正整数，任何字母都不 []。
+  test("geo-rot-04 半整数中心安全落空 → incorrect_choice_answer", () => {
+    const stem = "方格图（行从下往上编号）中，点 P(1,1) 绕某个点顺时针旋转 90° 后的对应点是 P′(2,1)。这个旋转中心点 O 用数对表示是哪一个？"
+      + "A. O(1,1)  B. O(1,0)  C. O(2,1)  D. O(0,1)";
+    for (const letter of ["A", "B", "C", "D"] as const) {
+      expect(validateChoice(stem, letter)).toEqual(["incorrect_choice_answer"]);
+    }
+  });
+
+  // geo-rot-01 缺三要素：每例恰好给出 2 类要素，分支返回缺失那一类的标签（统一放 B）。
+  test.each([
+    [
+      "把三角形绕点 O 顺时针旋转，缺少哪个旋转要素？"
+        + "A. 旋转中心  B. 旋转角度  C. 旋转方向  D. 图形的颜色",
+    ],
+    [
+      "把三角形绕点 O 旋转 90°，缺少哪个旋转要素？"
+        + "A. 旋转角度  B. 旋转方向  C. 旋转中心  D. 图形的颜色",
+    ],
+    [
+      "把三角形顺时针旋转 90°，缺少哪个旋转要素？"
+        + "A. 旋转方向  B. 旋转中心  C. 旋转角度  D. 图形的颜色",
+    ],
+  ])("geo-rot-01 缺一个要素（%s）正确字母命中，错误字母报 incorrect_choice_answer", (stem) => {
+    expect(validateChoice(stem, "B")).toEqual([]);
+    expect(validateChoice(stem, "A")).toEqual(["incorrect_choice_answer"]);
+  });
+
+  // geo-rot-01 三要素都齐：没有缺失要素，分支安全落空，任何字母都不 []。
+  test("geo-rot-01 三要素都齐时安全落空 → incorrect_choice_answer", () => {
+    const stem = "把三角形绕点 O 顺时针旋转 90°，缺少哪个旋转要素？"
+      + "A. 旋转中心  B. 旋转角度  C. 旋转方向  D. 图形的颜色";
+    for (const letter of ["A", "B", "C", "D"] as const) {
+      expect(validateChoice(stem, letter)).toEqual(["incorrect_choice_answer"]);
+    }
+  });
+
+  // geo-rot-02 方向辨认：3 个顺时针情境统一锚定「顺时针」（放 A）。
+  test.each([
+    "钟表上的指针正常走动，这样转动是什么方向？A. 顺时针  B. 逆时针  C. 平移  D. 翻转",
+    "拧紧饮料瓶瓶盖时，这样转动是什么方向？A. 顺时针  B. 逆时针  C. 平移  D. 翻转",
+    "打开水龙头放水时把手这样转动是什么方向？A. 顺时针  B. 逆时针  C. 平移  D. 翻转",
+  ])("geo-rot-02 顺时针情境（%s）A 命中，逆时针被拒", (stem) => {
+    expect(validateChoice(stem, "A")).toEqual([]);
+    expect(validateChoice(stem, "B")).toEqual(["incorrect_choice_answer"]);
+  });
+
+  // 逆时针对逆方向的重算用构造 stem 覆盖：指针倒着走 → 逆时针。
+  test("geo-rot-02 钟表指针倒着走锚定逆时针，顺时针被拒", () => {
+    const stem = "钟表上的指针倒着走，这样转动是什么方向？"
+      + "A. 顺时针  B. 逆时针  C. 平移  D. 翻转";
+    expect(validateChoice(stem, "B")).toEqual([]);
+    expect(validateChoice(stem, "A")).toEqual(["incorrect_choice_answer"]);
+  });
+
+  // geo-rot-05 旋转/翻转辨别：分支按捕获的 shape 用映射表重算顺转 90° 后的符号。
+  test.each([
+    [
+      "把图形「↑」绕中心顺时针旋转 90°，得到的图形是哪一个？"
+        + "A. 「→」  B. 「↓」  C. 「↑」  D. 「⇒」",
+    ],
+    [
+      "把图形「→」绕中心顺时针旋转 90°，得到的图形是哪一个？"
+        + "A. 「↓」  B. 「←」  C. 「→」  D. 「⇒」",
+    ],
+    [
+      "把图形「↓」绕中心顺时针旋转 90°，得到的图形是哪一个？"
+        + "A. 「←」  B. 「↑」  C. 「↓」  D. 「⇒」",
+    ],
+  ])("geo-rot-05 符号映射（%s）A 命中，翻转/平移/缩放干扰项被拒", (stem) => {
+    expect(validateChoice(stem, "A")).toEqual([]);
+    expect(validateChoice(stem, "B")).toEqual(["incorrect_choice_answer"]);
+  });
+
+  // geo-rot-07 旋转性质：固定结论选择。
+  test("geo-rot-07 旋转不改变形状和大小：正确项 []，错误字母 incorrect_choice_answer", () => {
+    const stem = "一个图形经过旋转后，下面哪个说法正确？"
+      + "A. 形状和大小都不变，位置和方向改变  B. 形状发生改变  C. 大小发生改变  D. 只有位置改变，方向不变";
+    expect(validateChoice(stem, "A")).toEqual([]);
+    expect(validateChoice(stem, "B")).toEqual(["incorrect_choice_answer"]);
+  });
+});

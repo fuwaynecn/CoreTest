@@ -2538,6 +2538,148 @@ const catalogInputs: TemplateInput[] = [
       d: ["12 棵", "10 棵", "9 棵"],
     },
   },
+
+  // P2-13d rotation geo-rot-01：辨认旋转三要素（旋转中心、方向、角度）中缺哪一个。
+  // 三个实例各恰好只给两个要素，正确项统一放 B（{{b}} 承载该实例缺失要素的标签），
+  // 其余两要素标签与干扰「图形的颜色」排列在 A/C/D，保证四选项互异、字母静态。
+  {
+    id: "geo-rot-01", skillCode: "rotation", domain: "geometry_space",
+    difficulty: 1, structureTag: "rot-three-elements", answerMode: "choice",
+    stemPattern: "把三角形{{given}}，缺少哪个旋转要素？"
+      + "A. {{a}}  B. {{b}}  C. {{c}}  D. 图形的颜色",
+    answerSpecPattern: choiceAnswer("B"),
+    explanationPattern: "旋转的三要素是旋转中心、旋转方向和旋转角度；题中只出现了两个要素，"
+      + "缺少的是{{b}}，选 B。",
+    variables: {
+      given: ["绕点 O 顺时针旋转", "绕点 O 旋转 90°", "顺时针旋转 90°"],
+      a: ["旋转中心", "旋转角度", "旋转方向"],
+      b: ["旋转角度", "旋转方向", "旋转中心"],
+      c: ["旋转方向", "旋转中心", "旋转角度"],
+    },
+  },
+  // P2-13d rotation geo-rot-02：辨认顺/逆时针。三个情境（钟表指针正常走动、拧紧饮料瓶
+  // 瓶盖、打开水龙头放水）都对应顺时针，窄正则只锚定这三种起句与构造的「倒着走」。
+  {
+    id: "geo-rot-02", skillCode: "rotation", domain: "geometry_space",
+    difficulty: 1, structureTag: "rot-direction", answerMode: "choice",
+    stemPattern: "{{scene}}，这样转动是什么方向？"
+      + "A. 顺时针  B. 逆时针  C. 平移  D. 翻转",
+    answerSpecPattern: choiceAnswer("A"),
+    explanationPattern: "{{reason}}，与钟表指针正常走动的方向一致，是顺时针，选 A。",
+    variables: {
+      scene: [
+        "钟表上的指针正常走动",
+        "拧紧饮料瓶瓶盖时",
+        "打开水龙头放水时把手这样转动",
+      ],
+      reason: [
+        "钟表上的指针正常走动时向右转动",
+        "拧紧饮料瓶瓶盖时把手向右转动",
+        "打开水龙头放水时把手向右转动",
+      ],
+    },
+  },
+  // P2-13d rotation geo-rot-03：线段 AB 绕端点 A（中心）顺时针旋转 90°，求端点 B 的
+  // 对应数对。数对先列后行，行从下往上；令 u=列B−列A、v=行B−行A，顺转 90° 后
+  // (u,v)→(v,−u)，B′=(列A+v,行A−u)。A 为平移干扰（只改一个坐标），C 为反方向
+  // （逆时针）结果，D 为旋转 180° 结果；各实例中心、端点与顺转结果均为 1..10 正整数。
+  {
+    id: "geo-rot-03", skillCode: "rotation", domain: "geometry_space",
+    difficulty: 3, structureTag: "rot-90-position", answerMode: "choice",
+    stemPattern: "方格图（行从下往上编号）中，线段 AB 的两个端点用数对表示分别是 A({{ac}},{{ar}}) 和 B({{bc}},{{br}})。把线段 AB 绕点 A 顺时针旋转 90°，旋转后端点 B 的对应位置用数对表示是哪一个？"
+      + "A. {{a}}  B. {{b}}  C. {{c}}  D. {{d}}",
+    answerSpecPattern: choiceAnswer("B"),
+    explanationPattern: "{{derive}} 所以旋转后端点 B 的对应位置用数对表示是 {{b}}，选 B。",
+    variables: {
+      ac: [2, 4, 1], ar: [5, 5, 2],
+      bc: [5, 4, 1], br: [5, 2, 5],
+      a: ["(6,5)", "(3,4)", "(2,2)"],
+      b: ["(2,2)", "(1,5)", "(4,2)"],
+      c: ["(2,8)", "(7,5)", "(-2,2)"],
+      d: ["(-1,5)", "(4,8)", "(1,-1)"],
+      derive: [
+        "以 A(2,5) 为中心，B(5,5)：u=5−2=3、v=5−5=0，顺转 90° 后 (u,v)→(v,−u)=(0,−3)，B′=(2+0,5−3)=(2,2)。",
+        "以 A(4,5) 为中心，B(4,2)：u=4−4=0、v=2−5=−3，顺转 90° 后 (u,v)→(v,−u)=(−3,0)，B′=(4−3,5+0)=(1,5)。",
+        "以 A(1,2) 为中心，B(1,5)：u=1−1=0、v=5−2=3，顺转 90° 后 (u,v)→(v,−u)=(3,0)，B′=(1+3,2+0)=(4,2)。",
+      ],
+    },
+  },
+  // P2-13d rotation geo-rot-04：给点 P 与其顺转 90° 后的对应点 P′，反解旋转中心 O。
+  // 由 P=(a+u,b+v)、P′=(a+v,b−u) 联立得 a=(列P+列P′+行P′−行P)/2、
+  // b=(列P+行P+行P′−列P′)/2；三个实例的中心均为 1..10 内正整数，三个错误中心都不能
+  // 把 P 顺转 90° 映到 P′，正确项统一放 B。
+  {
+    id: "geo-rot-04", skillCode: "rotation", domain: "geometry_space",
+    difficulty: 3, structureTag: "rot-center-identify", answerMode: "choice",
+    stemPattern: "方格图（行从下往上编号）中，点 P({{px}},{{py}}) 绕某个点顺时针旋转 90° 后的对应点是 P′({{pxp}},{{pyp}})。这个旋转中心点 O 用数对表示是哪一个？"
+      + "A. {{a}}  B. {{b}}  C. {{c}}  D. {{d}}",
+    answerSpecPattern: choiceAnswer("B"),
+    explanationPattern: "{{derive}} 所以旋转中心是 {{b}}，选 B。",
+    variables: {
+      px: [3, 4, 5], py: [6, 5, 4],
+      pxp: [6, 7, 2], pyp: [3, 2, 1],
+      a: ["O(6,6)", "O(4,5)", "O(2,1)"],
+      b: ["O(3,3)", "O(4,2)", "O(2,4)"],
+      c: ["O(6,3)", "O(5,4)", "O(4,3)"],
+      d: ["O(4,4)", "O(5,3)", "O(3,3)"],
+      derive: [
+        "顺转 90° 时 P=(a+u,b+v)、P′=(a+v,b−u)，联立得 a=(3+6+3−6)÷2=3、b=(3+6+3−6)÷2=3，O=(3,3)。",
+        "顺转 90° 时 P=(a+u,b+v)、P′=(a+v,b−u)，联立得 a=(4+7+2−5)÷2=4、b=(4+5+2−7)÷2=2，O=(4,2)。",
+        "顺转 90° 时 P=(a+u,b+v)、P′=(a+v,b−u)，联立得 a=(5+2+1−4)÷2=2、b=(5+4+1−2)÷2=4，O=(2,4)。",
+      ],
+    },
+  },
+  // P2-13d rotation geo-rot-05：辨别旋转得到的图案（干扰为平移/翻转/缩放）。分支按捕获
+  // 的箭头符号用映射表重算顺转 90° 结果（↑→→、→→↓、↓→←），不按实例写死答案；
+  // C 是原符号（平移）、B 是镜像/反向符号（翻转）、D 是更大的同符号（缩放）。
+  {
+    id: "geo-rot-05", skillCode: "rotation", domain: "geometry_space",
+    difficulty: 2, structureTag: "rot-vs-flip", answerMode: "choice",
+    stemPattern: "把图形「{{shape}}」绕中心顺时针旋转 90°，得到的图形是哪一个？"
+      + "A. {{a}}  B. {{b}}  C. {{c}}  D. {{d}}",
+    answerSpecPattern: choiceAnswer("A"),
+    explanationPattern: "箭头绕中心顺时针旋转 90° 后方向为{{a}}（{{flip}}），所以选 A。",
+    variables: {
+      shape: ["↑", "→", "↓"],
+      a: ["「→」", "「↓」", "「←」"],
+      b: ["「↓」", "「←」", "「↑」"],
+      c: ["「↑」", "「→」", "「↓」"],
+      d: ["「⇒」", "「⇒」", "「⇒」"],
+      flip: [
+        "↑ 顺转 90° 指向右",
+        "→ 顺转 90° 指向下",
+        "↓ 顺转 90° 指向左",
+      ],
+    },
+  },
+  // P2-13d rotation geo-rot-06：钟面时针从 a 时走到 b 时（b>a、b−a≤6、不跨 12 点），
+  // 每走一大格旋转 30°，旋转角 = (b−a)×30°。与既有「两针较小夹角」句式零重叠。
+  {
+    id: "geo-rot-06", skillCode: "rotation", domain: "geometry_space",
+    difficulty: 2, structureTag: "rot-clock-angle",
+    stemPattern: "钟面上时针从 {{from}} 时走到 {{to}} 时，时针旋转了多少度？",
+    answerSpecPattern: numberAnswer("度"),
+    explanationPattern: "钟面上时针每走一大格旋转 30°，从 {{from}} 时走到 {{to}} 时共走了 {{gap}} 大格，"
+      + "{{gap}}×30°={{answer}}°。",
+    variables: {
+      from: [3, 2, 6], to: [6, 6, 12], gap: [3, 4, 6], answer: [90, 120, 180],
+    },
+  },
+  // P2-13d rotation geo-rot-07：旋转的性质（固定结论）。旋转是刚体运动，形状和大小都
+  // 不变，只有位置和方向改变。题干无可变数据，用 explanation 中的 {{shape}} 承载 3 个
+  // lockstep 实例（题干保持锚定字面不变）。
+  {
+    id: "geo-rot-07", skillCode: "rotation", domain: "geometry_space",
+    difficulty: 1, structureTag: "rot-property", answerMode: "choice",
+    stemPattern: "一个图形经过旋转后，下面哪个说法正确？"
+      + "A. 形状和大小都不变，位置和方向改变  B. 形状发生改变  C. 大小发生改变  D. 只有位置改变，方向不变",
+    answerSpecPattern: choiceAnswer("A"),
+    explanationPattern: "旋转只改变图形的位置和方向，不改变形状和大小；把{{shape}}旋转后，"
+      + "它的形状、大小与原来完全相同，所以选 A。",
+    variables: {
+      shape: ["一个三角形", "一个正方形", "一面小旗"],
+    },
+  },
 ];
 
 export const phase2Catalog: ReviewedTemplate[] = catalogInputs.map(reviewed);
